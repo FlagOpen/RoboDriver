@@ -173,7 +173,7 @@ class AlohaRobotConfig(RobotConfig):
         }
     )
 
-    use_videos: bool = False
+    use_videos: bool = True
 
 
 @RobotConfig.register_subclass("adora")
