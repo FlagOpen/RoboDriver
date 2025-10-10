@@ -22,7 +22,7 @@ import json
 
 
 from operating_platform.robot.robots.utils import RobotDeviceNotConnectedError
-from operating_platform.robot.robots.configs import AlohaRobotConfig
+from operating_platform.robot.robots.aloha_v1 import AlohaRobotConfig
 from operating_platform.robot.robots.com_configs.cameras import CameraConfig, OpenCVCameraConfig
 
 from operating_platform.robot.robots.camera import Camera
