@@ -28,7 +28,7 @@ from operating_platform.robot.robots.camera import Camera
 # from operating_platform.robot.robots.pika_v1.pika_trans_visual_dual import Transformer
 
 
-ipc_address_image = "ipc:///tmp/dora-zeromq-galaxea-image"
+ipc_address_image = "ipc:///tmp/ros2-zeromq-galaxea-image"
 ipc_address_joint = "ipc:///tmp/ros2-zeromq-galaxea-joint"
 
 recv_images = {}
@@ -72,8 +72,8 @@ def recv_image_server():
             buffer_bytes = message_parts[1]
             metadata = json.loads(message_parts[2].decode('utf-8'))
 
-            print(f"Received event_id = {event_id}")
-            print(f"len(message_parts) = {len(message_parts)}")
+            # print(f"Received event_id = {event_id}")
+            # print(f"len(message_parts) = {len(message_parts)}")
             
             if 'image' in event_id:
                 # 解码图像
@@ -121,18 +121,11 @@ def recv_joint_server():
                 continue  # 协议错误
 
             event_id = message_parts[0].decode('utf-8')
-            print(event_id)
-            buffer_bytes = message_parts[1]
-
-            if 'joint' in event_id:
-                joint_array = np.frombuffer(buffer_bytes, dtype=np.float32)
-                print(joint_array)
-                if joint_array is not None:
-                    # print(f"Received pose data for event_id: {event_id}")
-                    # print(f"Pose array shape: {pose_array.shape}")
-                    # print(f"Pose array values: {pose_array}")
-                    with lock:
-                        recv_joint[event_id] = joint_array
+            buffer_bytes = message_parts[1]   
+            joint_array = np.frombuffer(buffer_bytes, dtype=np.float32)
+            if joint_array is not None:
+                with lock:
+                    recv_joint[event_id] = joint_array
 
         except zmq.Again:
             print(f"GALAXEA Joint Received Timeout")
@@ -180,7 +173,6 @@ def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> list[C
 
     for key, cfg in camera_configs.items():
         if cfg.type == "opencv":
-            print(key,cfg)
             cameras[key] = OpenCVCamera(cfg)
         else:
             raise ValueError(f"The camera type '{cfg.type}' is not valid.")
@@ -194,25 +186,15 @@ class GALAXEAManipulator:
         self.config = config
         self.robot_type = self.config.type
         print(self.robot_type)
-
         self.use_videos = self.config.use_videos
-
         self.microphones = self.config.microphones # galaxea没有audio
 
         self.leader_arms = {}
         self.leader_arms['main_leader'] = self.config.lead_arms["main"]
 
-        # self.leader_arms_right = {}
-        # self.leader_arms_right['main_leader_right'] = self.config.right_lead_arms["main"]
-
         self.follower_arms = {}
         self.follower_arms['main_follower'] = self.config.follower_arms["main"]
-        # print(self.follower_arms)
-        for name in self.follower_arms:
-            print(name)
-        # self.follower_arms_right = {}
-        # self.follower_arms_right['main_follower_right'] = self.config.right_follower_arms["main"]
-
+    
         self.cameras = make_cameras_from_configs(self.config.cameras)
         
         self.connect_excluded_cameras = ["image_pika_pose"]
@@ -230,7 +212,7 @@ class GALAXEAManipulator:
 
 
     def get_motor_names(self, arms: dict[str, dict]) -> list:
-        return [f"{arm}_{motor}" for arm, bus in arms.items() for motor in bus.motors]
+        return [f"{motor}" for arm, bus in arms.items() for motor in bus.motors]
 
     @property
     def camera_features(self) -> dict:
@@ -292,14 +274,6 @@ class GALAXEAManipulator:
             #     lambda: [name for name in self.leader_arms if not any(name in key for key in recv_joint)],
             #     "等待主臂关节角度超时"
             # ),
-            # (
-            #     lambda: all(
-            #         any(name in key for key in recv_joint)
-            #         for name in self.leader_arms_right
-            #     ),
-            #     lambda: [name for name in self.leader_arms_right if not any(name in key for key in recv_joint)],
-            #     "等待右主臂关节角度超时"
-            # ),
             (
                 lambda: all(
                     any(name in key for key in recv_joint)
@@ -308,14 +282,6 @@ class GALAXEAManipulator:
                 lambda: [name for name in self.follower_arms if not any(name in key for key in recv_joint)],
                 "等待从臂关节角度超时"
             ),
-            # (
-            #     lambda: all(
-            #         any(name in key for key in recv_joint)
-            #         for name in self.follower_arms_right
-            #     ),
-            #     lambda: [name for name in self.follower_arms_right if not any(name in key for key in recv_joint)],
-            #     "等待右从臂关节角度超时"
-            # ),
         ]
 
         # 跟踪每个条件是否已完成
@@ -340,7 +306,6 @@ class GALAXEAManipulator:
                     if not completed[i]:
                         condition_func, get_missing, base_msg = conditions[i]
                         missing = get_missing()
-                        print(missing)
                         # 重新检查条件是否满足（可能刚好在最后一次检查后满足）
                         if condition_func():
                             completed[i] = True
@@ -379,21 +344,14 @@ class GALAXEAManipulator:
                         if name in recv_images and name not in self.connect_excluded_cameras]
             success_messages.append(f"摄像头: {', '.join(cam_received)}")
 
-        # # 主臂数据状态
-        # arm_data_types = ["主臂关节角度",]
-        # for i, data_type in enumerate(arm_data_types, 1):
-        #     if conditions[i][0]():
-        #         arm_received = [name for name in self.leader_arms 
-        #                     if any(name in key for key in (recv_joint,)[i-1])]
-        #         success_messages.append(f"{data_type}: {', '.join(arm_received)}")
+        # 主臂数据状态
+        arm_data_types = ["主臂关节角度",]
+        for i, data_type in enumerate(arm_data_types, 1):
+            if conditions[i][0]():
+                arm_received = [name for name in self.leader_arms 
+                            if any(name in key for key in (recv_joint,)[i-1])]
+                success_messages.append(f"{data_type}: {', '.join(arm_received)}")
 
-        # # 主臂数据状态
-        # arm_data_types = ["右主臂关节角度",]
-        # for i, data_type in enumerate(arm_data_types, 1):
-        #     if conditions[i][0]():
-        #         arm_received = [name for name in self.leader_arms_right
-        #                     if any(name in key for key in (recv_joint,)[i-1])]
-        #         success_messages.append(f"{data_type}: {', '.join(arm_received)}")
         
         # 从臂数据状态
         arm_data_types = ["从臂关节角度",]
@@ -403,13 +361,6 @@ class GALAXEAManipulator:
                             if any(name in key for key in (recv_joint,)[i-1])]
                 success_messages.append(f"{data_type}: {', '.join(arm_received)}")
 
-        # # 从臂数据状态
-        # arm_data_types = ["右从臂关节角度",]
-        # for i, data_type in enumerate(arm_data_types, 1):
-        #     if conditions[i][0]():
-        #         arm_received = [name for name in self.follower_arms_right 
-        #                     if any(name in key for key in (recv_joint,)[i-1])]
-        #         success_messages.append(f"{data_type}: {', '.join(arm_received)}")
         
         # 打印成功连接信息
         print("\n[连接成功] 所有设备已就绪:")
@@ -450,31 +401,31 @@ class GALAXEAManipulator:
                 if name in match_name:
                     now = time.perf_counter()
 
-                    byte_array = np.zeros(28, dtype=np.float32)
+                    byte_array = np.zeros(30, dtype=np.float32)
                     pose_read = recv_joint[match_name]
 
-                    byte_array[:28] = pose_read[:]
+                    byte_array[:30] = pose_read[:]
                     byte_array = np.round(byte_array, 3)
                     
                     follower_joint[name] = torch.from_numpy(byte_array)
 
                     self.logs[f"read_follower_{name}_joint_dt_s"] = time.perf_counter() - now
                     
-        # leader_joint = {}
-        # for name in self.leader_arms:
-        #     for match_name in recv_joint:
-        #         if name in match_name:
-        #             now = time.perf_counter()
+        leader_joint = {}
+        for name in self.leader_arms:
+            for match_name in recv_joint:
+                if name in match_name:
+                    now = time.perf_counter()
 
-        #             byte_array = np.zeros(28, dtype=np.float32)
-        #             pose_read = recv_joint[match_name]
+                    byte_array = np.zeros(14, dtype=np.float32)
+                    pose_read = recv_joint[match_name]
 
-        #             byte_array[:28] = pose_read[:]
-        #             byte_array = np.round(byte_array, 3)
+                    byte_array[:14] = pose_read[:]
+                    byte_array = np.round(byte_array, 3)
                     
-        #             leader_joint[name] = torch.from_numpy(byte_array)
+                    leader_joint[name] = torch.from_numpy(byte_array)
 
-        #             self.logs[f"read_leader_{name}_joint_dt_s"] = time.perf_counter() - now
+                    self.logs[f"read_leader_{name}_joint_dt_s"] = time.perf_counter() - now
 
         #记录当前关节角度
         state = []
@@ -482,15 +433,18 @@ class GALAXEAManipulator:
             if name in follower_joint:
                 state.append(follower_joint[name])
         state = torch.cat(state)
-        action = torch.cat(action)
 
-        # #将关节目标位置添加到 action 列表中
-        # action = []
-        # for name in self.leader_arms:
-        #     if name in leader_joint:
-        #         action.append(leader_joint[name])
-        # action = torch.cat(action)
+        #将关节目标位置添加到 action 列表中
+        action = []
+        for name in self.leader_arms:
+            if name in leader_joint:
+                action.append(leader_joint[name])
+        if action:
+            action = torch.cat(action)
+        else:
+            action = state
 
+        
         # Capture images from cameras
         images = {}
         for name in self.cameras:

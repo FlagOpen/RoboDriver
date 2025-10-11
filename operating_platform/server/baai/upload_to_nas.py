@@ -32,9 +32,13 @@ class DataUploader:
             self.nas_path = self.config_dict['nas_cache_path_release']
             self.nas_data_path = self.config_dict['nas_data_path_release']
             self.local_name = 'user'
-        else:
+        if self.config_dict['device_server_type'] == 'dev':
             self.nas_path = self.config_dict['nas_cache_path_dev']
             self.nas_data_path = self.config_dict['nas_data_path_dev']
+            self.local_name = 'dev'
+        if self.config_dict['device_server_type'] == 'demo':
+            self.nas_path = self.config_dict['nas_cache_path_demo']
+            self.nas_data_path = self.config_dict['nas_data_path_demo']
             self.local_name = 'dev'
 
         self.robot_type = self.config_dict['robot_type']
@@ -207,7 +211,7 @@ class DataUploader:
             # 如果没有找到数字部分，返回原始文件名
             return filename
 
-    def get_nth_file_in_subdirectories(self, fold_path, m, n=0, task=0, middle_name=None, meta=0):
+    def get_nth_file_in_subdirectories(self, fold_path, m, n=0, task=0, middle_name=None, meta=0, nas_data_path=None):
         """
         获取指定目录或其子目录中的第 n 个文件。
         
@@ -235,7 +239,7 @@ class DataUploader:
                 entry = os.path.join(fold_path, subdir)
                 file_list.append(entry)
                 nas_file = self.get_path_after_last_data(entry, task)
-                nas_final_path = os.path.join(self.nas_data_path, middle_name, nas_file)
+                nas_final_path = os.path.join(nas_data_path, middle_name, nas_file)
                 nas_file_list.append(nas_final_path)
             return file_list, nas_file_list
 
@@ -252,7 +256,7 @@ class DataUploader:
             file_path = os.path.join(fold_path, entries[m])
             nas_file_path = os.path.join(fold_path, self.increment_episode_number(entries[m], n))
             nas_file = self.get_path_after_last_data(nas_file_path, task)
-            nas_final_path = os.path.join(self.nas_data_path, middle_name, nas_file)
+            nas_final_path = os.path.join(nas_data_path, middle_name, nas_file)
             return file_path, nas_final_path
         elif has_directory:
             # 遍历子目录，查找第 n 个文件
@@ -262,7 +266,7 @@ class DataUploader:
                 file_list.append(os.path.join(fold_path, subdir, entry[m]))
                 nas_file_path = os.path.join(fold_path, subdir, self.increment_episode_number(entry[m], n))
                 nas_file = self.get_path_after_last_data(nas_file_path, task)
-                nas_final_path = os.path.join(self.nas_data_path, middle_name, nas_file)
+                nas_final_path = os.path.join(nas_data_path, middle_name, nas_file)
                 nas_file_list.append(nas_final_path)
             return file_list, nas_file_list
 
@@ -377,9 +381,12 @@ class DataUploader:
             
             features = metadata["features"]
             modified_fields = []
-
+            matches = []
+            matches = [field for field in target_fields if "depth" in field]  # 子字符串匹配
+            if matches:
+                metadata["video_depth_path"] = "depth/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.avi"
             metadata["total_videos"] = int(metadata["total_episodes"]*len(target_fields))
-            metadata["video_path"] = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.avi"
+            metadata["video_path"] = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4"
             metadata["image_path"] = None
             for field_name, field_info in features.items():
                 if field_name in target_fields:
@@ -492,7 +499,7 @@ class DataUploader:
     @staticmethod
     def encode_video_frames(imgs_dir: Union[Path, str], video_path: Union[Path, str], fps: int) -> bool:
         """
-        编码普通视频帧（自动检测图片后缀）
+        编码普通视频帧
         
         Args:
             imgs_dir (Union[Path, str]): 图像目录
@@ -520,8 +527,7 @@ class DataUploader:
                 raise ValueError(f"在 {imgs_dir} 中未找到支持的图片文件（支持的后缀: {', '.join(supported_extensions)}）")
             
             print(f"[DEBUG] 检测到图片后缀: {detected_ext}")
-            
-            # 构建FFmpeg参数
+
             ffmpeg_args = OrderedDict([
                 ("-f", "image2"),
                 ("-r", str(fps)),
@@ -532,7 +538,7 @@ class DataUploader:
                 ("-crf", "18"),
                 ("-loglevel", "error"),
             ])
-            
+
             ffmpeg_cmd = ["ffmpeg"] + [item for pair in ffmpeg_args.items() for item in pair] + [str(video_path)]
             print(f"[DEBUG] 执行FFmpeg命令: {' '.join(ffmpeg_cmd)}")
             
@@ -546,6 +552,7 @@ class DataUploader:
         except Exception as e:
             print(f"[ERROR] 普通视频编码失败: {str(e)}")
             return False
+
 
     @staticmethod
     def encode_label_video_frames(imgs_dir: Union[Path, str], video_path: Union[Path, str], fps: int) -> bool:
@@ -585,8 +592,8 @@ class DataUploader:
                 ("-i", str(imgs_dir / f"frame_%06d{detected_ext}")),
                 ("-vcodec", "libx264"),
                 ("-pix_fmt", "yuv420p"),
-                ("-g", "20"),
-                ("-crf", "23"),
+                ("-g", "5"),
+                ("-crf", "18"),
                 ("-loglevel", "error"),
             ])
 
@@ -662,35 +669,35 @@ class DataUploader:
         """
         img_path_list = []
         video_path_list = []
-        label_video_path_list = []
+        depth_video_path_list = []
         
         try:
             entries = os.listdir(camera_images_path)
             for episode_index in entries:
                 img_path = os.path.join(camera_images_path, episode_index)
-                video_name = episode_index + '.avi'
-                label_video_name = episode_index + '.mp4'
+                video_name = episode_index + '.mp4'
+                depth_video_name = episode_index + '.avi'
                 video_path = os.path.join(each_task_path, 'videos', 'chunk-000', camera_images, video_name)
-                label_video_path = os.path.join(each_task_path, 'label', 'chunk-000', camera_images, label_video_name)
+                depth_video_path = os.path.join(each_task_path, 'depth', 'chunk-000', camera_images, depth_video_name)
                 img_path_list.append(img_path)
                 video_path_list.append(video_path)
-                label_video_path_list.append(label_video_path)
+                depth_video_path_list.append(depth_video_path)
             
             if len(img_path_list) != len(video_path_list):
                 print("[ERROR] 图像和视频路径数量不匹配")
                 return [], []
                 
             print(f"[DEBUG] 找到 {len(img_path_list)} 组图像和视频路径")
-            return img_path_list, video_path_list, label_video_path_list
+            return img_path_list, video_path_list, depth_video_path_list
         except Exception as e:
             print(f"[ERROR] 获取路径列表失败: {str(e)}")
             return [], []
 
     def upload(self,task_id_list):
         if not self.nas_auth.get_auth_sid():
-            print("登录nas失败")
+            print("[ERROR] 登录nas失败")
             return
-        for i in range(7):
+        for i in range(10):
             date_data = self.get_date_offset(i)  # i=0 表示今天，i=1 表示昨天，...，i=6 表示 6 天前
             print(date_data)
             directory_path = os.path.join(self.fold_path1, date_data, self.local_name)
@@ -699,6 +706,7 @@ class DataUploader:
                 print("数据路径不存在")
                 continue 
             self.upload_day_task(directory_path,i,task_id_list)
+        self.local_server_task_id_request(0)
 
     def upload_day_task(self,directory_path,day,task_id_list):
         entries = os.listdir(directory_path) # 各任务列表
@@ -718,17 +726,17 @@ class DataUploader:
                         with open(each_common_record_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
                             task_id = data["task_id"] # 云平台任务id
+                            machine_id = data["machine_id"]
+                            task_name = data["task_name"]
                             if task_id_list:
                                 if int(task_id) not in task_id_list:
                                     print(f"task id {task_id} not in task_id_list{task_id_list}")
                                     break
                             if "last_upload_id" in data:
                                 print(f"任务:{each_task_single_name} 已上传")
-                                if day == 6:
+                                if day == 9:
                                     self.delete_directory(each_task_single_path)
                                 continue
-                            machine_id = data["machine_id"]
-                            task_name = data["task_name"]
                         self.upload_single_task_2(each_task_single_path,task_id,machine_id,task_name,task_data_name)
                     continue
                 each_common_record_path = os.path.join(each_task_path, "meta", "common_record.json")
@@ -758,7 +766,7 @@ class DataUploader:
                         last_epid = data['last_upload_id']
                         if task_number <= last_epid: # 判断当前数据是否新增
                             print("没有需要上传的数据")
-                            if day == 6:
+                            if day == 9:
                                 self.delete_directory(each_task_path)
                             continue
                     else:
@@ -771,8 +779,6 @@ class DataUploader:
         try:
             fps = self.read_info_json(each_task_path)
             self.local_server_task_id_request(task_id)
-            entries_1 = os.listdir(each_task_path) 
-            subdirectories_1 = [entry for entry in entries_1 if os.path.isdir(os.path.join(each_task_path, entry))] # data video meta
             
             timestamp_nas = str(self.add_random_milliseconds()) # 等待毫秒，造成时间差
             
@@ -848,7 +854,6 @@ class DataUploader:
                             self.nas_auth.delete_folder(task_cache_nas_path)
                             self.delete_file(meta_file_list)  
                             self.modify_json(each_common_record_path, task_number)
-                            self.local_server_task_id_request(0)
                             break
                         else:
                             for data_id in range(task_number): # 遍历任务数量
@@ -857,14 +862,12 @@ class DataUploader:
                                 
                             self.nas_auth.delete_folder(task_cache_nas_path)
                             self.modify_json(each_common_record_path,task_number)
-                            self.local_server_task_id_request(0)
                             break
                     else:
                         time.sleep(10)
                 except Exception as e:
                     print(str(e))
                     self.nas_auth.delete_folder(task_cache_nas_path)
-                    self.local_server_task_id_request(0)
                     break
         except Exception as e:
             print(str(e))
@@ -884,12 +887,12 @@ class DataUploader:
                 for camera_images in entries_2:
                     camera_images_path = os.path.join(each_images_path, camera_images)
                     if os.path.isdir(camera_images_path):
-                        img_list, video_list, label_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
+                        img_list, video_list, depth_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
                         
                         if 'depth' in camera_images:
                             # 处理深度图像
                             if img_list:
-                                for img_path, video_path in zip(img_list, video_list):
+                                for img_path, video_path in zip(img_list, depth_video_path_list):
                                     print(f"[INFO] 处理深度图像: {img_path} -> {video_path}")
                                     if not self.encode_depth_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
@@ -897,14 +900,10 @@ class DataUploader:
                             # 处理普通图像
                             if img_list:
                                 for img_path, video_path in zip(img_list, video_list):
-                                    print(f"[INFO] 处理普通图像avi: {img_path} -> {video_path}")
+                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {video_path}")
                                     if not self.encode_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
                                         
-                                for img_path, label_video_path in zip(img_list, label_video_path_list):
-                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {label_video_path}")
-                                    if not self.encode_label_video_frames(img_path, label_video_path, fps):
-                                        ffmpeg_encode_flag = False
                 if ffmpeg_encode_flag:
                     self.delete_directory(os.path.join(each_task_path, 'images'))
                     self.modify_feature_dtypes(local_nas_info_path,entries_2,'video')
@@ -916,7 +915,7 @@ class DataUploader:
                     nas_file_list.extend(list2)
             elif task_part == "data":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0, self.nas_data_path)
                 if isinstance(local_file, str):
                     local_file_list.append(local_file)
                     nas_file_list.append(nas_file)
@@ -925,7 +924,7 @@ class DataUploader:
                     nas_file_list.extend(nas_file)
             elif task_part == "videos":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0, self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -934,7 +933,16 @@ class DataUploader:
                     nas_video_list.extend(nas_file)
             elif task_part == "label":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0, self.nas_data_path)
+                if isinstance(local_file, str):
+                    local_video_list.append(local_file)
+                    nas_video_list.append(nas_file)
+                elif isinstance(local_file, list):
+                    local_video_list.extend(local_file)
+                    nas_video_list.extend(nas_file)
+            elif task_part == "depth":
+                fold_path = os.path.join(each_task_path, task_part, "chunk-000")
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0, self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -943,7 +951,7 @@ class DataUploader:
                     nas_video_list.extend(nas_file)
             elif task_part == "audio":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, last_episode_id, task_data_name, middle_name, 0, self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -976,12 +984,12 @@ class DataUploader:
                 for camera_images in entries_2:
                     camera_images_path = os.path.join(each_images_path, camera_images)
                     if os.path.isdir(camera_images_path):
-                        img_list, video_list, label_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
+                        img_list, video_list, depth_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
                         
                         if 'depth' in camera_images:
                             # 处理深度图像
                             if img_list:
-                                for img_path, video_path in zip(img_list, video_list):
+                                for img_path, video_path in zip(img_list, depth_video_path_list):
                                     print(f"[INFO] 处理深度图像: {img_path} -> {video_path}")
                                     if not self.encode_depth_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
@@ -989,14 +997,10 @@ class DataUploader:
                             # 处理普通图像
                             if img_list:
                                 for img_path, video_path in zip(img_list, video_list):
-                                    print(f"[INFO] 处理普通图像avi: {img_path} -> {video_path}")
+                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {video_path}")
                                     if not self.encode_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
                                         
-                                for img_path, label_video_path in zip(img_list, label_video_path_list):
-                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {label_video_path}")
-                                    if not self.encode_label_video_frames(img_path, label_video_path, fps):
-                                        ffmpeg_encode_flag = False
                 if ffmpeg_encode_flag:
                     self.delete_directory(os.path.join(each_task_path, 'images'))
                     nas_info_path = os.path.join(each_task_path,"meta","info.json")
@@ -1011,7 +1015,7 @@ class DataUploader:
             if task_part == "meta":
                 if data_id == task_number - 1:
                     fold_path = os.path.join(each_task_path, task_part)
-                    local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 1)
+                    local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 1,self.nas_data_path)
                     if isinstance(local_file, str):
                         local_file_list.append(local_file)
                         nas_file_list.append(nas_file)
@@ -1027,7 +1031,7 @@ class DataUploader:
                                         
             elif task_part == "data":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0,self.nas_data_path)
                 if isinstance(local_file, str):
                     local_file_list.append(local_file)
                     nas_file_list.append(nas_file)
@@ -1037,7 +1041,7 @@ class DataUploader:
                     
             elif task_part == "videos":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0,self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -1047,7 +1051,16 @@ class DataUploader:
                     
             elif task_part == "label":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0,self.nas_data_path)
+                if isinstance(local_file, str):
+                    local_video_list.append(local_file)
+                    nas_video_list.append(nas_file)
+                elif isinstance(local_file, list):
+                    local_video_list.extend(local_file)
+                    nas_video_list.extend(nas_file)
+            elif task_part == "depth":
+                fold_path = os.path.join(each_task_path, task_part, "chunk-000")
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0,self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -1056,7 +1069,7 @@ class DataUploader:
                     nas_video_list.extend(nas_file)    
             elif task_part == "audio":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0,self.nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -1090,12 +1103,12 @@ class DataUploader:
                 for camera_images in entries_2:
                     camera_images_path = os.path.join(each_images_path, camera_images)
                     if os.path.isdir(camera_images_path):
-                        img_list, video_list, label_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
+                        img_list, video_list, depth_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
                         
                         if 'depth' in camera_images:
                             # 处理深度图像
                             if img_list:
-                                for img_path, video_path in zip(img_list, video_list):
+                                for img_path, video_path in zip(img_list, depth_video_path_list):
                                     print(f"[INFO] 处理深度图像: {img_path} -> {video_path}")
                                     if not self.encode_depth_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
@@ -1103,26 +1116,25 @@ class DataUploader:
                             # 处理普通图像
                             if img_list:
                                 for img_path, video_path in zip(img_list, video_list):
-                                    print(f"[INFO] 处理普通图像avi: {img_path} -> {video_path}")
+                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {video_path}")
                                     if not self.encode_video_frames(img_path, video_path, fps):
                                         ffmpeg_encode_flag = False
                                         
-                                for img_path, label_video_path in zip(img_list, label_video_path_list):
-                                    print(f"[INFO] 处理普通图像mp4: {img_path} -> {label_video_path}")
-                                    if not self.encode_label_video_frames(img_path, label_video_path, fps):
-                                        ffmpeg_encode_flag = False
                 if ffmpeg_encode_flag:
                     self.delete_directory(os.path.join(each_task_path, 'images'))
                     local_nas_info_path = os.path.join(each_task_path,"meta","info.json")
                     self.modify_feature_dtypes(local_nas_info_path,entries_2,'video')
         
         if not ffmpeg_encode_flag:
+            print("[ERROR] ffmpeg fail")
             return
-        entries_1 = os.listdir(each_task_path)           
+        entries_1 = os.listdir(each_task_path)  
+        nas_data_path = os.path.join(self.nas_data_path, 'single_collect_data')         
         for task_part in entries_1:
             if task_part == "meta":
                 fold_path = os.path.join(each_task_path, task_part)
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 1)
+                
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 1, nas_data_path)
                 if isinstance(local_file, str):
                     local_file_list.append(local_file)
                     nas_file_list.append(nas_file)
@@ -1132,7 +1144,7 @@ class DataUploader:
                                         
             elif task_part == "data":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0, nas_data_path)
                 if isinstance(local_file, str):
                     local_file_list.append(local_file)
                     nas_file_list.append(nas_file)
@@ -1142,26 +1154,38 @@ class DataUploader:
                     
             elif task_part == "videos":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0, nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
                 elif isinstance(local_file, list):
                     local_video_list.extend(local_file)
-                    nas_video_list.extend(nas_file)    
+                    nas_video_list.extend(nas_file)   
+                     
                     
             elif task_part == "label":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0, nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
                 elif isinstance(local_file, list):
                     local_video_list.extend(local_file)
-                    nas_video_list.extend(nas_file)    
+                    nas_video_list.extend(nas_file)   
+
+            elif task_part == "depth":
+                fold_path = os.path.join(each_task_path, task_part, "chunk-000")
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0, nas_data_path)
+                if isinstance(local_file, str):
+                    local_video_list.append(local_file)
+                    nas_video_list.append(nas_file)
+                elif isinstance(local_file, list):
+                    local_video_list.extend(local_file)
+                    nas_video_list.extend(nas_file)   
+
             elif task_part == "audio":
                 fold_path = os.path.join(each_task_path, task_part, "chunk-000")
-                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0)
+                local_file, nas_file = self.get_nth_file_in_subdirectories(fold_path, data_id, 0, task_data_name, middle_name, 0, nas_data_path)
                 if isinstance(local_file, str):
                     local_video_list.append(local_file)
                     nas_video_list.append(nas_file)
@@ -1177,7 +1201,7 @@ class DataUploader:
             "target_path":str(nas_file_list)
         }
         self.nas_auth.upload_file(task_msg,local_file_list,nas_file_list)
-        self.modify_json(each_common_record_path,1)
+        self.modify_json(each_common_record_path, 1)
 
     def upload_single_task_2(self,each_task_single_path,task_id,machine_id,task_name,task_data_name):
         try:
@@ -1187,8 +1211,6 @@ class DataUploader:
             middle_name = task_name + "_" + task_id
             fps = self.read_info_json(each_task_single_path)
             self.local_server_task_id_request(task_id)
-            entries_1 = os.listdir(each_task_single_path) 
-            subdirectories_1 = [entry for entry in entries_1 if os.path.isdir(os.path.join(each_task_single_path, entry))] 
             data_id = 0
             with open(each_opdata_path, 'r', encoding='utf-8') as file:
                 for line in file:
@@ -1201,7 +1223,6 @@ class DataUploader:
                         print(f"解析 JSON 失败，行内容: {line.strip()}, 错误信息: {e}")
             cloud_data_id = last_line_json["dataid"]
             self.organize_data3(each_task_single_path,data_id,cloud_data_id,fps,task_data_name,middle_name,task_id,each_common_record_path)
-            self.local_server_task_id_request(0)
-        except:
-            self.local_server_task_id_request(0)
+        except Exception as e:
+            print(str(e))
 

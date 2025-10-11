@@ -173,26 +173,26 @@ class RobotDataProcessor:
         """
         img_path_list = []
         video_path_list = []
-        label_video_path_list = []
+        depth_video_path_list = []
         
         try:
             entries = os.listdir(camera_images_path)
             for episode_index in entries:
                 img_path = os.path.join(camera_images_path, episode_index)
-                video_name = episode_index + '.avi'
-                label_video_name = episode_index + '.mp4'
+                video_name = episode_index + '.mp4'
+                depth_video_name = episode_index + '.avi'
                 video_path = os.path.join(each_task_path, 'videos', 'chunk-000',camera_images, video_name)
-                label_video_path = os.path.join(each_task_path, 'label', 'chunk-000',camera_images, label_video_name)
+                depth_video_path = os.path.join(each_task_path, 'depth', 'chunk-000',camera_images, depth_video_name)
                 img_path_list.append(img_path)
                 video_path_list.append(video_path)
-                label_video_path_list.append(label_video_path)
+                depth_video_path_list.append(depth_video_path)
             
             if len(img_path_list) != len(video_path_list):
                 print("[ERROR] 图像和视频路径数量不匹配")
                 return [], []
                 
             print(f"[DEBUG] 找到 {len(img_path_list)} 组图像和视频路径")
-            return img_path_list, video_path_list,label_video_path_list
+            return img_path_list, video_path_list,depth_video_path_list
         except Exception as e:
             print(f"[ERROR] 获取路径列表失败: {str(e)}")
             return [], []
@@ -476,9 +476,13 @@ class RobotDataProcessor:
             
             features = metadata["features"]
             modified_fields = []
+            matches = []
+            matches = [field for field in target_fields if "depth" in field]  # 子字符串匹配
+            if matches:
+                metadata["video_depth_path"] = "depth/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.avi"
 
             metadata["total_videos"] = int(metadata["total_episodes"]*len(target_fields))
-            metadata["video_path"] = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.avi"
+            metadata["video_path"] = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4"
             metadata["image_path"] = None
             for field_name, field_info in features.items():
                 if field_name in target_fields:
@@ -538,7 +542,7 @@ class RobotDataProcessor:
         config_dict = setup_from_yaml()
         if config_dict["device_server_type"] == "release":
             local_name = 'user'
-        elif config_dict["device_server_type"] == "dev":
+        else:
             local_name = 'dev'
         directory_path = os.path.join(self.fold_path, date_data, local_name)
         
@@ -563,10 +567,15 @@ class RobotDataProcessor:
                                 if int(task_id) not in task_id_list:
                                     print(f"task id {task_id} not in task_id_list{task_id_list}")
                                     break
+                            if "last_upload_id" in task_info:
+                                if task_info["last_upload_id"] == 1:
+                                    print(f"data {each_task_single_path} already upload")
+                                    continue
                             self.process_data(each_task_single_path,task_data_name,date_data,each_task_single_name)
-                print("data file is empty")
-        except:
-            self.local_server_task_id_request(0)
+                else:
+                    print("data file is empty")
+        except Exception as e:
+            print(str(e))
 
     def process_data(self,each_task_path,task_data_name,date_data,each_task_single_name):
             ffmpeg_encode_flag = True
@@ -600,12 +609,12 @@ class RobotDataProcessor:
                     for camera_images in entries_2:
                         camera_images_path = os.path.join(each_images_path, camera_images)
                         if os.path.isdir(camera_images_path):
-                            img_list, video_list,label_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
+                            img_list, video_list,depth_video_path_list = self.get_img_video_path(each_task_path, camera_images, camera_images_path)
                             
                             if 'depth' in camera_images:
                                 # 处理深度图像
                                 if img_list:
-                                    for img_path, video_path in zip(img_list, video_list):
+                                    for img_path, video_path in zip(img_list, depth_video_path_list):
                                         print(f"[INFO] 处理深度图像: {img_path} -> {video_path}")
                                         if not self.encode_depth_video_frames(img_path, video_path, fps):
                                             ffmpeg_encode_flag = False
@@ -613,13 +622,8 @@ class RobotDataProcessor:
                                 # 处理普通图像
                                 if img_list:
                                     for img_path, video_path in zip(img_list, video_list):
-                                        print(f"[INFO] 处理普通图像avi: {img_path} -> {video_path}")
+                                        print(f"[INFO] 处理普通图像mp4: {img_path} -> {video_path}")
                                         if not self.encode_video_frames(img_path, video_path, fps):
-                                            ffmpeg_encode_flag = False
-                                            
-                                    for img_path, label_video_path in zip(img_list, label_video_path_list):
-                                        print(f"[INFO] 处理普通图像mp4: {img_path} -> {label_video_path}")
-                                        if not self.encode_label_video_frames(img_path, label_video_path, fps):
                                             ffmpeg_encode_flag = False
                     each_info_path = os.path.join(each_task_path, 'meta', 'info.json')
                     self.modify_feature_dtypes(each_info_path,entries_2,'video')  
@@ -627,15 +631,14 @@ class RobotDataProcessor:
                 except Exception as e:
                     print(f"[ERROR] 处理任务 {each_task_single_name} 失败: {str(e)}")
                     ffmpeg_encode_flag = False
-                    self.local_server_task_id_request(0)
             else:
                 # 没有images目录，检查上传状态
                 status = self.read_common_record_json_status(each_task_path)
                 if status == 1:
                     print("data alreay upload")
-                    if date_data == self.get_date_offset(6):
-                        # 如果是前天数据且已上传成功，则删除
-                        # 这里假设date_data是前天日期，实际逻辑可能需要调整
+                    if date_data == self.get_date_offset(9):
+                        # 如果是最开始的数据且已上传成功，则删除
+                        # 这里假设date_data是前10天日期，实际逻辑可能需要调整
                         self.delete_directory(each_task_path)
                     return
                 else:
@@ -669,10 +672,7 @@ class RobotDataProcessor:
                         '{"ks3_failed_msg": "网络通信错误"}'
                     )
                     self.local_server_request('api/upload_finish_ks3', finish_data)
-                    self.modify_json(os.path.join(each_task_path, 'meta', 'common_record.json'), 0)
             
-            # 通知服务器任务处理完成
-            self.local_server_task_id_request(0)
     
     def encode_and_upload(self, token: str,task_id_list):
         """
@@ -684,7 +684,7 @@ class RobotDataProcessor:
         self.set_token(token)
         
         date_functions = []
-        for i in range(7):
+        for i in range(10):
             date_data = self.get_date_offset(i)  # i=0（今天）到 i=6（6 天前）
             date_functions.append(("数据", date_data))  # 每个条目绑定不同的日期
  
@@ -693,3 +693,5 @@ class RobotDataProcessor:
             print(f"\n[INFO] 开始处理 {date_name}")
             date_data = date_func
             self.process_date_data(date_data,task_id_list)
+        # 通知服务器任务处理完成
+        self.local_server_task_id_request(0)

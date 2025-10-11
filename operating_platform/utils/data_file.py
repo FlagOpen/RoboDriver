@@ -98,12 +98,46 @@ def validate_action_data(df, joint_change_thresholds,cut_list=None):
         return False, error_msg
 
     # 检查相邻帧突变
-    diff = np.abs(action_data[1:]) - np.abs(action_data[:-1])
+    diff = np.abs(np.abs(action_data[1:]) - np.abs(action_data[:-1]))  # 计算帧间绝对差值
     # 只有当阈值 >= 0.1 时才检查突变
     threshold_mask = joint_change_thresholds >= 0.5  # 形状：(n_joints,)
     violations = (diff > joint_change_thresholds) & threshold_mask  # 仅当阈值 >= 0.1 时才可能触发违规
     n_violations_per_frame = np.sum(violations, axis=1)
     
+    violation_indices = np.where(n_violations_per_frame > 0)[0]  # 所有违规帧的索引（0-based）
+    if len(violation_indices) > 0:
+        error_msg_details = "\n=== 突变检测结果 ===\n"
+        error_msg_details += f"共检测到 {len(violation_indices)} 处突变帧：\n"
+        
+        for i, violation_frame_0based in enumerate(violation_indices):
+            problematic_frame_idx = violation_frame_0based + 1  # 转换为1-based帧号
+            exceeding_dims = np.where(violations[violation_frame_0based])[0]  # 突变的关节索引
+            
+            # 获取当前突变帧和前后帧的数据（如果存在）
+            curr_frame_idx = violation_frame_0based  # 当前突变帧（0-based）
+            prev_frame_idx = curr_frame_idx - 1      # 前一帧（0-based）
+            next_frame_idx = curr_frame_idx + 1      # 后一帧（0-based）
+            
+            # 收集需要输出的帧索引（确保不越界）
+            frame_indices = []
+            if prev_frame_idx >= 0:
+                frame_indices.append(prev_frame_idx)
+            frame_indices.append(curr_frame_idx)
+            if next_frame_idx < len(action_data):
+                frame_indices.append(next_frame_idx)
+            
+            # 记录当前突变的信息（仅输出涉及突变关节的值）
+            error_msg_details += f"\n突变 #{i+1}: 第 {problematic_frame_idx} 帧，涉及关节索引: {exceeding_dims}\n"
+            error_msg_details += "相关帧数据（仅突变关节）:\n"
+            
+            for idx in frame_indices:
+                frame_num = idx + 1  # 转换为1-based帧号
+                # 仅提取突变关节索引处的值
+                relevant_values = action_data[idx, exceeding_dims]
+                error_msg_details += f"  第 {frame_num} 帧: {relevant_values}\n"
+        
+        print(error_msg_details)
+
     if np.any(n_violations_per_frame > 0):
         first_violation_frame = np.where(n_violations_per_frame > 0)[0][0] + 1
         problematic_frame_idx = first_violation_frame
@@ -655,14 +689,14 @@ def check_disk_space(min_gb=1):
 #     print(data_duration(fold_path,data))
         
 if __name__ == '__main__':
-    _dir = "/home/liuyou/Documents/DoRobot/dataset/20250918/dev/倒水_111_277/倒水_111_277_6276"
+    _dir = "/home/liuyou/Documents/DoRobot/dataset/20250918/dev/倒水_111_277/倒水_111_277_6274"
     session_id = "episode_000000"
-    validate_session(_dir, session_id,  episodes_stats="episodes_stats.jsonl", 
+    print(validate_session(_dir, session_id,  episodes_stats="episodes_stats.jsonl", 
                     info_json="info.json",
                     image_sample_interval=30,
                     image_change_threshold=0.98,
                     threshold_percentage=0.5,
-                    cut_list= None)
+                    cut_list= None))
     
     
 

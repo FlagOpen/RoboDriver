@@ -1,32 +1,49 @@
+now_robot_type: [aloha, pika, realman, dexterous_hand, so101, galaxea]
 robot_type: aloha
 device_server_ip: http://localhost:8088
 device_server_port: 8088
 device_data_path: /home/ryu/DoRobot/dataset
 
+
+now_device_server_type: [release, dev, demo]
 device_server_type: dev
 platform_server_ip_release: https://ei2rmd.baai.ac.cn/api
 platform_server_ip_dev: http://120.92.91.171/api
+platform_server_ip_demo: https://ei2rmd-demo.baai.ac.cn/api
 
-upload_type: ks3
+
+upload_type: nas
 upload_time: '20:00'
 
 nas_cache_path_release: /传输路径/release/cache
 nas_data_path_release: /传输路径/release/collect_data
+
 nas_cache_path_dev: /传输路径/ceshi/cache
 nas_data_path_dev: /传输路径/ceshi/collect_data
+
+nas_cache_path_demo: /传输路径/demo/cache
+nas_data_path_demo: /传输路径/demo/collect_data
+
 
 ks3_data_path_release: https://ei2rmd.baai.ac.cn
 ks3_data_bucket_release: baai-eai-datasets
 ks3_data_target_release: data
+
 ks3_data_path_dev: http://120.92.91.171/
 ks3_data_bucket_dev: baai-eai-datasets-test
 ks3_data_target_dev: data
 
-machine_id_path_release: /home/ryu/DoRobot/machine/.config/baai_platform/machine_code
-machine_code_path_release: /home/ryu/DoRobot/machine/.config/baai_platform/unique_code
+ks3_data_path_demo: http://120.92.91.171/
+ks3_data_bucket_demo: baai-eai-datasets-test
+ks3_data_target_demo: data
+
+
+machine_id_path_release: /home/machine/.config/baai_platform/machine_code
+machine_code_path_release: /home/machine/.config/baai_platform/unique_code
 
 machine_id_path_dev: /home/ryu/DoRobot/machine/.config/baai_platform/machine_code_dev
 machine_code_path_dev: /home/ryu/DoRobot/machine/.config/baai_platform/unique_code_dev
 
-now_robot_type: [aloha, pika, realman, dexterous_hand]
+machine_id_path_demo: /home/machine/.config/baai_platform/machine_code_demo
+machine_code_path_demo: /home/machine/.config/baai_platform/unique_code_demo
 

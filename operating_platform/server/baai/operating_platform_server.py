@@ -22,8 +22,17 @@ from upload_to_ks3 import RobotDataProcessor
 from utils import setup_from_yaml,get_machine_info
 from robot_data_uploader import config
 
+log_machine_id = None
 
-
+class CustomFormatter(logging.Formatter):
+    def __init__(self, run_type, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.run_type = run_type
+ 
+    def format(self, record):
+        record.machine_id = globals().get("log_machine_id", "default_id")
+        record.run_type = self.run_type
+        return super().format(record)
 
 class VideoStream:
     def __init__(self, stream_id, stream_name):
@@ -53,16 +62,20 @@ class VideoStream:
         if not self.running:
             return
         
-        # 解码图像
-        img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
-        if img is None:
+        # # 解码图像
+        # img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
+        # if img is None:
+        #     return
+        
+        # # 压缩图像（可选）
+        # img = cv2.resize(img, (640, 480))
+        # encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+        # _, jpeg = cv2.imencode('.jpg', img, encode_param)
+        # compressed_frame = jpeg.tobytes()
+        if frame_data is None:
             return
         
-        # 压缩图像（可选）
-        img = cv2.resize(img, (640, 480))
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-        _, jpeg = cv2.imencode('.jpg', img, encode_param)
-        compressed_frame = jpeg.tobytes()
+        compressed_frame = frame_data
 
         with self.lock:
             self.buffer_index = 1 - self.buffer_index
@@ -96,14 +109,21 @@ class FlaskServer:
             config.SERVER_URL = config_dict['ks3_data_path_release']
             config.BUCKET_NAME = config_dict['ks3_data_bucket_release']
             config.UPLOAD_TARGET = config_dict['ks3_data_target_release']
-        else:
+        if config_dict['device_server_type'] == 'dev':
             self.web = config_dict['platform_server_ip_dev']
             self.machine_id_path = config_dict['machine_id_path_dev']
             self.machine_unique_code = config_dict['machine_code_path_dev']
             config.SERVER_URL = config_dict['ks3_data_path_dev']
             config.BUCKET_NAME = config_dict['ks3_data_bucket_dev']
             config.UPLOAD_TARGET = config_dict['ks3_data_target_dev']
-
+        if config_dict['device_server_type'] == 'demo':
+            self.web = config_dict['platform_server_ip_demo']
+            self.machine_id_path = config_dict['machine_id_path_demo']
+            self.machine_unique_code = config_dict['machine_code_path_demo']
+            config.SERVER_URL = config_dict['ks3_data_path_demo']
+            config.BUCKET_NAME = config_dict['ks3_data_bucket_demo']
+            config.UPLOAD_TARGET = config_dict['ks3_data_target_demo']
+        self.run_type = config_dict['device_server_type']
         self.port = config_dict['device_server_port']
         self.upload_type = config_dict['upload_type']
         self.upload_time = str(config_dict['upload_time'])
@@ -203,12 +223,14 @@ class FlaskServer:
     
     def load_machine_id(self):
         """读取机器 ID"""
+        global log_machine_id  # 声明使用全局变量
         if not os.path.exists(self.machine_id_path):
             logging.info("未找到机器 ID 文件，将生成新 ID")
             return None
         try:
             with open(self.machine_id_path, "r") as f:
                 machine_id = f.read().strip()
+                log_machine_id = machine_id
                 logging.info(f"已加载机器 ID")
                 return machine_id
         except Exception as e:
@@ -338,24 +360,43 @@ class FlaskServer:
     def init_logging(self):
         """初始化日志配置"""
         now = datetime.datetime.now()
-        file_name = "./log/" + now.strftime("%Y.%m.%d.%H.%M") + ".log"
-        log_dir = "./log"
+        file_name = "/opt/wanx_studio/log/server/" + now.strftime("%Y.%m.%d.%H.%M") + ".log"
+        log_dir = "/opt/wanx_studio/log/server"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
-        logging.basicConfig(
-            filename=file_name,
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            filemode="a",
-            encoding='utf-8'  # Python 3.9+ 支持
+        # logging.basicConfig(
+        #     filename=file_name,
+        #     level=logging.DEBUG,
+        #     format='%(asctime)s - %(levelname)s - %(message)s',
+        #     filemode="a",
+        #     encoding='utf-8'  # Python 3.9+ 支持
+        # )
+        # # 添加控制台输出
+        # console_handler = logging.StreamHandler()
+        # console_handler.setLevel(logging.INFO)
+        # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        # console_handler.setFormatter(formatter)
+        # logging.getLogger('').addHandler(console_handler)
+         # 获取 root logger
+        logger = logging.getLogger('')
+        logger.setLevel(logging.DEBUG)  # 设置最低日志级别
+    
+        # 1. 文件日志（使用 CustomFormatter）
+        file_handler = logging.FileHandler(file_name, mode="a", encoding="utf-8")
+        file_formatter = CustomFormatter(
+            run_type=self.run_type,
+            fmt='%(asctime)s - %(levelname)s - %(machine_id)s - %(run_type)s - %(message)s'
         )
-        # 添加控制台输出
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+    
+        # 2. 控制台日志（普通格式）
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(formatter)
-        logging.getLogger('').addHandler(console_handler)
+        console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
 
     def register_machine(self,unique_code):
         data = {
@@ -758,11 +799,11 @@ class FlaskServer:
             data = request.get_json()
             self.replay_data = data
             logging.debug(f"[API] start_collection - 请求数据: {data}")
-            if self.upload_id == str(data['task_id']):
+            if self.upload_id != str(0):
                 response_data = {
                             "code": 404,
                             "data": {},
-                            "msg": '该任务数据上传中，请勿采集'
+                            "msg": '数据上传中，请勿采集'
                         }
                 return jsonify(response_data), 200
                 
@@ -1309,13 +1350,13 @@ class FlaskServer:
                 #logging.error("[API] update_frame - 未接收到帧数据")
                 return jsonify({"error": "未接收到帧数据"}), 402
             
-            try:
-                img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
-                if img is None:
-                    raise ValueError("Invalid JPEG data")
-            except Exception as e:
-                #logging.error(f"[API] update_frame - 无效的帧数据: {str(e)}")
-                return jsonify({"error": "无效的帧数据"}), 404
+            # try:
+            #     img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
+            #     if img is None:
+            #         raise ValueError("Invalid JPEG data")
+            # except Exception as e:
+            #     #logging.error(f"[API] update_frame - 无效的帧数据: {str(e)}")
+            #     return jsonify({"error": "无效的帧数据"}), 404
 
             self.video_streams[stream_id].update_frame(frame_data)
             #logging.info(f"[API] update_frame - 成功更新帧: {stream_id}")
@@ -1403,7 +1444,7 @@ class FlaskServer:
         logging.info("[Server] run - 启动服务器")
         self.upload_thread.start()
         self.start_periodic_update()
-        self.socketio.run(self.app, host='0.0.0.0', port=8088, debug=False)
+        self.socketio.run(self.app, host='0.0.0.0', port=self.port, debug=False)
 
 
 
