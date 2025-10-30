@@ -158,7 +158,7 @@ class Coordinator:
             # resume 变量现在可用于后续逻辑
             logger.info(f"Resume mode: {'Enabled' if resume else 'Disabled'}")
 
-            record_cfg = RecordConfig(fps=DEFAULT_FPS, repo_id=repo_id, video=self.daemon.robot.use_videos, resume=resume, root=target_dir)
+            record_cfg = RecordConfig(fps=DEFAULT_FPS, single_task=task_name, repo_id=repo_id, video=self.daemon.robot.use_videos, resume=resume, root=target_dir)
             self.record = Record(fps=DEFAULT_FPS, robot=self.daemon.robot, daemon=self.daemon, record_cfg = record_cfg, record_cmd=msg)
             # 发送响应
             await self.send_response('start_collection', "success")
