@@ -9,6 +9,7 @@ from operating_platform.robot.robots import (  # noqa: F401
     so101_v1,
     galbot_g1,
     leju_kuavo4p,
+    pika_v1,
 )
 
 
