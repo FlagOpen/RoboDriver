@@ -2,6 +2,31 @@
 
 Docs coming soon.
 
+## Support Robot
+
+P1:
+```
+aloha_v1, operating_platform <= 0.1.5
+SO101_v1, operating_platform <= 0.1.5
+galaxea_v1, operating_platform <= 0.1.5
+realman_v1, operating_platform <= 0.1.5
+dexterous_hand_v1, operating_platform <= 0.1.5
+```
+
+P2:
+```
+pika_v1, operating_platform <= 0.1.3
+galbot_g1, operating_platform <= 0.1.3
+leju_kuavo4p, operating_platform <= 0.1.3
+agibot_a2d, operating_platform <= 0.1.3
+```
+
+P3:
+```
+adora_v1, Not Support
+ruantong_v1, Not Support
+```
+
 ## Start
 creat conda env
 
