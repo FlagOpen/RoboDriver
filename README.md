@@ -37,3 +37,9 @@ pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https
 # CPU only
 pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 ```
+
+## TODO
+
+- Validate SO101 in new Code
+- Function: Compare server code version
+- Save device info
