@@ -1,0 +1,2 @@
+git clone -b main https://github.com/orbbec/pyorbbecsdk.git operating_platform/robot/components/camera_rgbd_orbbec_v1/pyorbbecsdk/
+docker build -f operating_platform/robot/robots/aloha_v1/docker/Dockerfile.ubuntu20 -t wanx-robot-aloha-image:0.1 .

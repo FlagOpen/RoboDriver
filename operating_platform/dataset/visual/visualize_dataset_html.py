@@ -18,7 +18,7 @@ local$ python operating_platform/dataset/visual/visualize_dataset_html.py \
     --repo-id lerobot/pusht
 ```
 """
-
+from __future__ import annotations
 import argparse
 import csv
 import json
@@ -54,7 +54,7 @@ def run_server(
     @app.route("/")
     def hommepage(dataset=dataset):
         if dataset:
-            dataset_time, dataset_namespace, dataset_name = dataset.repo_id.split("/")
+            dataset_time, dataset_namespace, dataset_name, _ = dataset.repo_id.split("/")
             return redirect(
                 url_for(
                     "show_episode",

@@ -22,6 +22,7 @@ from PIL import Image
 import numpy as np
 import PIL.Image
 import torch
+from typing import Union, Optional, List
 
 
 def safe_stop_image_writer(func):
@@ -93,7 +94,7 @@ def image_array_to_pil_image(
 
 
 def write_image(
-    image: np.ndarray | Image.Image,
+    image: Union[np.ndarray, Image.Image],
     fpath: Path,
     is_depth: bool = False,
 ):
@@ -219,7 +220,7 @@ class AsyncImageWriter:
                 p.start()
                 self.processes.append(p)
 
-    def save_image(self, image: torch.Tensor | np.ndarray | PIL.Image.Image, fpath: Path):
+    def save_image(self, image: Union[torch.Tensor, np.ndarray, PIL.Image.Image], fpath: Path):
         if isinstance(image, torch.Tensor):
             # Convert tensor to numpy array to minimize main process time
             image = image.cpu().numpy()

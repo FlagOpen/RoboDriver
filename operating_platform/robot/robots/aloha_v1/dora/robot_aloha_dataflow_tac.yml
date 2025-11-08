@@ -1,0 +1,125 @@
+nodes:
+  - id: camera_top
+    path: ../../../components/camera_rgbd_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      # - image_depth
+    env:
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC15C430099
+
+  - id: camera_right
+    path: ../../../components/camera_opencv/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      CAPTURE_PATH: 2
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  - id: camera_left
+    path: ../../../components/camera_opencv/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      CAPTURE_PATH: 4
+      IMAGE_WIDTH: 320
+      IMAGE_HEIGHT: 240
+
+  - id: piper_right
+    path: ../../../components/arm_normal_piper_v2/main.py
+    inputs:
+      tick: dora/timer/millis/33
+      action_joint: zeromq/action_joint_right
+      action_gripper: zeromq/action_gripper_right
+    outputs:
+      # - master_endpose
+      - master_jointstate
+      - master_gripper
+      - slave_endpose
+      - slave_jointstate
+      - slave_gripper
+    env:
+      CAN_BUS: can_right
+      TEACH_MODE: True
+
+  - id: piper_left
+    path: ../../../components/arm_normal_piper_v2/main.py
+    inputs:
+      tick: dora/timer/millis/33
+      action_joint: zeromq/action_joint_left
+      action_gripper: zeromq/action_gripper_left
+    outputs:
+      # - master_endpose
+      - master_jointstate
+      - master_gripper
+      - slave_endpose
+      - slave_jointstate
+      - slave_gripper
+    env:
+      CAN_BUS: can_left
+      TEACH_MODE: True
+
+  - id: zeromq
+    path: dora_zeromq.py
+    inputs: 
+      image_top: camera_top/image
+      # image_depth_top: camera_top/image_depth
+      image_right: camera_right/image
+      # image_depth_right: camera_right/image_depth
+      image_left: camera_left/image
+      # image_depth_left: camera_left/image_depth
+      master_jointstate_right: piper_right/master_jointstate
+      master_jointstate_left: piper_left/master_jointstate
+      # master_endpose_right: piper_right/master_endpose
+      # master_endpose_left: piper_left/master_endpose
+      master_gripper_right: piper_right/master_gripper
+      master_gripper_left: piper_left/master_gripper
+      follower_jointstate_right: piper_right/slave_jointstate
+      follower_jointstate_left: piper_left/slave_jointstate
+      follower_endpose_right: piper_right/slave_endpose
+      follower_endpose_left: piper_left/slave_endpose
+      follower_gripper_right: piper_right/slave_gripper
+      follower_gripper_left: piper_left/slave_gripper
+    outputs:
+      - action_joint_right
+      - action_joint_left
+      - action_gripper_right
+      - action_gripper_left
+
+
+  # - id: rerun
+  #   path: dora-rerun
+  #   inputs:
+  #     image_top: 
+  #       source: camera_top/image
+  #       queue_size: 1
+  #     image_depth_top:
+  #       source: camera_top/image_depth
+  #       queue_size: 1
+  #     image_right:
+  #       source: camera_right/image
+  #       queue_size: 1
+  #     image_depth_right:
+  #       source: camera_right/image_depth
+  #       queue_size: 1
+  #     image_left:
+  #       source: camera_left/image
+  #       queue_size: 1
+  #     image_depth_left:
+  #       source: camera_left/image_depth
+  #       queue_size: 1
+  #   env:
+  #     RERUN_MEMORY_LIMIT: 25%
+
+  # - id: print_joint
+  #   path: print_joint.py
+  #   inputs:
+  #     jointstate_piper_left: piper_left/jointstate
+  #     jointstate_piper_right: piper_right/jointstate

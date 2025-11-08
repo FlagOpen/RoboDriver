@@ -42,7 +42,7 @@ nodes:
     outputs:
       - image
     env:
-      CAPTURE_PATH: 18
+      CAPTURE_PATH: 14
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
@@ -53,7 +53,7 @@ nodes:
     outputs:
       - image
     env:
-      CAPTURE_PATH: 26
+      CAPTURE_PATH: 22
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
@@ -90,27 +90,27 @@ nodes:
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
-  - id: camera-right-tac-l
-    path: ../../components/camera_opencv/main.py
-    inputs:
-      tick: dora/timer/millis/33
-    outputs:
-      - image
-    env:
-      CAPTURE_PATH: 8
-      IMAGE_WIDTH: 640
-      IMAGE_HEIGHT: 480
+  # - id: camera-right-tac-l
+  #   path: ../../components/camera_opencv/main.py
+  #   inputs:
+  #     tick: dora/timer/millis/33
+  #   outputs:
+  #     - image
+  #   env:
+  #     CAPTURE_PATH: 8
+  #     IMAGE_WIDTH: 640
+  #     IMAGE_HEIGHT: 480
 
-  - id: camera-left-tac-r
-    path: ../../components/camera_opencv/main.py
-    inputs:
-      tick: dora/timer/millis/33
-    outputs:
-      - image
-    env:
-      CAPTURE_PATH: 10
-      IMAGE_WIDTH: 640
-      IMAGE_HEIGHT: 480
+  # - id: camera-left-tac-r
+  #   path: ../../components/camera_opencv/main.py
+  #   inputs:
+  #     tick: dora/timer/millis/33
+  #   outputs:
+  #     - image
+  #   env:
+  #     CAPTURE_PATH: 10
+  #     IMAGE_WIDTH: 640
+  #     IMAGE_HEIGHT: 480
 
   - id: camera-left-tac-l
     path: ../../components/camera_opencv/main.py
@@ -119,7 +119,7 @@ nodes:
     outputs:
       - image
     env:
-      CAPTURE_PATH: 12
+      CAPTURE_PATH: 8
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
@@ -132,8 +132,8 @@ nodes:
       # image_right_fisheye: camera-right-fisheye/image
       # image_left_fisheye: camera-left-fisheye/image
       image_right_tac_r: camera-right-tac-r/image
-      image_right_tac_l: camera-right-tac-l/image
-      image_left_tac_r: camera-left-tac-r/image
+      # image_right_tac_l: camera-right-tac-l/image
+      # image_left_tac_r: camera-left-tac-r/image
       image_left_tac_l: camera-left-tac-l/image
 
   # - id: rerun

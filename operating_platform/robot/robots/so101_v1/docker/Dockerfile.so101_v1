@@ -1,0 +1,72 @@
+# dr-image-pika-v1
+
+# 使用 Ubuntu 官方镜像
+FROM ubuntu:22.04
+
+# 更新系统
+RUN apt-get update && apt-get upgrade -y
+
+# 安装系统依赖
+RUN apt-get install -y \
+        vim \
+        wget \
+        bzip2 \
+        git \
+        curl \
+        cmake \
+        ffmpeg \
+        python3-pip \
+        build-essential \
+        ca-certificates \
+        libgl1 \
+        libglib2.0-dev \
+        libgtk-3-dev \
+        libudev-dev \
+        libusb-1.0-0-dev \
+        libssl-dev \
+        libglu1-mesa-dev \
+        libglfw3-dev \
+        libgl1-mesa-dev \
+        v4l-utils
+
+# 设置安装参数
+ENV CONDA_DIR=/opt/conda
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+# 下载并安装 Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR && \
+    rm ~/miniconda.sh && \
+    # 初始化 conda
+    conda init bash && \
+    #接受conda条款
+    conda tos accept --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --channel https://repo.anaconda.com/pkgs/r
+
+# 创建 Conda 环境 wanx-studio-so101 并安装torch
+RUN conda create -n wanx-studio-so101 python=3.11 -y \
+    && conda run -n wanx-studio-so101 pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+        -i https://pypi.org/simple \
+        --extra-index-url https://download.pytorch.org/whl/cpu
+
+# 创建 Conda 环境 wanx-robot-so101
+RUN conda create -n wanx-robot-so101 python=3.11 -y
+
+
+# 设置工作目录并复制项目
+WORKDIR /WanX-EI-Studio
+COPY . .
+
+# 安装 wanx-studio-so101 环境依赖
+RUN conda run -n wanx-studio-so101 pip install -e . --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 安装 wanx-robot-so101 环境依赖
+RUN conda run -n wanx-robot-so101 pip install -e operating_platform/robot/robots/so101_v1 --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN conda run -n wanx-robot-so101 pip install -e operating_platform/robot/components/arm_normal_so101_v1 --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 清理
+RUN conda clean --all -y && \
+    apt-get clean
+
+# 设置默认启动命令
+CMD ["/bin/bash"]

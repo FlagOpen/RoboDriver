@@ -1,3 +1,4 @@
+from __future__ import annotations
 import contextlib
 import importlib.resources
 import json
@@ -21,6 +22,8 @@ from PIL import Image as PILImage
 from torchvision import transforms
 
 from operating_platform.utils.utils import is_valid_numpy_dtype_string
+
+
 
 # from lerobot_lite.robots.utils import Robot
 
@@ -498,7 +501,7 @@ def check_delta_timestamps(
         within_tolerance = [abs(ts * fps - round(ts * fps)) / fps <= tolerance_s for ts in delta_ts]
         if not all(within_tolerance):
             outside_tolerance[key] = [
-                ts for ts, is_within in zip(delta_ts, within_tolerance, strict=True) if not is_within
+                ts for ts, is_within in zip(delta_ts, within_tolerance) if not is_within
             ]
 
     if len(outside_tolerance) > 0:
@@ -581,7 +584,9 @@ def create_lerobot_dataset_card(
         ],
     )
 
-    card_template = (importlib.resources.files("lerobot.common.datasets") / "card_template.md").read_text()
+    from pathlib import Path
+    card_template_path = Path(__file__).parent / "card_template.md"
+    card_template = card_template_path.read_text(encoding="utf-8")
 
     return DatasetCard.from_template(
         card_data=card_data,

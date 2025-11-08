@@ -1,0 +1,78 @@
+nodes:  
+ 
+  - id: Xsens_Metagloves  
+    path: ../../components/Xsens_Metagloves/main.py  
+    inputs:  
+      tick: dora/timer/millis/50  
+    outputs: 
+      - head_pose
+      - left_wrist_pose  
+      - right_wrist_pose  
+      - left_finger_joints  
+      - right_finger_joints
+      - left_full_skeleton
+      - right_full_skeleton  
+  
+  - id: camera_realsense  
+    path: ../../components/camera_rgbd_realsense/main.py  
+    inputs:  
+      tick: dora/timer/millis/50  
+    outputs:  
+      - image  
+      - image_depth  
+    env:  
+      DEVICE_SERIAL: 337122071807
+      IMAGE_WIDTH: 640  
+      IMAGE_HEIGHT: 480 
+    
+
+  - id: camera_zed  
+    path: ../../components/camera_rgbd_zed/main.py  
+    inputs:  
+      tick: dora/timer/millis/50  
+    outputs:  
+      - left_image  
+      - depth_data  
+    env:  
+      DEVICE_SERIAL: 13601245
+      IMAGE_WIDTH: 640  
+      IMAGE_HEIGHT: 480 
+    
+  
+ 
+  - id: zeromq_pose  
+    path: dora_zeromq_pose.py  
+    inputs:
+      head_pose: Xsens_Metagloves/head_pose
+      wrist_left: Xsens_Metagloves/left_wrist_pose  
+      wrist_right: Xsens_Metagloves/right_wrist_pose  
+      finger_left: Xsens_Metagloves/left_finger_joints  
+      finger_right: Xsens_Metagloves/right_finger_joints
+      left_full_skeleton: Xsens_Metagloves/left_full_skeleton 
+      right_full_skeleton: Xsens_Metagloves/right_full_skeleton 
+
+  - id: zeromq_image  
+    path: dora_zeromq_image.py  
+    inputs: 
+      image_left: camera_zed/left_image
+      image_depth: camera_zed/depth_image
+      image_top: camera_realsense/image
+      image_top_depth: camera_realsense/image_depth
+
+  - id: zeromq_plot  
+    path: dora_zeromq_plot.py  
+    inputs:
+      head_pose: Xsens_Metagloves/head_pose
+      wrist_left: Xsens_Metagloves/left_wrist_pose  
+      wrist_right: Xsens_Metagloves/right_wrist_pose  
+      finger_left: Xsens_Metagloves/left_finger_joints  
+      finger_right: Xsens_Metagloves/right_finger_joints
+      left_full_skeleton: Xsens_Metagloves/left_full_skeleton 
+      right_full_skeleton: Xsens_Metagloves/right_full_skeleton
+
+
+
+
+
+
+

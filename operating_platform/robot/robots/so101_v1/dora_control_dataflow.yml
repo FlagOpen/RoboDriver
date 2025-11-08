@@ -36,7 +36,7 @@ nodes:
       CALIBRATION_DIR: ../../components/arm_normal_so101_v1/.calibration/
 
   - id: so101_zeromq
-    path: dora_zeromq.py
+    path: src/dora_zeromq.py
     inputs: 
       image_top: camera_top/image
       image_wrist: camera_wrist/image

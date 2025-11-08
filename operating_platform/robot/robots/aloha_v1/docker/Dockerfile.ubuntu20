@@ -38,6 +38,9 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
     # 初始化 conda
     conda init bash
 
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 # 创建 Conda 环境 op 并安装poetry、torch
 RUN conda create -n op python=3.11 -y \
     && conda run -n op pip install --no-cache-dir poetry -i https://pypi.tuna.tsinghua.edu.cn/simple \
@@ -49,14 +52,15 @@ RUN conda create -n op python=3.11 -y \
 RUN conda create -n op-robot-aloha python=3.11 -y
 
 # 设置工作目录并复制项目
-WORKDIR /root/Operating-Platform
+WORKDIR /root/WanX-EI-Studio
 COPY . .
 
 # 安装 op 项目依赖
-RUN conda run -n op poetry install
+RUN conda run -n op pip install -e .
 
 # 安装 op-robot-aloha 项目依赖
-RUN conda run -n op-robot-aloha pip install -e operating_platform/robot/ --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN conda run -n op-robot-aloha pip install -e operating_platform/robot/robots/aloha_v1 --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN conda run -n op-robot-aloha pip install -e operating_platform/robot/components/arm_normal_piper_v2 --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 WORKDIR operating_platform/robot/components/camera_rgbd_orbbec_v1/pyorbbecsdk/
 RUN conda run -n op-robot-aloha pip install -r requirements.txt --index-url https://pypi.tuna.tsinghua.edu.cn/simple
@@ -69,7 +73,7 @@ RUN cd build && \
 RUN conda run -n op-robot-aloha python setup.py bdist_wheel && \
     conda run -n op-robot-aloha pip install dist/*.whl
 
-WORKDIR /Operating-Platform
+WORKDIR /root/WanX-EI-Studio
 
 # 清理
 RUN conda run -n op pip cache purge && \

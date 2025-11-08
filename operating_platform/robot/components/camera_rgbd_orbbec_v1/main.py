@@ -250,20 +250,20 @@ def main():
             storage = pa.array(depth_data.ravel())
             node.send_output("depth", storage)
 
-            # Convert to Image
-            depth_image = cv2.normalize(
-                depth_data,
-                None,
-                0,
-                65535,
-                cv2.NORM_MINMAX,
-                dtype=cv2.CV_16U,
-            )
-            # Send Depth Image
-            depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
-            ret, frame = cv2.imencode("." + "jpeg", depth_image)
-            if ret:
-                node.send_output("image_depth", pa.array(frame), {"encoding": "jpeg", "width": int(640), "height": int(480)})
+            # # Convert to Image
+            # depth_image = cv2.normalize(
+            #     depth_data,
+            #     None,
+            #     0,
+            #     65535,
+            #     cv2.NORM_MINMAX,
+            #     dtype=cv2.CV_16U,
+            # )
+            # # Send Depth Image
+            # # depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
+            # ret, frame = cv2.imencode("." + "png", depth_image)
+            # if ret:
+            #     node.send_output("image_depth", pa.array(frame), {"encoding": "jpeg", "width": int(640), "height": int(480)})
 
             # cv2.imshow("0", color_image)
             # cv2.waitKey(40)

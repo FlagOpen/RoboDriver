@@ -15,7 +15,7 @@ from datasets.features.features import register_feature
 from PIL import Image
 import platform
 import os
-
+from typing import Union, Optional, List
 
 def get_available_encoders():
     """
@@ -74,8 +74,8 @@ def _ensure_encoders_loaded():
         _AVAILABLE_ENCODERS = get_available_encoders()
 
 def decode_video_frames_torchvision(
-    video_path: Path | str,
-    timestamps: list[float],
+    video_path: Union[Path, str],
+    timestamps: List[float],
     tolerance_s: float,
     backend: str = "pyav",
     log_loaded_timestamps: bool = False,
@@ -235,13 +235,13 @@ def decode_video_frames_torchvision(
 #         print(f"编码完成 → {video_path}")
 # else:
 def encode_video_frames(
-    imgs_dir: Path | str,
-    video_path: Path | str,
+    imgs_dir: Union[Path, str],
+    video_path: Union[Path, str],
     fps: int,
     vcodec: Literal["libopenh264", "libx264"] = "libx264",
     pix_fmt: str = "yuv420p",
-    g: int | None = 20,
-    crf: int | None = 18,
+    g: Optional[int] = 20,
+    crf: Optional[int] = 18,
     fast_decode: int = 1,
     log_level: Optional[str] = "error",
     overwrite: bool = False,
@@ -321,11 +321,11 @@ def encode_video_frames(
         )
         
 def encode_depth_video_frames(
-    imgs_dir: Path | str,
-    video_path: Path | str,
+    imgs_dir: Union[Path, str],
+    video_path: Union[Path, str],
     fps: int,
-    vcodec: str = "ffv1",  # 使用无损编码
-    pix_fmt: str = "gray16le",  # 单通道灰度
+    vcodec: str = "ffv1",          # 使用无损编码
+    pix_fmt: str = "gray16le",     # 单通道灰度（16-bit little-endian）
     overwrite: bool = False,
 ) -> None:
     """Encode depth images to video."""
@@ -384,7 +384,7 @@ with warnings.catch_warnings():
     register_feature(VideoFrame, "VideoFrame")
 
 
-def get_audio_info(video_path: Path | str) -> dict:
+def get_audio_info(video_path: Union[Path, str]) -> dict:
     ffprobe_audio_cmd = [
         "ffprobe",
         "-v",
@@ -420,7 +420,7 @@ def get_audio_info(video_path: Path | str) -> dict:
     }
 
 
-def get_video_info(video_path: Path | str) -> dict:
+def get_video_info(video_path: Union[Path, str]) -> dict:
     ffprobe_video_cmd = [
         "ffprobe",
         "-v",

@@ -10,6 +10,17 @@ nodes:
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
+  - id: camera_top_dep
+    path: ../../components/camera_opencv/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      CAPTURE_PATH: 2
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
   - id: camera_wrist
     path: ../../components/camera_opencv/main.py
     inputs:
@@ -50,10 +61,11 @@ nodes:
       CALIBRATION_DIR: ../../components/arm_normal_so101_v1/.calibration/
 
   - id: so101_zeromq
-    path: dora_zeromq.py
+    path: src/dora_zeromq.py
     inputs: 
       image_top: camera_top/image
       image_wrist: camera_wrist/image
+      image_top_dep: camera_top_dep/image
       main_leader_joint: arm_so101_leader/joint
       main_follower_joint: arm_so101_follower/joint
     outputs:

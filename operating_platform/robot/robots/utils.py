@@ -1,31 +1,22 @@
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+import platform
+import time
+import logging_mp
 
 from typing import Protocol
 
-from operating_platform.robot.robots.configs import (
-    AlohaRobotConfig,
-    ManipulatorRobotConfig,
-    RobotConfig,
-    PikaV1RobotConfig,
-    AdoraRobotConfig,
-    AdoraDualRobotConfig,
-    RealmanRobotConfig,
-    SO101RobotConfig
+from operating_platform.robot.robots.configs import RobotConfig
+from operating_platform.robot.robots.statuses import RobotStatus
+from operating_platform.robot.robots import (  # noqa: F401
+    so101_v1,
+    galbot_g1,
+    leju_kuavo4p,
+    pika_v1,
+    galaxea_v1,
+    aloha_v1,
 )
-import platform
-import time
+
+
+logger = logging_mp.get_logger(__name__)
 
 
 def busy_wait(seconds):
@@ -95,54 +86,64 @@ class Robot(Protocol):
     def capture_observation(self): ...
     def send_action(self, action): ...
     def disconnect(self): ...
-
-
-def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
-    if robot_type == "aloha":
-        return AlohaRobotConfig(**kwargs)
-    elif robot_type == "adora":
-        return AdoraRobotConfig(**kwargs)
-    elif robot_type == "adora_dual":
-        return AdoraDualRobotConfig(**kwargs)
-    elif robot_type == "realman":
-        return RealmanRobotConfig(**kwargs)
-    elif robot_type == "so101":
-        return SO101RobotConfig(**kwargs)
-    else:
-        raise ValueError(f"Robot type '{robot_type}' is not available.")
+    def update_status(self): ...  # 声明但无实现
 
 
 def make_robot_from_config(config: RobotConfig):
-    print("In make_robot_from_config")
+    logger.info("In make_robot_from_config")
 
-    if isinstance(config, AdoraRobotConfig):
+    if config.type == "adora":
         from operating_platform.robot.robots.adora_v1.manipulator import AdoraManipulator
-        print("In AdoraRobotConfig")
+        logger.info("In AdoraRobotConfig")
         return AdoraManipulator(config)
-    elif isinstance(config, AlohaRobotConfig):
-        from operating_platform.robot.robots.aloha_v1.manipulator import AlohaManipulator
-        print("In AlohaManipulator")
-        return AlohaManipulator(config)
-    elif isinstance(config, PikaV1RobotConfig):
-        from operating_platform.robot.robots.pika_v1.manipulator import PikaV1Manipulator
-        print("In PikaV1Manipulator")
-        return PikaV1Manipulator(config)
-    elif isinstance(config, SO101RobotConfig):
-        from operating_platform.robot.robots.so101_v1.manipulator import SO101Manipulator
-        print("In SO101Manipulator")
-        return SO101Manipulator(config)
     
-    elif isinstance(config, RealmanRobotConfig):
+    elif config.type == "aloha_v1":
+        from operating_platform.robot.robots.aloha_v1.src.manipulator import AlohaManipulator
+        logger.info("In AlohaManipulator")
+        return AlohaManipulator(config)
+    
+    elif config.type == "pika_v1":
+        from operating_platform.robot.robots.pika_v1.manipulator import PikaV1Manipulator
+        logger.info("In PikaV1Manipulator")
+        return PikaV1Manipulator(config)
+    
+    elif config.type == "so101":
+        from operating_platform.robot.robots.so101_v1.src.manipulator import SO101Manipulator
+        logger.info("In SO101Manipulator")
+        return SO101Manipulator(config)
+
+    elif config.type == "realman":
         from operating_platform.robot.robots.realman_v1.manipulator import RealmanManipulator
-        print("In RealmanRobotConfig")
+        logger.info("In RealmanRobotConfig")
         return RealmanManipulator(config)
+    
+    elif config.type == "dexhand":
+        from operating_platform.robot.robots.dexterous_hand_v1.manipulator import DexterousHandManipulator
+        logger.info("In DexterousHandMotorsBusConfig")
+        return DexterousHandManipulator(config)
+    
+    elif config.type == "galaxea":
+        from operating_platform.robot.robots.galaxea_v1.src.manipulator import GALAXEAManipulator
+        logger.info("In GALAXEARobotConfig")
+        return GALAXEAManipulator(config)
+    
+    elif config.type == "galbot_g1":
+        from operating_platform.robot.robots.galbot_g1.manipulator import GalbotG1Manipulator
+        logger.info("In GalbotG1RobotConfig")
+        return GalbotG1Manipulator(config)
+    
+    elif config.type == "leju_kuavo4p":
+        from operating_platform.robot.robots.leju_kuavo4p.manipulator import LejuKuavo4pManipulator
+        logger.info("In LejuKuavo4pRobotConfig")
+        return LejuKuavo4pManipulator(config)
+    
     else:
-        print("Not match robot")
+        logger.error("Not match robot")
         raise ValueError(f"Robot type is not available.")
     
 
-
-
-def make_robot(robot_type: str, **kwargs) -> Robot:
-    config = make_robot_config(robot_type, **kwargs)
-    return make_robot_from_config(config)
+def safe_update_status(robot: Robot) -> str:
+    if hasattr(robot, 'update_status'):
+        robot.update_status()
+    else:
+        return RobotStatus().to_json()

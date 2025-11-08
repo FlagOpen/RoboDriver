@@ -60,6 +60,7 @@ local$ rerun ws://localhost:9087
 ```
 
 """
+from __future__ import annotations
 import webbrowser
 
 import argparse
@@ -149,7 +150,7 @@ def visualize_dataset(
 
     try:
         if mode == "distant":
-            rr.serve_web(open_browser=False, web_port=web_port, ws_port=ws_port)
+            rr.serve_web(open_browser=True, web_port=web_port, ws_port=ws_port)
         logging.info("Logging to Rerun")
 
         for batch in tqdm.tqdm(dataloader, total=len(dataloader)):

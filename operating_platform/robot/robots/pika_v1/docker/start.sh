@@ -2,7 +2,7 @@
 
 # 配置参数
 CONTAINER_NAME=dr-container-pika-v1
-PROJECT_DIR="/Operating-Platform"
+PROJECT_DIR="/WanX-EI-Studio"
 CONDA_ENV1="op"
 CONDA_ENV2="op-component-vive"
 CONDA_ENV3="op-robot-pika"
@@ -217,7 +217,7 @@ else
 fi
 
 log "启动协调器..."
-$EXEC_FUNCTION "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV1 && python operating_platform/core/coordinator.py --robot.type=pika_v1" "logs/coordinator.log"
+$EXEC_FUNCTION "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV1 && python operating_platform/scripts/run.py --robot.type=pika_v1" "logs/coordinator.log"
 
 sleep 3 
 

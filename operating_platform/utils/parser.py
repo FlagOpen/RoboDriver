@@ -19,17 +19,27 @@ from argparse import ArgumentError
 from functools import wraps
 from pathlib import Path
 from typing import Sequence
+from typing import Union, Optional, List
+import typing
 
 import draccus
+import logging_mp
+logger = logging_mp.get_logger(__name__)
 
 from operating_platform.utils.utils import has_method
+
 
 PATH_KEY = "path"
 PLUGIN_DISCOVERY_SUFFIX = "discover_packages_path"
 draccus.set_config_type("json")
 
 
-def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> list[str] | None:
+def removeprefix(s: str, prefix: str) -> str:
+    if s.startswith(prefix):
+        return s[len(prefix):]
+    return s
+
+def get_cli_overrides(field_name: str, args: Optional[Sequence[str]] = None) -> Optional[List[str]]:
     """Parses arguments from cli at a given nested attribute level.
 
     For example, supposing the main script was called with:
@@ -51,7 +61,7 @@ def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> lis
     return attr_level_args
 
 
-def parse_arg(arg_name: str, args: Sequence[str] | None = None) -> str | None:
+def parse_arg(arg_name: str, args: Optional[Sequence[str]] = None) -> Optional[str]:
     if args is None:
         args = sys.argv[1:]
     prefix = f"--{arg_name}="
@@ -141,19 +151,19 @@ def load_plugin(plugin_path: str) -> None:
         ) from e
 
 
-def get_path_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
+def get_path_arg(field_name: str, args: Optional[Sequence[str]] = None) -> Optional[str]:
     return parse_arg(f"{field_name}.{PATH_KEY}", args)
 
 
-def get_type_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
+def get_type_arg(field_name: str, args: Optional[Sequence[str]] = None) -> Optional[str]:
     return parse_arg(f"{field_name}.{draccus.CHOICE_TYPE_KEY}", args)
 
 
-def filter_arg(field_to_filter: str, args: Sequence[str] | None = None) -> list[str]:
+def filter_arg(field_to_filter: str, args: Optional[Sequence[str]] = None) -> List[str]:
     return [arg for arg in args if not arg.startswith(f"--{field_to_filter}=")]
 
 
-def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | None = None) -> list[str]:
+def filter_path_args(fields_to_filter: Union[str, List[str]], args: Optional[Sequence[str]] = None) -> List[str]:
     """
     Filters command-line arguments related to fields with specific path arguments.
 
@@ -186,7 +196,7 @@ def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | No
     return filtered_args
 
 
-def wrap(config_path: Path | None = None):
+def wrap(config_path: Optional[Path] = None):
     """
     HACK: Similar to draccus.wrap but does three additional things:
         - Will remove '.path' arguments from CLI in order to process them later on.
@@ -201,7 +211,9 @@ def wrap(config_path: Path | None = None):
         @wraps(fn)
         def wrapper_inner(*args, **kwargs):
             argspec = inspect.getfullargspec(fn)
-            argtype = argspec.annotations[argspec.args[0]]
+            resolved_hints = typing.get_type_hints(fn)
+            argtype = resolved_hints[argspec.args[0]]
+            logger.debug("wrapper argtype =", argtype, type(argtype))
             if len(args) > 0 and type(args[0]) is argtype:
                 cfg = args[0]
                 args = args[1:]

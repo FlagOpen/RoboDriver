@@ -1,4 +1,4 @@
-import logging
+# import logging
 import os
 import os.path as osp
 import platform
@@ -6,51 +6,77 @@ import subprocess
 from copy import copy
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Union, Dict
+import json
 
 import numpy as np
 import torch
+import logging_mp
+logger = logging_mp.get_logger(__name__)
+
+# import colored_logging as clog
+
+# import operating_platform.utils.colored_logging as clog
 
 
-class CustomFormatter(logging.Formatter):
-    """自定义日志格式化器"""
-    def format(self, record):
-        dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 可改为 datetime.utcnow() 或带时区时间
-        fnameline = f"{record.pathname}:{record.lineno}"
-        return f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.msg}"
-
-def init_logging(level=logging.DEBUG, force=False):
+def cameras_to_stream_json(cameras: Dict[str, int]):
     """
-    初始化日志配置
-    :param level: 日志级别
-    :param force: 是否强制重新配置（默认 False）
+    将摄像头字典转换为包含流信息的 JSON 字符串。
+    
+    参数:
+        cameras (dict[str, int]): 摄像头名称到 ID 的映射
+    
+    返回:
+        str: 格式化的 JSON 字符串
     """
-    logger = logging.getLogger()
+    stream_list = [{"id": cam_id, "name": name} for name, cam_id in cameras.items()]
+    # 修改depth
+    result = {
+        "total": len(stream_list),
+        "streams": stream_list
+    }
+    return json.dumps(result)
 
-    # 避免重复初始化
-    if not force and logger.handlers:
-        return
+# class CustomFormatter(logging.Formatter):
+#     """自定义日志格式化器"""
+#     def format(self, record):
+#         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 可改为 datetime.utcnow() 或带时区时间
+#         fnameline = f"{record.pathname}:{record.lineno}"
+#         return f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.msg}"
 
-    # 移除所有已存在的 Handler（可选）
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+# def init_logging(level=logging.DEBUG, force=False):
+#     """
+#     初始化日志配置
+#     :param level: 日志级别
+#     :param force: 是否强制重新配置（默认 False）
+#     """
+#     logger = logging.getLogger()
 
-    # 创建并添加新的 Handler
-    formatter = CustomFormatter()
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    logger.setLevel(level)
+#     # 避免重复初始化
+#     if not force and logger.handlers:
+#         return
+
+#     # 移除所有已存在的 Handler（可选）
+#     for handler in logger.handlers[:]:
+#         logger.removeHandler(handler)
+
+#     # 创建并添加新的 Handler
+#     formatter = CustomFormatter()
+#     console_handler = logging.StreamHandler()
+#     console_handler.setFormatter(formatter)
+#     logger.addHandler(console_handler)
+#     logger.setLevel(level)
 
 def auto_select_torch_device() -> torch.device:
     """Tries to select automatically a torch device."""
     if torch.cuda.is_available():
-        logging.info("Cuda backend detected, using cuda.")
+        logger.info("Cuda backend detected, using cuda.")
         return torch.device("cuda")
     elif torch.backends.mps.is_available():
-        logging.info("Metal backend detected, using cuda.")
+        logger.info("Metal backend detected, using cuda.")
         return torch.device("mps")
     else:
-        logging.warning("No accelerated backend detected. Using default cpu, this will be slow.")
+        logger.warning("No accelerated backend detected. Using default cpu, this will be slow.")
         return torch.device("cpu")
     
 def get_container_ip_from_hosts():
@@ -73,25 +99,28 @@ def get_container_ip_from_hosts():
 def get_safe_torch_device(try_device: str, log: bool = False) -> torch.device:
     """Given a string, return a torch.device with checks on whether the device is available."""
     try_device = str(try_device)
-    match try_device:
-        case "cuda":
-            assert torch.cuda.is_available()
-            device = torch.device("cuda")
-        case "mps":
-            assert torch.backends.mps.is_available()
-            device = torch.device("mps")
-        case "cpu":
-            device = torch.device("cpu")
-            if log:
-                logging.warning("Using CPU, this will be slow.")
-        case _:
-            device = torch.device(try_device)
-            if log:
-                logging.warning(f"Using custom {try_device} device.")
+
+    if try_device == "cuda":
+        if not torch.cuda.is_available():
+            raise AssertionError("CUDA is not available.")
+        device = torch.device("cuda")
+    elif try_device == "mps":
+        if not torch.backends.mps.is_available():
+            raise AssertionError("MPS is not available.")
+        device = torch.device("mps")
+    elif try_device == "cpu":
+        device = torch.device("cpu")
+        if log:
+            logger.warning("Using CPU, this will be slow.")
+    else:
+        # Try to create a device with the given string (e.g., "cuda:1", "xla:0", etc.)
+        device = torch.device(try_device)
+        if log:
+            logger.warning(f"Using custom device: {try_device}.")
 
     return device
 
-def get_safe_dtype(dtype: torch.dtype, device: str | torch.device):
+def get_safe_dtype(dtype: torch.dtype, device: Union[str, torch.device]):
     """
     mps is currently not compatible with float64
     """
@@ -115,24 +144,24 @@ def git_branch_log():
     }
 
     if not current_branch:
-        print("❓ 当前分支: 未知分支")
+        logger.warning("❓ 当前分支: 未知分支")
         return
 
     current_branch = current_branch.lower()
 
     for branch, (emoji, message) in branch_patterns.items():
         if branch == current_branch:
-            print(f"{emoji} {message}")
+            logger.info(f"{emoji} {message}")
             return
 
     # 如果没有精确匹配，再模糊匹配一次
     for branch, (emoji, message) in branch_patterns.items():
         if branch in current_branch:
-            print(f"{emoji} 正在包含 '{branch}' 的分支上运行")
+            logger.info(f"{emoji} 正在包含 '{branch}' 的分支上运行")
             return
 
     # 完全未知的分支
-    print(f"❓ 当前分支: {current_branch}")
+    logger.warning(f"❓ 当前分支: {current_branch}")
     
 def get_current_git_branch():
     """获取当前 Git 分支名称"""
@@ -253,7 +282,7 @@ def say(text, blocking=False):
 
 
 def log_say(text, play_sounds, blocking=False):
-    logging.info(text)
+    logger.info(text)
 
     if play_sounds:
         say(text, blocking)

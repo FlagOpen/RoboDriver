@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-
+from typing import Union, Optional, List, Dict
 from operating_platform.utils.dataset import load_image_as_numpy
 
 
@@ -38,7 +38,7 @@ def estimate_num_samples(
     return max(min_num_samples, min(int(dataset_len**power), max_num_samples))
 
 
-def sample_indices(data_len: int) -> list[int]:
+def sample_indices(data_len: int) -> List[int]:
     num_samples = estimate_num_samples(data_len)
     return np.round(np.linspace(0, data_len - 1, num_samples)).astype(int).tolist()
 
@@ -54,7 +54,7 @@ def auto_downsample_height_width(img: np.ndarray, target_size: int = 150, max_si
     return img[:, ::downsample_factor, ::downsample_factor]
 
 
-def sample_images(image_paths: list[str]) -> np.ndarray:
+def sample_images(image_paths: List[str]) -> np.ndarray:
     sampled_indices = sample_indices(len(image_paths))
 
     images = None
@@ -72,7 +72,7 @@ def sample_images(image_paths: list[str]) -> np.ndarray:
     return images
 
 
-def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> dict[str, np.ndarray]:
+def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> Dict[str, np.ndarray]:
     return {
         "min": np.min(array, axis=axis, keepdims=keepdims),
         "max": np.max(array, axis=axis, keepdims=keepdims),
@@ -82,7 +82,7 @@ def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> dict[st
     }
 
 
-def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], features: dict) -> dict:
+def compute_episode_stats(episode_data: Dict[str, Union[List[str], np.ndarray]], features: dict) -> dict:
     ep_stats = {}
     for key, data in episode_data.items():
         if features[key]["dtype"] == "string" or features[key]["dtype"] == "audio":
@@ -107,7 +107,7 @@ def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], featu
     return ep_stats
 
 
-def _assert_type_and_shape(stats_list: list[dict[str, dict]]):
+def _assert_type_and_shape(stats_list: List[Dict[str, Dict]]):
     for i in range(len(stats_list)):
         for fkey in stats_list[i]:
             for k, v in stats_list[i][fkey].items():
@@ -123,7 +123,7 @@ def _assert_type_and_shape(stats_list: list[dict[str, dict]]):
                     raise ValueError(f"Shape of '{k}' must be (3,1,1), but is {v.shape} instead.")
 
 
-def aggregate_feature_stats(stats_ft_list: list[dict[str, dict]]) -> dict[str, dict[str, np.ndarray]]:
+def aggregate_feature_stats(stats_ft_list: List[Dict[str, Dict]]) -> Dict[str, Dict[str, np.ndarray]]:
     """Aggregates stats for a single feature."""
     means = np.stack([s["mean"] for s in stats_ft_list])
     variances = np.stack([s["std"] ** 2 for s in stats_ft_list])
@@ -152,7 +152,7 @@ def aggregate_feature_stats(stats_ft_list: list[dict[str, dict]]) -> dict[str, d
     }
 
 
-def aggregate_stats(stats_list: list[dict[str, dict]]) -> dict[str, dict[str, np.ndarray]]:
+def aggregate_stats(stats_list: List[Dict[str, Dict]]) -> Dict[str, Dict[str, np.ndarray]]:
     """Aggregate stats from multiple compute_stats outputs into a single set of stats.
 
     The final stats will have the union of all data keys from each of the stats dicts.

@@ -36,7 +36,7 @@ nodes:
       - rotation-quat
     env:
       GET_DEVICE_FROM: SN
-      DEVICE_SN: LHR-6FE2BEE6
+      DEVICE_SN: LHR-D9B4B1BD
       DR_VIVE_DISPLAY: False
 
   - id: node-link

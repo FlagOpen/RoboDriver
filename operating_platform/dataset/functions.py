@@ -9,6 +9,7 @@ from operating_platform.dataset.backward_compatibility import (
 )
 from operating_platform.robot.robots.utils import Robot
 from operating_platform.utils.dataset import get_repo_versions, DEFAULT_FEATURES
+from typing import Union, Optional, List
 
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def check_version_compatibility(
     repo_id: str,
-    version_to_check: str | packaging.version.Version,
-    current_version: str | packaging.version.Version,
+    version_to_check: Union[str, packaging.version.Version],
+    current_version: Union[str, packaging.version.Version],
     enforce_breaking_major: bool = True,
 ) -> None:
     v_check = (
@@ -51,7 +52,7 @@ def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
         }
     return {**robot.motor_features, **camera_ft, **microphone_ft, **DEFAULT_FEATURES}
 
-def get_safe_version(repo_id: str, version: str | packaging.version.Version) -> str:
+def get_safe_version(repo_id: str, version: Union[str, packaging.version.Version]) -> str:
     """
     Returns the version if available on repo or the latest compatible one.
     Otherwise, will throw a `CompatibilityError`.

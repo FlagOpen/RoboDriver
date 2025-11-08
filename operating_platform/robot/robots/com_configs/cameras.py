@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, Dict
 
 import draccus
 
@@ -40,13 +41,14 @@ class OpenCVCameraConfig(CameraConfig):
     """
 
     camera_index: int
-    fps: int | None = None
-    width: int | None = None
-    height: int | None = None
+    fps: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
     color_mode: str = "rgb"
-    channels: int | None = None
-    rotation: int | None = None
+    channels: Optional[int] = None
+    rotation: Optional[int] = None
     mock: bool = False
+    info: Dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.color_mode not in ["rgb", "bgr"]:
@@ -54,7 +56,6 @@ class OpenCVCameraConfig(CameraConfig):
                 f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided."
             )
 
-        self.channels = 3
 
         if self.rotation not in [-90, None, 90, 180]:
             raise ValueError(f"`rotation` must be in [-90, None, 90, 180] (got {self.rotation})")
@@ -76,16 +77,16 @@ class IntelRealSenseCameraConfig(CameraConfig):
     ```
     """
 
-    name: str | None = None
-    serial_number: int | None = None
-    fps: int | None = None
-    width: int | None = None
-    height: int | None = None
+    name: Optional[str] = None
+    serial_number: Optional[int] = None
+    fps: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
     color_mode: str = "rgb"
-    channels: int | None = None
+    channels: Optional[int] = None
     use_depth: bool = False
     force_hardware_reset: bool = True
-    rotation: int | None = None
+    rotation: Optional[int] = None
     mock: bool = False
 
     def __post_init__(self):
@@ -109,6 +110,42 @@ class IntelRealSenseCameraConfig(CameraConfig):
                 "For `fps`, `width` and `height`, either all of them need to be set, or none of them, "
                 f"but {self.fps=}, {self.width=}, {self.height=} were provided."
             )
+
+        if self.rotation not in [-90, None, 90, 180]:
+            raise ValueError(f"`rotation` must be in [-90, None, 90, 180] (got {self.rotation})")
+
+
+@CameraConfig.register_subclass("ddscamera")
+@dataclass
+class DDSCameraConfig(CameraConfig):
+    """
+    Example of tested options for Intel Real Sense D405:
+
+    ```python
+    OpenCVCameraConfig(0, 30, 640, 480)
+    OpenCVCameraConfig(0, 60, 640, 480)
+    OpenCVCameraConfig(0, 90, 640, 480)
+    OpenCVCameraConfig(0, 30, 1280, 720)
+    ```
+    """
+
+    camera_index: int
+    topic: str
+    fps: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    color_mode: str = "rgb"
+    channels: Optional[int] = None
+    rotation: Optional[int] = None
+    mock: bool = False
+
+    def __post_init__(self):
+        if self.color_mode not in ["rgb", "bgr"]:
+            raise ValueError(
+                f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided."
+            )
+
+        self.channels = 3
 
         if self.rotation not in [-90, None, 90, 180]:
             raise ValueError(f"`rotation` must be in [-90, None, 90, 180] (got {self.rotation})")

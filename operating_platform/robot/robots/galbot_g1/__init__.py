@@ -1,0 +1,1 @@
+from .config import GalbotG1RobotConfig
