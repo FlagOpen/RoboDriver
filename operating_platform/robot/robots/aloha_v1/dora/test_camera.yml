@@ -1,0 +1,31 @@
+nodes:
+  - id: camera_top
+    path: ../../../components/camera_rgbd_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/100
+    outputs:
+      - image
+      - image_depth
+    env:
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1S74100Y2
+
+  - id: plot1
+    path: opencv-plot
+    inputs:
+      image:
+        source: camera_top/image
+        queue_size: 1
+  
+  - id: plot2
+    path: opencv-plot
+    inputs:
+      image:
+        source: camera_top/image_depth
+        queue_size: 1
+
+  - id: zeromq
+    path: dora_zeromq.py
+    inputs:
+      image_top: camera_top/image
+      image_depth_top: camera_top/image_depth

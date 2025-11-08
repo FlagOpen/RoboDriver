@@ -13,9 +13,13 @@ PROJECT_DIR="/root/WanX-EI-Studio"
 CONDA_ENV1="op-robot-aloha"
 CONDA_ENV2="op"
 CONDA_ENV3="dr-view-rerun"
-DATAFLOW_PATH="operating_platform/robot/robots/aloha_v1/robot_aloha_dataflow.yml"
+DATAFLOW_PATH="operating_platform/robot/robots/aloha_v1/dora/robot_aloha_dataflow.yml"
 TIMEOUT=30  # 等待超时时间（秒）
 CLEANED_UP=false
+
+HOST_HOME_DIR="/opt/wanx_studio"
+HOST_LOG_DIR="${HOST_HOME_DIR}/log"
+HOST_CONFIG_DIR="${HOST_HOME_DIR}/config"
 
 # 颜色定义
 log() {
@@ -133,19 +137,52 @@ CONDA_ACTIVATE="source /opt/conda/etc/profile.d/conda.sh && conda activate"
 # 清理旧的PID文件
 rm -f .pids
 
+# 检查主目录是否存在，不存在则创建
+if [ ! -d "$HOST_HOME_DIR" ]; then
+    echo "创建主目录: $HOST_HOME_DIR"
+    mkdir -p "$HOST_HOME_DIR"
+fi
+
+# 检查log路径是否存在，不存在则创建
+if [ ! -d "$HOST_LOG_DIR" ]; then
+    echo "创建日志目录: $HOST_LOG_DIR"
+    mkdir -p "$HOST_LOG_DIR"
+else
+    echo "日志目录已存在: $HOST_LOG_DIR"
+fi
+
+echo "目录检查完成"
+
+# 获取当前时间戳
+CURRENT_TIME=$(date "+%Y%m%d_%H%M%S")
+
+# 获取机器编号
+if [ -f "$HOST_CONFIG_DIR/machine_code" ]; then
+    MACHINE_ID=$(cat "$HOST_CONFIG_DIR/machine_code")
+else
+    echo "错误：机器编号文件不存在 $HOST_CONFIG_DIR/machine_code"
+    exit 1
+fi
+
+# 使用时间戳定义日志文件名
+COORDINATOR_LOG="$HOST_LOG_DIR/coordinator/${MACHINE_ID}__${CURRENT_TIME}.log"
+DATAFLOW_LOG="$HOST_LOG_DIR/dataflow/${MACHINE_ID}__${CURRENT_TIME}.log"
+RERUN_LOG="$HOST_LOG_DIR/rerun/${MACHINE_ID}__${CURRENT_TIME}.log"
+
+
 # 并行执行任务
 log "启动数据流..."
-execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV1 && dora run $DATAFLOW_PATH" "logs/dataflow.log"
+execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV1 && dora run $DATAFLOW_PATH" "$DATAFLOW_LOG"
 
 sleep 5  # 简单的依赖等待
 
 log "启动协调器..."
-execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV2 && python operating_platform/core/coordinator.py --robot.type=aloha" "logs/coordinator.log"
+execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV2 && python operating_platform/scripts/run.py --robot.type=aloha_v1" "$COORDINATOR_LOG"
 
 sleep 2  # 简单的依赖等待
 
 log "启动Rerun 3D View..."
-execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV3 && cd test/piper && dora run arms_only_web.yml" "logs/rerun_3d_view.log"
+execute_in_container "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV3 && cd test/piper && dora run arms_only_web.yml" "$RERUN_LOG"
 
 
 log "打开Rerun 3D View - 请在浏览器打开"http://localhost:9060?url=rerun%2Bhttp%3A%2F%2Flocalhost%3A9876%2Fproxy""
@@ -154,8 +191,9 @@ log "打开Rerun 3D View - 请在浏览器打开"http://localhost:9060?url=rerun
 
 log "所有进程已启动，PID记录在.pids文件中"
 log "监控日志文件："
-echo "- dataflow.log"
-echo "- coordinator.log"
+echo "- $DATAFLOW_LOG"
+echo "- $COORDINATOR_LOG"
+echo "- $RERUN_LOG"
 
 # 持续运行直到收到中断信号
 wait

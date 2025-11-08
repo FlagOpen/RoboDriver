@@ -10,15 +10,15 @@ import json
 node = Node()
 
 # IPC Address
-ipc_address = "ipc:///tmp/dora-zeromq"
-ipc_address_piper = "ipc:///tmp/dorobot-piper"
+ipc_address_image = "ipc:///tmp/dora-zeromq-image"
+ipc_address_piper = "ipc:///tmp/dora-zeromq-piper"
 
 context = zmq.Context()
 running_recv_image_server = True
 running_recv_piper_server = True
 
 socket_image = context.socket(zmq.PAIR)
-socket_image.bind(ipc_address)
+socket_image.bind(ipc_address_image)
 socket_image.setsockopt(zmq.SNDHWM, 2000)
 socket_image.setsockopt(zmq.SNDBUF, 2**25)
 socket_image.setsockopt(zmq.SNDTIMEO, 2000)
@@ -46,9 +46,7 @@ def recv_server():
                 event_id = message_parts[0].decode('utf-8')
                 buffer_bytes = message_parts[1]
                 
-                # print(f"zmq recv event_id:{event_id}")
                 array = np.frombuffer(buffer_bytes, dtype=np.float32).copy()
-                # print(f"zmq recv array:{array}")
 
                 # ✅ 仅将数据放入队列，不再操作 node
                 if 'action_joint_right' in event_id:
@@ -73,7 +71,6 @@ def recv_server():
 
 if __name__ == "__main__":
 
-
     server_thread = threading.Thread(target=recv_server)
     server_thread.start()
 
@@ -94,10 +91,6 @@ if __name__ == "__main__":
                 event_id = event["id"]
                 buffer_bytes = event["value"].to_numpy().tobytes()
                 meta_bytes = json.dumps(event["metadata"]).encode('utf-8')
-                            
-                # 处理接收到的数据
-                # print(f"Send event: {event_id}")
-                # print(f"Buffer size: {len(buffer_bytes)} bytes")
 
                 if "image" in event_id:
                     try:

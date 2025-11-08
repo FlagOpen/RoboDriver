@@ -1,7 +1,7 @@
 #!/bin/bash
 
 IMAGE_NAME=wanx-robot-aloha-image
-IMAGE_VERSION=0.1
+IMAGE_VERSION=0.2
 CONTAINER_NAME=wanx-robot-aloha-container
 DOROBOT_HOME_HOST="/home/${USER}/DoRobot"
 DOROBOT_HOME=/root/DoRobot

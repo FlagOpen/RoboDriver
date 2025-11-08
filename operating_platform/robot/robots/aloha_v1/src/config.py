@@ -16,7 +16,7 @@ from operating_platform.robot.robots.com_configs.motors import (
 from operating_platform.robot.robots.configs import RobotConfig
 
 
-@RobotConfig.register_subclass("aloha")
+@RobotConfig.register_subclass("aloha_v1")
 @dataclass
 class AlohaRobotConfig(RobotConfig):
     right_leader_arm = PiperMotorsBusConfig(
@@ -64,18 +64,21 @@ class AlohaRobotConfig(RobotConfig):
                 fps=30,
                 width=640,
                 height=480,
+                channels=3,
             ),
             "image_right": OpenCVCameraConfig(
                 camera_index=2,
                 fps=30,
                 width=640,
                 height=480,
+                channels=3,
             ),
             "image_left": OpenCVCameraConfig(
                 camera_index=3,
                 fps=30,
                 width=640,
                 height=480,
+                channels=3,
             ),
             # "image_depth_top": OpenCVCameraConfig(
             #     camera_index=4,

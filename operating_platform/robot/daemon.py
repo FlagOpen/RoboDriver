@@ -93,7 +93,7 @@ class Daemon:
         start_loop_t = time.perf_counter()
 
         observation, action = self.robot.teleop_step(record_data=True)
-        status = safe_update_status()
+        status = safe_update_status(self.robot)
 
         self.set_observation(observation)
         self.set_obs_action(action)
