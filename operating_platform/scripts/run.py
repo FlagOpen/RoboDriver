@@ -10,12 +10,16 @@ from dataclasses import dataclass, asdict
 from operating_platform.core.coordinator import Coordinator
 from operating_platform.core.monitor import Monitor
 from operating_platform.robot.daemon import Daemon
-from operating_platform.robot.robots.configs import RobotConfig
+# from operating_platform.robot.robots.configs import RobotConfig
+from operating_platform.teleoperator.utils import make_teleoperator_from_config
 
 from operating_platform.utils import parser
+from operating_platform.utils.import_utils import register_third_party_devices
 from operating_platform.utils.utils import git_branch_log
 from operating_platform.utils.constants import DEFAULT_FPS
 
+from lerobot.teleoperators import TeleoperatorConfig
+# from lerobot.teleoperators import make_teleoperator_from_config
 
 logging_mp.basic_config(level=logging_mp.INFO)
 logger = logging_mp.get_logger(__name__)
@@ -24,6 +28,7 @@ logger = logging_mp.get_logger(__name__)
 @dataclass
 class ControlPipelineConfig:
     robot: RobotConfig
+    teleop: TeleoperatorConfig | None = None
 
     @classmethod
     def __get_path_fields__(cls) -> List[str]:
@@ -35,6 +40,9 @@ async def async_main(cfg: ControlPipelineConfig):
     git_branch_log()
     logger.info(f"Registered robot types: {list(RobotConfig._choice_registry.keys())}")
     logger.info(pformat(asdict(cfg)))
+
+    # robot = make_robot_from_config(cfg.robot)
+    teleop = make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
 
     daemon = Daemon(fps=DEFAULT_FPS)
     daemon.start(cfg.robot)
@@ -81,6 +89,7 @@ async def async_main(cfg: ControlPipelineConfig):
 
 @parser.wrap()
 def main(cfg: ControlPipelineConfig):
+    register_third_party_devices()
     asyncio.run(async_main(cfg))
 
 
