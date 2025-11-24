@@ -31,13 +31,13 @@ ruantong_v1, Not Support
 creat conda env
 
 ```sh
-conda create --name wanx-studio python==3.11
+conda create --name robo_driver python==3.10
 ```
 
 activate conda env
 
 ```sh
-conda activate wanx-studio
+conda activate robo_driver
 ```
 
 install this project
