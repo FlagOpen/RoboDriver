@@ -1,10 +1,11 @@
 # colored_logging.py
 
 import logging
-import colorama
 import os
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
-from typing import Optional, TextIO, Union
+from typing import Optional, TextIO
+
+import colorama
 
 # 初始化 colorama（仅需调用一次）
 colorama.init(autoreset=False)
@@ -14,14 +15,15 @@ class ColoredFormatter(logging.Formatter):
     """
     支持按日志级别着色的 Formatter
     """
+
     COLORS = {
-        'DEBUG': '\033[36m',    # 青色
-        'INFO': '\033[32m',     # 绿色
-        'WARNING': '\033[33m',  # 黄色
-        'ERROR': '\033[31m',    # 红色
-        'CRITICAL': '\033[1;35m', # 加粗紫色
+        "DEBUG": "\033[36m",  # 青色
+        "INFO": "\033[32m",  # 绿色
+        "WARNING": "\033[33m",  # 黄色
+        "ERROR": "\033[31m",  # 红色
+        "CRITICAL": "\033[1;35m",  # 加粗紫色
     }
-    RESET = '\033[0m'
+    RESET = "\033[0m"
 
     def __init__(self, colored=True, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
@@ -33,7 +35,9 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         if self.colored:
             log_color = self.COLORS.get(record.levelname, self.RESET)
-            fmt = self.fmt.replace('%(levelname)s', f'{log_color}%(levelname)s{self.RESET}')
+            fmt = self.fmt.replace(
+                "%(levelname)s", f"{log_color}%(levelname)s{self.RESET}"
+            )
         else:
             fmt = self.fmt
 
@@ -51,7 +55,7 @@ def setup_colored_logger(
     log_file: Optional[str] = None,
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
-    when: Optional[str] = None,          # 如 'D', 'midnight', 'H' 等，用于 TimedRotating
+    when: Optional[str] = None,  # 如 'D', 'midnight', 'H' 等，用于 TimedRotating
 ) -> logging.Logger:
     """
     快速设置一个带颜色的日志记录器（支持输出到控制台 + 文件）
@@ -84,15 +88,15 @@ def setup_colored_logger(
     # === 文件 Handler（可选）===
     if log_file:
         # 创建日志目录（如果不存在）
-        os.makedirs(os.path.dirname(log_file) if os.path.dirname(log_file) else '.', exist_ok=True)
+        os.makedirs(
+            os.path.dirname(log_file) if os.path.dirname(log_file) else ".",
+            exist_ok=True,
+        )
 
         if when:
             # 按时间轮转
             fh = TimedRotatingFileHandler(
-                filename=log_file,
-                when=when,
-                backupCount=backup_count,
-                encoding='utf-8'
+                filename=log_file, when=when, backupCount=backup_count, encoding="utf-8"
             )
         else:
             # 按大小轮转
@@ -100,12 +104,14 @@ def setup_colored_logger(
                 filename=log_file,
                 maxBytes=max_bytes,
                 backupCount=backup_count,
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
         # 文件日志不着色，使用纯文本格式
         file_fmt = fmt or "%(asctime)s - %(levelname)s - %(message)s"
-        file_formatter = logging.Formatter(file_fmt, datefmt=datefmt or "%Y-%m-%d %H:%M:%S")
+        file_formatter = logging.Formatter(
+            file_fmt, datefmt=datefmt or "%Y-%m-%d %H:%M:%S"
+        )
         fh.setFormatter(file_formatter)
         logger.addHandler(fh)
 
@@ -120,7 +126,7 @@ def get_logger(
     name: Optional[str] = None,
     level: int = logging.INFO,
     log_file: Optional[str] = None,
-    **kwargs
+    **kwargs,
 ) -> logging.Logger:
     """
     获取一个默认配置的彩色 logger（懒加载 + 支持文件日志）
@@ -128,10 +134,7 @@ def get_logger(
     global _default_logger
     if _default_logger is None:
         _default_logger = setup_colored_logger(
-            name=name or "default",
-            level=level,
-            log_file=log_file,
-            **kwargs
+            name=name or "default", level=level, log_file=log_file, **kwargs
         )
     return _default_logger
 
@@ -140,14 +143,18 @@ def get_logger(
 def info(msg, *args, **kwargs):
     get_logger().info(msg, *args, **kwargs)
 
+
 def warning(msg, *args, **kwargs):
     get_logger().warning(msg, *args, **kwargs)
+
 
 def error(msg, *args, **kwargs):
     get_logger().error(msg, *args, **kwargs)
 
+
 def debug(msg, *args, **kwargs):
     get_logger().debug(msg, *args, **kwargs)
+
 
 def critical(msg, *args, **kwargs):
     get_logger().critical(msg, *args, **kwargs)

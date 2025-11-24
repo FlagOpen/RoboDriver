@@ -13,13 +13,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Dict, List, Union
+
 import numpy as np
-from typing import Union, Optional, List, Dict
+
 from operating_platform.utils.dataset import load_image_as_numpy
 
 
 def estimate_num_samples(
-    dataset_len: int, min_num_samples: int = 100, max_num_samples: int = 10_000, power: float = 0.75
+    dataset_len: int,
+    min_num_samples: int = 100,
+    max_num_samples: int = 10_000,
+    power: float = 0.75,
 ) -> int:
     """Heuristic to estimate the number of samples based on dataset size.
     The power controls the sample growth relative to dataset size.
@@ -43,14 +48,18 @@ def sample_indices(data_len: int) -> List[int]:
     return np.round(np.linspace(0, data_len - 1, num_samples)).astype(int).tolist()
 
 
-def auto_downsample_height_width(img: np.ndarray, target_size: int = 150, max_size_threshold: int = 300):
+def auto_downsample_height_width(
+    img: np.ndarray, target_size: int = 150, max_size_threshold: int = 300
+):
     _, height, width = img.shape
 
     if max(width, height) < max_size_threshold:
         # no downsampling needed
         return img
 
-    downsample_factor = int(width / target_size) if width > height else int(height / target_size)
+    downsample_factor = (
+        int(width / target_size) if width > height else int(height / target_size)
+    )
     return img[:, ::downsample_factor, ::downsample_factor]
 
 
@@ -72,7 +81,9 @@ def sample_images(image_paths: List[str]) -> np.ndarray:
     return images
 
 
-def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> Dict[str, np.ndarray]:
+def get_feature_stats(
+    array: np.ndarray, axis: tuple, keepdims: bool
+) -> Dict[str, np.ndarray]:
     return {
         "min": np.min(array, axis=axis, keepdims=keepdims),
         "max": np.max(array, axis=axis, keepdims=keepdims),
@@ -82,7 +93,9 @@ def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> Dict[st
     }
 
 
-def compute_episode_stats(episode_data: Dict[str, Union[List[str], np.ndarray]], features: dict) -> dict:
+def compute_episode_stats(
+    episode_data: Dict[str, Union[List[str], np.ndarray]], features: dict
+) -> dict:
     ep_stats = {}
     for key, data in episode_data.items():
         if features[key]["dtype"] == "string" or features[key]["dtype"] == "audio":
@@ -96,12 +109,15 @@ def compute_episode_stats(episode_data: Dict[str, Union[List[str], np.ndarray]],
             axes_to_reduce = 0  # compute stats over the first axis
             keepdims = data.ndim == 1  # keep as np.array
 
-        ep_stats[key] = get_feature_stats(ep_ft_array, axis=axes_to_reduce, keepdims=keepdims)
+        ep_stats[key] = get_feature_stats(
+            ep_ft_array, axis=axes_to_reduce, keepdims=keepdims
+        )
 
         # finally, we normalize and remove batch dim for images
         if features[key]["dtype"] in ["image", "video"]:
             ep_stats[key] = {
-                k: v if k == "count" else np.squeeze(v / 255.0, axis=0) for k, v in ep_stats[key].items()
+                k: v if k == "count" else np.squeeze(v / 255.0, axis=0)
+                for k, v in ep_stats[key].items()
             }
 
     return ep_stats
@@ -116,14 +132,22 @@ def _assert_type_and_shape(stats_list: List[Dict[str, Dict]]):
                         f"Stats must be composed of numpy array, but key '{k}' of feature '{fkey}' is of type '{type(v)}' instead."
                     )
                 if v.ndim == 0:
-                    raise ValueError("Number of dimensions must be at least 1, and is 0 instead.")
+                    raise ValueError(
+                        "Number of dimensions must be at least 1, and is 0 instead."
+                    )
                 if k == "count" and v.shape != (1,):
-                    raise ValueError(f"Shape of 'count' must be (1), but is {v.shape} instead.")
+                    raise ValueError(
+                        f"Shape of 'count' must be (1), but is {v.shape} instead."
+                    )
                 if "image" in fkey and k != "count" and v.shape != (3, 1, 1):
-                    raise ValueError(f"Shape of '{k}' must be (3,1,1), but is {v.shape} instead.")
+                    raise ValueError(
+                        f"Shape of '{k}' must be (3,1,1), but is {v.shape} instead."
+                    )
 
 
-def aggregate_feature_stats(stats_ft_list: List[Dict[str, Dict]]) -> Dict[str, Dict[str, np.ndarray]]:
+def aggregate_feature_stats(
+    stats_ft_list: List[Dict[str, Dict]],
+) -> Dict[str, Dict[str, np.ndarray]]:
     """Aggregates stats for a single feature."""
     means = np.stack([s["mean"] for s in stats_ft_list])
     variances = np.stack([s["std"] ** 2 for s in stats_ft_list])
@@ -152,7 +176,9 @@ def aggregate_feature_stats(stats_ft_list: List[Dict[str, Dict]]) -> Dict[str, D
     }
 
 
-def aggregate_stats(stats_list: List[Dict[str, Dict]]) -> Dict[str, Dict[str, np.ndarray]]:
+def aggregate_stats(
+    stats_list: List[Dict[str, Dict]],
+) -> Dict[str, Dict[str, np.ndarray]]:
     """Aggregate stats from multiple compute_stats outputs into a single set of stats.
 
     The final stats will have the union of all data keys from each of the stats dicts.

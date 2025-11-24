@@ -12,7 +12,7 @@ nodes:
     inputs:
       imu: dora-vive-tracker/imu
       pose: dora-vive-tracker/pose
-  
+
   - id: dora-vive-visual-1
     path: dr_tracker_vive/visual.py
     inputs:

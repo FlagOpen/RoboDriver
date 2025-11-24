@@ -1,4 +1,6 @@
 import logging
+from typing import Union
+
 import packaging.version
 from huggingface_hub.errors import RevisionNotFoundError
 
@@ -8,9 +10,7 @@ from operating_platform.dataset.backward_compatibility import (
     ForwardCompatibilityError,
 )
 from operating_platform.robots.utils import Robot
-from operating_platform.utils.dataset import get_repo_versions, DEFAULT_FEATURES
-from typing import Union, Optional, List
-
+from operating_platform.utils.dataset import DEFAULT_FEATURES, get_repo_versions
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ def check_version_compatibility(
     elif v_check.minor < v_current.minor:
         logger.warning(V21_MESSAGE.format(repo_id=repo_id, version=v_check))
 
+
 def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
     camera_ft = {}
     if robot.cameras:
@@ -43,7 +44,7 @@ def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
             key: {"dtype": "video" if use_videos else "image", **ft}
             for key, ft in robot.camera_features.items()
         }
-    
+
     microphone_ft = {}
     if robot.microphones:
         microphone_ft = {
@@ -52,6 +53,7 @@ def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
         }
     return {**robot.motor_features, **camera_ft, **microphone_ft, **DEFAULT_FEATURES}
 
+
 # def get_features_from_robot_new(robot: Robot, use_videos: bool = True) -> dict:
 #     observation_features = {}
 #     if hasattr(robot, "observation_features"):
@@ -59,7 +61,7 @@ def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
 #             key: {"dtype": "video" if use_videos else "image", **ft}
 #             for key, ft in robot.camera_features.items()
 #         }
-    
+
 #     microphone_ft = {}
 #     if robot.microphones:
 #         microphone_ft = {
@@ -68,13 +70,18 @@ def get_features_from_robot(robot: Robot, use_videos: bool = True) -> dict:
 #         }
 #     return {**observation_features, **action_features, **DEFAULT_FEATURES}
 
-def get_safe_version(repo_id: str, version: Union[str, packaging.version.Version]) -> str:
+
+def get_safe_version(
+    repo_id: str, version: Union[str, packaging.version.Version]
+) -> str:
     """
     Returns the version if available on repo or the latest compatible one.
     Otherwise, will throw a `CompatibilityError`.
     """
     target_version = (
-        packaging.version.parse(version) if not isinstance(version, packaging.version.Version) else version
+        packaging.version.parse(version)
+        if not isinstance(version, packaging.version.Version)
+        else version
     )
     hub_versions = get_repo_versions(repo_id)
 
@@ -95,12 +102,16 @@ def get_safe_version(repo_id: str, version: Union[str, packaging.version.Version
         return f"v{target_version}"
 
     compatibles = [
-        v for v in hub_versions if v.major == target_version.major and v.minor <= target_version.minor
+        v
+        for v in hub_versions
+        if v.major == target_version.major and v.minor <= target_version.minor
     ]
     if compatibles:
         return_version = max(compatibles)
         if return_version < target_version:
-            logging.warning(f"Revision {version} for {repo_id} not found, using version v{return_version}")
+            logging.warning(
+                f"Revision {version} for {repo_id} not found, using version v{return_version}"
+            )
         return f"v{return_version}"
 
     lower_major = [v for v in hub_versions if v.major < target_version.major]

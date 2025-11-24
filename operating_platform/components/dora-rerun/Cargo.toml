@@ -12,7 +12,7 @@ documentation = "https://docs.rs/dora-rerun"             # 可选，或留空
 authors = ["Your Name <you@example.com>"]  # 警告：已弃用，但仍可用
 publish = true  # 设为 false 可防止发布到 crates.io
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html  
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = []

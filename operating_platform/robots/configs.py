@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass, field
-from typing import Sequence, Dict, List, Union, Optional
+from typing import Dict, List, Optional, Sequence, Union
 
 import draccus
 
@@ -13,6 +13,7 @@ class RobotConfig(draccus.ChoiceRegistry, abc.ABC):
     @property
     def type(self) -> str:
         return self.get_choice_name(self.__class__)
+
 
 @dataclass
 class ManipulatorRobotConfig(RobotConfig):
@@ -38,9 +39,13 @@ class ManipulatorRobotConfig(RobotConfig):
                 if not cam.mock:
                     cam.mock = True
 
-        if self.max_relative_target is not None and isinstance(self.max_relative_target, Sequence):
+        if self.max_relative_target is not None and isinstance(
+            self.max_relative_target, Sequence
+        ):
             for name in self.follower_arms:
-                if len(self.follower_arms[name].motors) != len(self.max_relative_target):
+                if len(self.follower_arms[name].motors) != len(
+                    self.max_relative_target
+                ):
                     raise ValueError(
                         f"len(max_relative_target)={len(self.max_relative_target)} but the follower arm with name {name} has "
                         f"{len(self.follower_arms[name].motors)} motors. Please make sure that the "
@@ -48,6 +53,7 @@ class ManipulatorRobotConfig(RobotConfig):
                         "Note: This feature does not yet work with robots where different follower arms have "
                         "different numbers of motors."
                     )
+
 
 @dataclass
 class DDSManipulatorRobotConfig(RobotConfig):
@@ -73,9 +79,13 @@ class DDSManipulatorRobotConfig(RobotConfig):
                 if not cam.mock:
                     cam.mock = True
 
-        if self.max_relative_target is not None and isinstance(self.max_relative_target, Sequence):
+        if self.max_relative_target is not None and isinstance(
+            self.max_relative_target, Sequence
+        ):
             for name in self.follower_motors:
-                if len(self.follower_motors[name].motors) != len(self.max_relative_target):
+                if len(self.follower_motors[name].motors) != len(
+                    self.max_relative_target
+                ):
                     raise ValueError(
                         f"len(max_relative_target)={len(self.max_relative_target)} but the follower arm with name {name} has "
                         f"{len(self.follower_motors[name].motors)} motors. Please make sure that the "
@@ -83,4 +93,3 @@ class DDSManipulatorRobotConfig(RobotConfig):
                         "Note: This feature does not yet work with robots where different follower arms have "
                         "different numbers of motors."
                     )
-    

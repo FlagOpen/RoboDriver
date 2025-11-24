@@ -8,9 +8,7 @@ import cv2
 import numpy as np
 import pyarrow as pa
 from dora import Node
-from PIL import (
-    Image,
-)
+from PIL import Image
 
 # if True:
 #     import pillow_avif  # noqa  # noqa

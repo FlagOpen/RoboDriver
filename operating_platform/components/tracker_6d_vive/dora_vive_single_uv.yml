@@ -16,7 +16,7 @@ nodes:
       pose: dora-vive-tracker/pose
     env:
       VIRTUAL_ENV: dr-component-vive
-  
+
   - id: dora-vive-visual
     path: dr_tracker_vive/visual.py
     inputs:

@@ -1,5 +1,5 @@
 #!/bin/bash
-declare -A USB_PORTS 
+declare -A USB_PORTS
 
 USB_PORTS["3-3:1.0"]="can_right:1000000"
 USB_PORTS["3-2:1.0"]="can_left:1000000"
@@ -23,7 +23,7 @@ HAS_DUPLICATE=false
 for k in "${!USB_PORTS[@]}"; do
     LINE_NUM=$((LINE_NUM + 1))
     IFS=':' read -r name bitrate <<< "${USB_PORTS[$k]}"
-    
+
     # 检查是否重复
     if [[ -n "${TARGET_NAMES_COUNT[$name]}" ]]; then
         echo "→ [$LINE_NUM] \"$k\"=\"${USB_PORTS[$k]}\"  ❌ Duplicate target CAN name: '$name'"
@@ -88,26 +88,26 @@ for iface in $SYS_INTERFACE; do
     # Get bus-info using ethtool
     echo "--------------------------- $iface ------------------------------"
     BUS_INFO=$(sudo ethtool -i "$iface" | grep "bus-info" | awk '{print $2}')
-    
+
     if [ -z "$BUS_INFO" ];then
         echo "[ERROR]: Unable to get bus-info information for interface '$iface'."
         continue
     fi
-    
+
     echo "[INFO]: System interface '$iface' is plugged into USB port '$BUS_INFO'"
     # Check if bus-info is in the list of predefined USB ports
     if [ -n "${USB_PORTS[$BUS_INFO]}" ];then
         IFS=':' read -r TARGET_NAME TARGET_BITRATE <<< "${USB_PORTS[$BUS_INFO]}"
-        
+
         # Check if the current interface is activated
         IS_LINK_UP=$(ip link show "$iface" | grep -q "UP" && echo "yes" || echo "no")
 
         # Get the bit rate of the current interface
         CURRENT_BITRATE=$(ip -details link show "$iface" | grep -oP 'bitrate \K\d+')
-        
+
         if [ "$IS_LINK_UP" = "yes" ] && [ "$CURRENT_BITRATE" -eq "$TARGET_BITRATE" ]; then
             echo "[INFO]: Interface '$iface' is activated and bitrate is $TARGET_BITRATE"
-            
+
             # Check if the interface name matches the target name
             if [ "$iface" != "$TARGET_NAME" ]; then
                 echo "[INFO]: Rename interface '$iface' to '$TARGET_NAME'"
@@ -135,13 +135,13 @@ for iface in $SYS_INTERFACE; do
             else
                 echo "[INFO]: Interface '$iface' is not activated or the bitrate is not set."
             fi
-            
+
             # Set the interface bit rate and activate it
             sudo ip link set "$iface" down
             sudo ip link set "$iface" type can bitrate $TARGET_BITRATE
             sudo ip link set "$iface" up
             echo "[INFO]: Interface '$iface' has been reset to bitrate $TARGET_BITRATE and activated."
-            
+
             # Rename the interface to the target name
             if [ "$iface" != "$TARGET_NAME" ]; then
                 echo "[INFO]: Rename interface $iface to '$TARGET_NAME'"

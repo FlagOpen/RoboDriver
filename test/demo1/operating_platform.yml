@@ -11,7 +11,7 @@ nodes:
       IMAGE_WIDTH: 1920
       IMAGE_HEIGHT: 1080
       ENCODING: jpeg
-  
+
   - id: camera-2
     path: opencv-video-capture
     inputs:

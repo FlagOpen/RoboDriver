@@ -107,13 +107,13 @@ cleanup() {
             # 可选：等待几秒确保进程优雅退出
             sleep 2
         fi
-        
+
         # 停止容器（如果仍在运行）
         if docker inspect --type=container "$CONTAINER_NAME" &>/dev/null; then
             log "停止容器 $CONTAINER_NAME..."
             docker stop "$CONTAINER_NAME" > /dev/null 2>&1 || true
         fi
-        
+
         # 恢复X11访问权限
         xhost - >/dev/null 2>&1 || true
     fi
@@ -133,7 +133,7 @@ check_container() {
 wait_for_container() {
     log "等待容器就绪..."
     local start_time=$(date +%s)
-    
+
     while ! docker exec "$CONTAINER_NAME" sh -c "ls /dev/video* >/dev/null 2>&1"; do
         sleep 1
         local current_time=$(date +%s)
@@ -148,7 +148,7 @@ wait_for_container() {
 execute_in_container() {
     local cmd="$1"
     local log_file="$2"
-    
+
     log "执行命令: $cmd"
     docker exec -t "$CONTAINER_NAME" bash -c "$cmd" \
         > >(tee -a "$log_file") 2>&1 &
@@ -159,7 +159,7 @@ execute_in_container() {
 execute_local() {
     local cmd="$1"
     local log_file="$2"
-    
+
     log "在容器内执行命令: $cmd"
     (eval "$cmd") > >(tee -a "$log_file") 2>&1 &
     echo $! >> .pids
@@ -212,7 +212,7 @@ fi
 log "启动协调器..."
 $EXEC_FUNCTION "cd $PROJECT_DIR && $CONDA_ACTIVATE $CONDA_ENV1 && python operating_platform/core/coordinator.py --robot.type=so101" "logs/coordinator.log"
 
-sleep 3 
+sleep 3
 
 # 并行执行任务
 log "启动ROBOT数据流..."

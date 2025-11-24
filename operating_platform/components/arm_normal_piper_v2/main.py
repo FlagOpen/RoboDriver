@@ -12,14 +12,14 @@ from piper_sdk import C_PiperInterface
 def enable_fun(piper: C_PiperInterface):
     """使能机械臂并检测使能状态,尝试0.05s,如果使能超时则退出程序."""
     enable_flag = all(piper.GetArmEnableStatus())
-    
+
     timeout = 0.05  # 超时时间（秒）
     interval = 0.01  # 每次轮询间隔（秒）
-    
+
     start_time = time.time()
     while not enable_flag:
         enable_flag = piper.EnablePiper()
-        
+
         print("--------------------")
         print("使能状态:", enable_flag)
         print("--------------------")
@@ -73,7 +73,6 @@ def main():
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 1000, 0x01, 0)
 
             elif event["id"] == "action_endpose":
-                
                 # Do not push to many commands to fast. Limiting it to 30Hz
                 if time.time() - elapsed_time > 0.03:
                     elapsed_time = time.time()
@@ -91,7 +90,7 @@ def main():
                     position[5] * 1000 / (2 * np.pi) * 360,
                 )
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
-            
+
             elif event["id"] == "action_gripper":
                 # print(f" get action_gripper")
 
@@ -121,7 +120,9 @@ def main():
                 gripper = piper.GetArmGripperMsgs()
                 joint_value += [gripper.gripper_state.grippers_angle / 1000 / 100]
 
-                node.send_output("slave_jointstate", pa.array(joint_value, type=pa.float32()))
+                node.send_output(
+                    "slave_jointstate", pa.array(joint_value, type=pa.float32())
+                )
 
                 position = piper.GetArmEndPoseMsgs()
                 position_value = []
@@ -132,7 +133,9 @@ def main():
                 position_value += [position.end_pose.RY_axis * 0.001 / 360 * 2 * np.pi]
                 position_value += [position.end_pose.RZ_axis * 0.001 / 360 * 2 * np.pi]
 
-                node.send_output("slave_endpose", pa.array(position_value, type=pa.float32()))
+                node.send_output(
+                    "slave_endpose", pa.array(position_value, type=pa.float32())
+                )
                 # node.send_output(
                 #     "slave_gripper",
                 #     pa.array(
@@ -155,7 +158,9 @@ def main():
                 gripper = piper.GetArmGripperCtrl()
                 joint_value += [gripper.gripper_ctrl.grippers_angle / 1000 / 100]
 
-                node.send_output("master_jointstate", pa.array(joint_value, type=pa.float32()))
+                node.send_output(
+                    "master_jointstate", pa.array(joint_value, type=pa.float32())
+                )
 
                 # position = piper.GetFK(mode="control")
                 # position_value = []
@@ -167,7 +172,6 @@ def main():
                 # position_value += [position[5][5] / 360 * 2 * np.pi]
 
                 # node.send_output("master_endpose", pa.array(position_value, type=pa.float32()))
-
 
                 # node.send_output(
                 #     "master_gripper",

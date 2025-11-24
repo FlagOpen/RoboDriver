@@ -6,7 +6,7 @@ nodes:
     outputs:
       - imu
       - pose
-  
+
   - id: dora-vive-sn
     path: dr_tracker_vive/sn.py
     inputs:

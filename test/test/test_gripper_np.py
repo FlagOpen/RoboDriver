@@ -11,8 +11,12 @@ left_np_array = np.array([left_value], dtype=np.float32)
 
 # 打印初始数组信息
 print("=== 初始数组信息 ===")
-print(f"right_np_array: {right_np_array} | 类型: {right_np_array.dtype} | 字节数: {right_np_array.nbytes}")
-print(f"left_np_array:  {left_np_array} | 类型: {left_np_array.dtype} | 字节数: {left_np_array.nbytes}")
+print(
+    f"right_np_array: {right_np_array} | 类型: {right_np_array.dtype} | 字节数: {right_np_array.nbytes}"
+)
+print(
+    f"left_np_array:  {left_np_array} | 类型: {left_np_array.dtype} | 字节数: {left_np_array.nbytes}"
+)
 
 # 转换为字节流
 r_buffer_bytes = right_np_array.tobytes()
@@ -29,13 +33,21 @@ left_gripper_array = np.frombuffer(l_buffer_bytes, dtype=np.float32)
 
 # 打印重建数组信息
 print("\n=== 重建数组信息 ===")
-print(f"重建的右夹爪数组: {right_gripper_array} | 类型: {right_gripper_array.dtype} | 形状: {right_gripper_array.shape}")
-print(f"重建的左夹爪数组: {left_gripper_array} | 类型: {left_gripper_array.dtype} | 形状: {left_gripper_array.shape}")
+print(
+    f"重建的右夹爪数组: {right_gripper_array} | 类型: {right_gripper_array.dtype} | 形状: {right_gripper_array.shape}"
+)
+print(
+    f"重建的左夹爪数组: {left_gripper_array} | 类型: {left_gripper_array.dtype} | 形状: {left_gripper_array.shape}"
+)
 
 # 验证数值一致性
 print("\n=== 数值验证 ===")
-print(f"右值一致性: 原始={right_value:.6f} -> 重建={right_gripper_array[0]:.6f} | 相等: {np.isclose(right_value, right_gripper_array[0])}")
-print(f"左值一致性: 原始={left_value:.6f} -> 重建={left_gripper_array[0]:.6f} | 相等: {np.isclose(left_value, left_gripper_array[0])}")
+print(
+    f"右值一致性: 原始={right_value:.6f} -> 重建={right_gripper_array[0]:.6f} | 相等: {np.isclose(right_value, right_gripper_array[0])}"
+)
+print(
+    f"左值一致性: 原始={left_value:.6f} -> 重建={left_gripper_array[0]:.6f} | 相等: {np.isclose(left_value, left_gripper_array[0])}"
+)
 
 # 创建最终字典
 recv_gripper = {
@@ -71,7 +83,7 @@ print("\n=== 开始映射 recv_gripper -> follower_gripper ===")
 
 #     # 构造匹配键名，例如 'right' -> 'gripper_right'
 #     match_name = f"gripper_{name}"
-    
+
 #     if match_name not in recv_gripper:
 #         print(f"  ⚠️ 警告: {match_name} 不存在于 recv_gripper 中！跳过...")
 #         continue
@@ -110,11 +122,10 @@ for name in follower_arms:
 
             byte_array[:1] = gripper_read[:]
             byte_array = np.round(byte_array, 3)
-            
+
             follower_gripper[name] = torch.from_numpy(byte_array)
 
             # self.logs[f"read_follower_{name}_gripper_dt_s"] = time.perf_counter() - now
-
 
 
 # 最终输出
@@ -123,5 +134,7 @@ for key, tensor in follower_gripper.items():
     print(f"follower_gripper['{key}'] = {tensor} (值: {tensor.item():.3f})")
 
 # 可选：检查是否在 GPU 上（目前是在 CPU）
-print(f"\n提示: 当前张量位于 {follower_gripper['right'].device} 上。"
-      f"如需迁移到 GPU，请使用 .to('cuda')")
+print(
+    f"\n提示: 当前张量位于 {follower_gripper['right'].device} 上。"
+    f"如需迁移到 GPU，请使用 .to('cuda')"
+)

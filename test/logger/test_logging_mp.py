@@ -1,5 +1,7 @@
 from multiprocessing import Process
+
 import logging_mp
+
 
 def worker(name, level=None):
     # 如果没有设置 level，就使用全局默认等级
@@ -12,6 +14,7 @@ def worker(name, level=None):
     logger.critical(f"[{name}] critical —— 严重错误可能导致崩溃")
 
     logger.info(f"value A: {False}, value B: {123}")
+
 
 if __name__ == "__main__":
     # 全局默认等级：INFO（即不显示 debug）
@@ -26,10 +29,12 @@ if __name__ == "__main__":
     # 👉 worker-C：设置为 WARNING，只显示 warning 及以上
     # 👉 worker-D：不设置等级，也服从全局 INFO
     processes = [
-        Process(target=worker, args=("worker-A",)),                        # 使用全局等级 INFO
-        Process(target=worker, args=("worker-B", logging_mp.DEBUG)),       # 单独设置为 DEBUG
-        Process(target=worker, args=("worker-C", logging_mp.WARNING)),     # 单独设置为 WARNING
-        Process(target=worker, args=("worker-D",)),                        # 使用全局等级 INFO
+        Process(target=worker, args=("worker-A",)),  # 使用全局等级 INFO
+        Process(target=worker, args=("worker-B", logging_mp.DEBUG)),  # 单独设置为 DEBUG
+        Process(
+            target=worker, args=("worker-C", logging_mp.WARNING)
+        ),  # 单独设置为 WARNING
+        Process(target=worker, args=("worker-D",)),  # 使用全局等级 INFO
     ]
 
     for p in processes:

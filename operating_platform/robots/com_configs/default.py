@@ -29,7 +29,9 @@ class DatasetConfig:
     # Root directory where the dataset will be stored (e.g. 'dataset/path').
     root: str | None = None
     episodes: list[int] | None = None
-    image_transforms: ImageTransformsConfig = field(default_factory=ImageTransformsConfig)
+    image_transforms: ImageTransformsConfig = field(
+        default_factory=ImageTransformsConfig
+    )
     revision: str | None = None
     use_imagenet_stats: bool = True
     video_backend: str = "pyav"

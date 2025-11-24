@@ -1,0 +1,94 @@
+# .pre-commit-config.yaml
+default_language_version:
+  python: python3.10  # 与你计划升级到 Python 3.10 一致
+
+repos:
+  # 1. 自动添加/检查版权头
+  # - repo: https://github.com/tylerwince/pre-commit-license
+  #   rev: v1.2.0
+  #   hooks:
+  #     - id: add-license
+  #       args: ["--license", "Apache-2.0", "--copyright", "Copyright (c) 2025 BAAI, BAAI EI Data Group, Xiang Yang"]
+  #       types_or: [python, markdown, yaml, dockerfile, shell]
+
+  # 2. 代码格式化
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.10
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]  # 与 black 兼容
+
+  # 3. 快速静态检查（替代 flake8/pylint）
+  # - repo: https://github.com/astral-sh/ruff-pre-commit
+  #   rev: v0.8.3
+  #   hooks:
+  #     - id: ruff
+  #       args: ["--fix"]
+  #     - id: ruff-format  # Ruff 也支持格式化（可选，若用 black 可注释此项）
+
+  # 4. 类型检查（默认跳过，可手动启用）
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.11.2
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies:
+  #         - types-requests
+  #         - types-protobuf  # 根据项目添加
+  #       args: [--strict]
+
+  # 5. 防止提交敏感信息
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-ast  # 确保 Python 语法正确
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, release]
+
+  # 6. 提交信息规范（Conventional Commits）
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.1.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
+
+  # 7. TODO/FIXME 检查（可选：禁止提交含 TODO 的代码）
+  # - repo: https://github.com/pre-commit/pre-commit-hooks
+  #   rev: v5.0.0
+  #   hooks:
+  #     - id: forbid-new-submodules
+  #     - id: check-case-conflict
+  #     - id: debug-statements  # 检查 print() / pdb 等
+  #     - id: fix-encoding-pragma
+  #     - id: file-contents-sorter
+
+  # 8. Shell 脚本安全（如果你有 build.sh / deploy.sh 等）
+  # - repo: https://github.com/shellcheck-py/shellcheck-py
+  #   rev: v0.10.0.1
+  #   hooks:
+  #     - id: shellcheck
+
+# 自动在 git commit 时运行
+default_stages: [pre-commit]
+
+# 可选：跳过某些文件
+exclude: |
+  (?x)(
+    ^migrations/.*|
+    ^.*\.ipynb$|
+    ^docs/.*|
+    ^data/.*|
+    ^build/.*|
+    ^dist/.*
+  )

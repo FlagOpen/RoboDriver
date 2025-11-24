@@ -22,9 +22,6 @@ import numpy as np
 import pyarrow as pa
 from dora import Node
 
-import time
-
-
 try:
     from pyorbbecsdk import (
         Config,
@@ -141,7 +138,7 @@ def frame_to_bgr_image(frame: VideoFrame):
 MIN_DEPTH_METERS = 0.01
 MAX_DEPTH_METERS = 15.0
 
-GET_DEVICE_FROM = os.getenv("GET_DEVICE_FROM", "SN") # SN or INDEX
+GET_DEVICE_FROM = os.getenv("GET_DEVICE_FROM", "SN")  # SN or INDEX
 DEVICE_SN = os.getenv("DEVICE_SN")
 DEVICE_INDEX = int(os.getenv("DEVICE_INDEX", "0"))
 
@@ -171,7 +168,7 @@ def main():
             raise ValueError
     elif GET_DEVICE_FROM == "INDEX":
         device = device_list.get_device_by_index(int(DEVICE_INDEX))
-    
+
     # temporal_filter = TemporalFilter(alpha=0.5)
     pipeline = Pipeline(device)
 
@@ -207,8 +204,8 @@ def main():
     pipeline.start(config)
 
     for _event in node:
-    # while True:
-        
+        # while True:
+
         try:
             frames: FrameSet = pipeline.wait_for_frames(100)
             if frames is None:
@@ -226,7 +223,11 @@ def main():
             # Send Color Image
             ret, frame = cv2.imencode("." + "jpeg", color_image)
             if ret:
-                node.send_output("image", pa.array(frame), {"encoding": "jpeg", "width": int(640), "height": int(480)})
+                node.send_output(
+                    "image",
+                    pa.array(frame),
+                    {"encoding": "jpeg", "width": int(640), "height": int(480)},
+                )
 
             # Get Depth data
             depth_frame = frames.get_depth_frame()

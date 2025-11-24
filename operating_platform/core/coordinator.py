@@ -1,26 +1,35 @@
-import cv2
-import time
-import threading
+import asyncio
 import queue
-import asyncio, aiohttp
-import socketio
-import logging_mp
-
+import threading
+import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
+import aiohttp
+import cv2
+import logging_mp
+import socketio
+from lerobot.teleoperators import Teleoperator
+
+from operating_platform.core.recorder import Record, RecordConfig
+from operating_platform.core.replayer import DatasetReplayConfig, ReplayConfig, replay
 from operating_platform.dataset.dorobot_dataset import *
 from operating_platform.dataset.visual.visual_dataset import visualize_dataset
 from operating_platform.robots.daemon import Daemon
-from operating_platform.core.recorder import Record, RecordConfig
-from operating_platform.core.replayer import DatasetReplayConfig, ReplayConfig, replay
-from operating_platform.utils.utils import has_method, log_say, get_current_git_branch, git_branch_log, cameras_to_stream_json
-from operating_platform.utils.data_file import find_epindex_from_dataid_json, check_disk_space
-from operating_platform.utils.constants import DOROBOT_DATASET, DEFAULT_FPS, RERUN_WEB_PORT, RERUN_WS_PORT
-
-from lerobot.robots import Robot
-from lerobot.teleoperators import Teleoperator
-
+from operating_platform.utils.constants import (
+    DEFAULT_FPS,
+    DOROBOT_DATASET,
+    RERUN_WEB_PORT,
+    RERUN_WS_PORT,
+)
+from operating_platform.utils.data_file import (
+    check_disk_space,
+    find_epindex_from_dataid_json,
+)
+from operating_platform.utils.utils import (
+    cameras_to_stream_json,
+    get_current_git_branch,
+)
 
 logger = logging_mp.get_logger(__name__)
 
@@ -52,13 +61,13 @@ class Coordinator:
         self.cameras = {"image_top": 1, "image_right": 2}
 
         # 注册异步回调
-        self.sio.on('HEARTBEAT_RESPONSE', self.__on_heartbeat_response_handle)
-        self.sio.on('connect', self.__on_connect_handle)
-        self.sio.on('disconnect', self.__on_disconnect_handle)
-        self.sio.on('robot_command', self.__on_robot_command_handle)
+        self.sio.on("HEARTBEAT_RESPONSE", self.__on_heartbeat_response_handle)
+        self.sio.on("connect", self.__on_connect_handle)
+        self.sio.on("disconnect", self.__on_disconnect_handle)
+        self.sio.on("robot_command", self.__on_robot_command_handle)
 
         self.record = None
-    
+
     ####################### Client Start/Stop ############################
     async def start(self):
         """启动客户端"""
@@ -72,20 +81,20 @@ class Coordinator:
         await self.sio.disconnect()
         await self.session.close()
         logger.info("异步客户端已停止")
-    
+
     ####################### Client Handle ############################
     async def __on_heartbeat_response_handle(self, data):
         """心跳响应回调"""
         logger.info("收到心跳响应:", data)
-    
+
     async def __on_connect_handle(self):
         """连接成功回调"""
         logger.info("成功连接到服务器")
-        
+
     async def __on_disconnect_handle(self):
         """断开连接回调"""
         logger.info("与服务器断开连接")
-    
+
     async def __on_robot_command_handle(self, data):
         """收到机器人命令回调"""
         logger.info("收到服务器命令:", data)
@@ -94,33 +103,33 @@ class Coordinator:
         global task_data_id
         global repo_id
         # 根据命令类型进行响应
-        if data.get('cmd') == 'video_list':
+        if data.get("cmd") == "video_list":
             logger.info("处理更新视频流命令...")
             response_data = cameras_to_stream_json(self.cameras)
             # 发送响应
             try:
                 response = self.session.post(
                     f"{self.server_url}/robot/stream_info",
-                    json = response_data,
+                    json=response_data,
                 )
                 logger.info(f"已发送响应 [{data.get('cmd')}]: {response_data}")
             except Exception as e:
                 logger.error(f"发送响应失败 [{data.get('cmd')}]: {e}")
-            
-        elif data.get('cmd') == 'start_collection':
+
+        elif data.get("cmd") == "start_collection":
             logger.info("处理开始采集命令...")
-            msg = data.get('msg')
+            msg = data.get("msg")
 
             if not check_disk_space(min_gb=2):
                 logger.warning("存储空间不足,小于2GB,取消采集！")
-                await self.send_response('start_collection', "存储空间不足,小于2GB")
+                await self.send_response("start_collection", "存储空间不足,小于2GB")
                 return
 
             if self.replaying == True:
                 logger.warning("Replay is running, cannot start collection.")
-                await self.send_response('start_collection', "fail")
+                await self.send_response("start_collection", "fail")
                 return
-            
+
             if self.recording == True:
                 self.record.stop()
                 self.record.discard()
@@ -128,10 +137,10 @@ class Coordinator:
 
             self.recording = True
 
-            task_id = msg.get('task_id')
-            task_name = msg.get('task_name')
-            task_data_id = msg.get('task_data_id')
-            countdown_seconds = msg.get('countdown_seconds', 3) 
+            task_id = msg.get("task_id")
+            task_name = msg.get("task_name")
+            task_data_id = msg.get("task_data_id")
+            countdown_seconds = msg.get("countdown_seconds", 3)
             task_dir = f"{task_name}_{task_id}"
             repo_id = f"{task_name}_{task_id}_{task_data_id}"
 
@@ -143,7 +152,7 @@ class Coordinator:
             git_branch_name = get_current_git_branch()
             if "release" in git_branch_name:
                 target_dir = dataset_path / date_str / "user" / task_dir / repo_id
-            elif "dev"  in git_branch_name:
+            elif "dev" in git_branch_name:
                 target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
             else:
                 target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
@@ -153,26 +162,46 @@ class Coordinator:
 
             # 检查数据集目录是否存在
             if not dataset_path.exists():
-                logger.info(f"Dataset directory '{dataset_path}' does not exist. Cannot resume.")
+                logger.info(
+                    f"Dataset directory '{dataset_path}' does not exist. Cannot resume."
+                )
             else:
                 # 检查目标文件夹是否存在且为目录
                 if target_dir.exists() and target_dir.is_dir():
                     # resume = True
                     # logging.info(f"Found existing directory for repo_id '{repo_id}'. Resuming operation.")
 
-                    logger.info(f"Found existing directory for repo_id '{repo_id}'. Delete directory.")
+                    logger.info(
+                        f"Found existing directory for repo_id '{repo_id}'. Delete directory."
+                    )
                     shutil.rmtree(target_dir)
-                    time.sleep(0.5) # make sure delete success.
+                    time.sleep(0.5)  # make sure delete success.
                 else:
-                    logger.info(f"No directory found for repo_id '{repo_id}'. Starting fresh.")
+                    logger.info(
+                        f"No directory found for repo_id '{repo_id}'. Starting fresh."
+                    )
 
             # resume 变量现在可用于后续逻辑
             logger.info(f"Resume mode: {'Enabled' if resume else 'Disabled'}")
 
-            record_cfg = RecordConfig(fps=DEFAULT_FPS, single_task=task_name, repo_id=repo_id, video=self.daemon.robot.use_videos, resume=resume, root=target_dir)
-            self.record = Record(fps=DEFAULT_FPS, robot=self.daemon.robot, daemon=self.daemon, teleop=self.teleop, record_cfg = record_cfg, record_cmd=msg)
+            record_cfg = RecordConfig(
+                fps=DEFAULT_FPS,
+                single_task=task_name,
+                repo_id=repo_id,
+                video=self.daemon.robot.use_videos,
+                resume=resume,
+                root=target_dir,
+            )
+            self.record = Record(
+                fps=DEFAULT_FPS,
+                robot=self.daemon.robot,
+                daemon=self.daemon,
+                teleop=self.teleop,
+                record_cfg=record_cfg,
+                record_cmd=msg,
+            )
             # 发送响应
-            await self.send_response('start_collection', "success")
+            await self.send_response("start_collection", "success")
             # 开始采集倒计时
             logger.info(f"开始采集倒计时{countdown_seconds}s...")
             time.sleep(countdown_seconds)
@@ -180,22 +209,21 @@ class Coordinator:
             # 开始采集
             self.record.start()
 
-        
-        elif data.get('cmd') == 'finish_collection':
+        elif data.get("cmd") == "finish_collection":
             logger.info("处理完成采集命令...")
             if self.replaying == True:
                 logger.warning("Replay is running, cannot finish collection.")
-                await self.send_response('finish_collection', "fail")
+                await self.send_response("finish_collection", "fail")
                 return
-            
+
             if not self.saveing and self.record.save_data is None:
                 # 如果不在保存状态，立即停止记录并保存
-                self.saveing= True
+                self.saveing = True
                 self.record.stop()
                 self.record.save()
                 self.recording = False
-                self.saveing= False
-            
+                self.saveing = False
+
             # 如果正在保存，循环等待直到 self.record.save_data 有数据
             while self.saveing:
                 time.sleep(0.1)  # 避免CPU过载，适当延迟
@@ -205,52 +233,54 @@ class Coordinator:
                 "data": self.record.save_data,
             }
             # 发送响应
-            await self.send_response('finish_collection', response_data['msg'], response_data)
+            await self.send_response(
+                "finish_collection", response_data["msg"], response_data
+            )
 
-        elif data.get('cmd') == 'discard_collection':
+        elif data.get("cmd") == "discard_collection":
             # 模拟处理丢弃采集
             logger.info("处理丢弃采集命令...")
 
             if self.replaying == True:
                 logger.warning("Replay is running, cannot discard collection.")
-                await self.send_response('discard_collection', "fail")
+                await self.send_response("discard_collection", "fail")
                 return
-            
+
             self.record.stop()
             self.record.discard()
             self.recording = False
 
             # 发送响应
-            await self.send_response('discard_collection', "success")
+            await self.send_response("discard_collection", "success")
 
-        elif data.get('cmd') == 'submit_collection':
+        elif data.get("cmd") == "submit_collection":
             # 模拟处理提交采集
             logger.info("处理提交采集命令...")
             time.sleep(0.01)  # 模拟处理时间
 
             if self.replaying == True:
                 logger.warning("Replay is running, cannot submit collection.")
-                await self.send_response('submit_collection', "fail")
+                await self.send_response("submit_collection", "fail")
                 return
             # 发送响应
-            await self.send_response('submit_collection', "success")
+            await self.send_response("submit_collection", "success")
 
-        elif data.get('cmd') == 'start_replay':
+        elif data.get("cmd") == "start_replay":
             logger.info("处理开始回放命令...")
-            msg = data.get('msg')
+            msg = data.get("msg")
             if self.recording == True:
                 logger.warning("Recording is running, cannot start replay.")
-                await self.send_response('start_replay', "fail")
+                await self.send_response("start_replay", "fail")
                 return
             if self.replaying == True:
                 logger.warning("Replay is already running.")
-                await self.send_response('start_replay', "fail")
+                await self.send_response("start_replay", "fail")
                 return
             self.replaying = True
 
-            task_id = msg.get('task_id')
-            task_name = msg.get('task_name')
-            task_data_id = msg.get('task_data_id')
+            task_id = msg.get("task_id")
+            task_name = msg.get("task_name")
+            task_data_id = msg.get("task_data_id")
             task_dir = f"{task_name}_{task_id}"
             repo_id = f"{task_name}_{task_id}_{task_data_id}"
 
@@ -261,20 +291,24 @@ class Coordinator:
             git_branch_name = get_current_git_branch()
             if "release" in git_branch_name:
                 target_dir = dataset_path / date_str / "user" / task_dir / repo_id
-            elif "dev"  in git_branch_name:
+            elif "dev" in git_branch_name:
                 target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
             else:
                 target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
 
             ep_index = find_epindex_from_dataid_json(target_dir, task_data_id)
-            
-            dataset = DoRobotDataset(repo_id, root=target_dir)
-       
-            logger.info(f"开始回放数据集: {repo_id}, 目标目录: {target_dir}, 任务数据ID: {task_data_id}, 回放索引: {ep_index}")
 
-            replay_dataset_cfg = DatasetReplayConfig(repo_id, ep_index, target_dir, fps=DEFAULT_FPS)
+            dataset = DoRobotDataset(repo_id, root=target_dir)
+
+            logger.info(
+                f"开始回放数据集: {repo_id}, 目标目录: {target_dir}, 任务数据ID: {task_data_id}, 回放索引: {ep_index}"
+            )
+
+            replay_dataset_cfg = DatasetReplayConfig(
+                repo_id, ep_index, target_dir, fps=DEFAULT_FPS
+            )
             replay_cfg = ReplayConfig(self.daemon.robot, replay_dataset_cfg)
-            
+
             # 用于线程间通信的异常队列
             error_queue = queue.Queue()
             # 用于通知replay线程停止的事件
@@ -290,15 +324,16 @@ class Coordinator:
                         episode_index=ep_index,
                         web_port=RERUN_WEB_PORT,
                         ws_port=RERUN_WS_PORT,
-                        stop_event=stop_event  # 需要replay函数支持stop_event参数
+                        stop_event=stop_event,  # 需要replay函数支持stop_event参数
                     )
                 except Exception as e:
                     error_queue.put(e)
+
             # 创建并启动replay线程
             visual_thread = threading.Thread(
                 target=visual_worker,
                 name="VisualThread",
-                daemon=True  # 设置为守护线程，主程序退出时自动终止
+                daemon=True,  # 设置为守护线程，主程序退出时自动终止
             )
             visual_thread.start()
 
@@ -308,7 +343,7 @@ class Coordinator:
                     "url": f"http://localhost:{RERUN_WEB_PORT}/?url=ws://localhost:{RERUN_WS_PORT}",
                 },
             }
-            await self.send_response('start_replay', "success", response_data)
+            await self.send_response("start_replay", "success", response_data)
 
             try:
                 replay(replay_cfg)
@@ -318,21 +353,23 @@ class Coordinator:
                 stop_event.set()
                 # 等待replay线程安全退出（设置合理超时）
                 visual_thread.join(timeout=5.0)
-                
+
                 # 检查线程是否已退出
                 if visual_thread.is_alive():
                     logger.warning("Warning: Visual thread did not exit cleanly")
-                
+
                 # 处理子线程异常
                 try:
                     error = error_queue.get_nowait()
-                    raise RuntimeError(f"Visual failed in thread: {str(error)}") from error
+                    raise RuntimeError(
+                        f"Visual failed in thread: {str(error)}"
+                    ) from error
                 except queue.Empty:
                     pass
             self.replaying = False
 
-            logger.info("="*20 + "Replay Complete Success!" + "="*20)
-    
+            logger.info("=" * 20 + "Replay Complete Success!" + "=" * 20)
+
     ####################### Client Send to Server ############################
     async def send_heartbeat_loop(self):
         """定期发送心跳"""
@@ -340,13 +377,12 @@ class Coordinator:
             current_time = time.time()
             if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
                 try:
-                    await self.sio.emit('HEARTBEAT')
+                    await self.sio.emit("HEARTBEAT")
                     self.last_heartbeat_time = current_time
                 except Exception as e:
                     logger.error(f"发送心跳失败: {e}")
             time.sleep(1)
             await self.sio.wait()
-
 
     # 发送回复请求
     async def send_response(self, cmd, msg, data=None):
@@ -357,7 +393,7 @@ class Coordinator:
             async with self.session.post(
                 f"{self.server_url}/robot/response",
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=2)
+                timeout=aiohttp.ClientTimeout(total=2),
             ) as resp:
                 logger.info(f"已发送响应 [{cmd}]: {payload}")
         except Exception as e:
@@ -376,7 +412,7 @@ class Coordinator:
             async with self.session.post(
                 f"{self.server_url}/robot/stream_info",
                 json=stream_info_data,
-                timeout=aiohttp.ClientTimeout(total=2)
+                timeout=aiohttp.ClientTimeout(total=2),
             ) as response:
                 if response.status == 200:
                     logger.info("摄像头流信息已同步到服务器")
@@ -384,15 +420,15 @@ class Coordinator:
                     logger.warning(f"同步流信息失败: {response.status}")
         except Exception as e:
             logger.error(f"同步流信息异常: {e}")
-            
+
     async def update_stream_async(self, name, frame):
-        _, jpeg = cv2.imencode('.jpg', frame,
-                                [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        _, jpeg = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         url = f"{self.server_url}/robot/update_stream/{self.cameras[name]}"
         try:
             # 超时给短一点，丢几帧对视频流影响不大
-            async with self.session.post(url, data=jpeg.tobytes(),
-                                         timeout=aiohttp.ClientTimeout(total=0.2)) as resp:
+            async with self.session.post(
+                url, data=jpeg.tobytes(), timeout=aiohttp.ClientTimeout(total=0.2)
+            ) as resp:
                 if resp.status != 200:
                     txt = await resp.text()
                     logger.error(f"Server error {resp.status}: {txt}")

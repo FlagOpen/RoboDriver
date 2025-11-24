@@ -13,4 +13,3 @@ nodes:
       PORT: /dev/ttyACM1
       ARM_NAME: SO101-follower
       ARM_ROLE: follower
-

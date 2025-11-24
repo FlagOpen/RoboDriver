@@ -60,8 +60,8 @@ local$ rerun ws://localhost:9087
 ```
 
 """
+
 from __future__ import annotations
-import webbrowser
 
 import argparse
 import gc
@@ -69,18 +69,16 @@ import logging
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from threading import Event
 
+import cv2
 import numpy as np
 import rerun as rr
 import torch
 import torch.utils.data
 import tqdm
-import threading
-import cv2
-from threading import Event
 
 from operating_platform.dataset.dorobot_dataset import DoRobotDataset
-
 
 
 class EpisodeSampler(torch.utils.data.Sampler):
@@ -100,8 +98,12 @@ def to_hwc_uint8_numpy(chw_float32_torch: torch.Tensor) -> np.ndarray:
     assert chw_float32_torch.dtype == torch.float32
     assert chw_float32_torch.ndim == 3
     c, h, w = chw_float32_torch.shape
-    assert c < h and c < w, f"expect channel first images, but instead {chw_float32_torch.shape}"
-    hwc_uint8_numpy = (chw_float32_torch * 255).type(torch.uint8).permute(1, 2, 0).numpy()
+    assert (
+        c < h and c < w
+    ), f"expect channel first images, but instead {chw_float32_torch.shape}"
+    hwc_uint8_numpy = (
+        (chw_float32_torch * 255).type(torch.uint8).permute(1, 2, 0).numpy()
+    )
     return hwc_uint8_numpy
 
 
@@ -119,9 +121,9 @@ def visualize_dataset(
     stop_event: Event | None = None,
 ) -> Path | None:
     if save:
-        assert output_dir is not None, (
-            "Set an output directory where to write .rrd files with `--output-dir path/to/directory`."
-        )
+        assert (
+            output_dir is not None
+        ), "Set an output directory where to write .rrd files with `--output-dir path/to/directory`."
 
     repo_id = dataset.repo_id
 
@@ -160,22 +162,28 @@ def visualize_dataset(
                 rr.set_time_seconds("timestamp", batch["timestamp"][i].item())
                 # display each camera image
                 for key in dataset.meta.camera_keys:
-                    if 'depth' in key:
-                        continue  
+                    if "depth" in key:
+                        continue
                     # TODO(rcadene): add `.compress()`? is it lossless?
                     # rr.log(key, rr.Image(to_hwc_uint8_numpy(batch[key][i])))
-                    if len(dataset.meta.video_keys)>0:
+                    if len(dataset.meta.video_keys) > 0:
                         # dataset.meta.video_path
                         pass
-                    elif len(dataset.meta.image_keys)>0:
-                        img_path = dataset.root / dataset.meta.get_image_file_path(img_key=key, ep_index=episode_index, frame_index=batch["frame_index"][i])
+                    elif len(dataset.meta.image_keys) > 0:
+                        img_path = dataset.root / dataset.meta.get_image_file_path(
+                            img_key=key,
+                            ep_index=episode_index,
+                            frame_index=batch["frame_index"][i],
+                        )
                         # 1. 验证路径是否存在
                         if not Path(img_path).exists():
-                            raise FileNotFoundError(f"Image path does not exist: {img_path}")
+                            raise FileNotFoundError(
+                                f"Image path does not exist: {img_path}"
+                            )
                         img = cv2.imread(img_path)
 
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        
+
                         rr.log(key, rr.Image(img))
                 # display each dimension of action space (e.g. actuators command)
                 if "action" in batch:
@@ -207,7 +215,9 @@ def visualize_dataset(
 
         if not save or mode == "distant":  # Viewing mode active
             if run_duration > 0:
-                logging.info(f"Visualization complete. Auto-exiting in {run_duration} seconds...")
+                logging.info(
+                    f"Visualization complete. Auto-exiting in {run_duration} seconds..."
+                )
                 time.sleep(run_duration)
             else:
                 logging.info("Visualization complete. Press Ctrl-C to exit.")
@@ -223,8 +233,6 @@ def visualize_dataset(
     finally:
         rr.disconnect()
 
-
-    
 
 def main():
     parser = argparse.ArgumentParser()
@@ -325,7 +333,6 @@ def main():
     visualize_dataset(dataset, **vars(args), stop_event=stop_event)
     # except KeyboardInterrupt:
     #     print("\nCtrl-C received. Exiting.")
-
 
 
 if __name__ == "__main__":

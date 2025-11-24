@@ -1,6 +1,6 @@
+import logging
 import os
 from pathlib import Path
-import logging
 
 DEFAULT_FPS = 30
 RERUN_WEB_PORT = 9195
@@ -27,7 +27,9 @@ DOROBOT_HOME = Path(os.getenv("DOROBOT_HOME", "~/DoRobot")).expanduser().resolve
 
 
 if "DOROBOT_HOME" not in os.environ:
-    logging.info(f"Environment variable 'DOROBOT_HOME' not set. Using default path: {DOROBOT_HOME}")
+    logging.info(
+        f"Environment variable 'DOROBOT_HOME' not set. Using default path: {DOROBOT_HOME}"
+    )
 else:
     logging.info(f"Environment variable 'DOROBOT_HOME' is set to: {DOROBOT_HOME}")
 

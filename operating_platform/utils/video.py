@@ -1,21 +1,19 @@
 import json
 import logging
+import re
 import subprocess
 import warnings
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Optional, Literal
-import re
+from typing import Any, ClassVar, List, Literal, Optional, Union
 
 import pyarrow as pa
 import torch
 import torchvision
 from datasets.features.features import register_feature
 from PIL import Image
-import platform
-import os
-from typing import Union, Optional, List
+
 
 def get_available_encoders():
     """
@@ -28,7 +26,7 @@ def get_available_encoders():
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            check=True
+            check=True,
         )
         output = result.stdout
 
@@ -64,14 +62,17 @@ def get_available_encoders():
             "ffmpeg not found or failed to execute. "
             "Please ensure ffmpeg is installed and available in your PATH."
         )
-    
+
+
 # 缓存编码器列表，避免重复调用 ffmpeg
 _AVAILABLE_ENCODERS = None
+
 
 def _ensure_encoders_loaded():
     global _AVAILABLE_ENCODERS
     if _AVAILABLE_ENCODERS is None:
         _AVAILABLE_ENCODERS = get_available_encoders()
+
 
 def decode_video_frames_torchvision(
     video_path: Union[Path, str],
@@ -169,6 +170,8 @@ def decode_video_frames_torchvision(
 
     assert len(timestamps) == len(closest_frames)
     return closest_frames
+
+
 # test = True
 # if test:
 #     # 1. 保证能找到 Jetson 插件
@@ -220,15 +223,16 @@ def decode_video_frames_torchvision(
 #             "!",
 #             "nvv4l2h265enc",
 #             "preset-level=1",
-            
+
 #             # f"bitrate={bitrate}",
-#             "maxperf-enable=1", 
+#             "maxperf-enable=1",
 #             "iframeinterval=30",
 #             "!",
 #             "h265parse", "!",
 #             "qtmux", "!",
 #             "filesink", f"location={video_path}",
 #         ]
+
 
 #         print("执行命令：", " ".join(cmd))
 #         subprocess.run(cmd, check=True)
@@ -268,12 +272,14 @@ def encode_video_frames(
             )
 
         # 优先选择 libx264，否则选择 libopenh264
-        selected_vcodec = "libx264" if "libx264" in supported_candidates else "libopenh264"
+        selected_vcodec = (
+            "libx264" if "libx264" in supported_candidates else "libopenh264"
+        )
 
         # 发出警告
         warnings.warn(
             f"vcodec '{vcodec}' not available. Automatically switched to '{selected_vcodec}'.",
-            UserWarning
+            UserWarning,
         )
 
         vcodec = selected_vcodec
@@ -319,13 +325,14 @@ def encode_video_frames(
             f"Video encoding did not work. File not found: {video_path}. "
             f"Try running the command manually to debug: `{''.join(ffmpeg_cmd)}`"
         )
-        
+
+
 def encode_depth_video_frames(
     imgs_dir: Union[Path, str],
     video_path: Union[Path, str],
     fps: int,
-    vcodec: str = "ffv1",          # 使用无损编码
-    pix_fmt: str = "gray16le",     # 单通道灰度（16-bit little-endian）
+    vcodec: str = "ffv1",  # 使用无损编码
+    pix_fmt: str = "gray16le",  # 单通道灰度（16-bit little-endian）
     overwrite: bool = False,
 ) -> None:
     """Encode depth images to video."""
@@ -335,23 +342,29 @@ def encode_depth_video_frames(
 
     ffmpeg_args = [
         "ffmpeg",
-        "-f", "image2",
-        "-r", str(fps),
-        "-i", str(imgs_dir / "frame_%06d.png"),
-        "-vcodec", vcodec,
-        "-pix_fmt", pix_fmt,
+        "-f",
+        "image2",
+        "-r",
+        str(fps),
+        "-i",
+        str(imgs_dir / "frame_%06d.png"),
+        "-vcodec",
+        vcodec,
+        "-pix_fmt",
+        pix_fmt,
     ]
-    
+
     if overwrite:
         ffmpeg_args.append("-y")
-    
+
     ffmpeg_args.append(str(video_path))
-    
+
     subprocess.run(ffmpeg_args, check=True, stdin=subprocess.DEVNULL)
 
     if not video_path.exists():
         raise OSError(f"Video encoding failed. File not found: {video_path}")
-    
+
+
 @dataclass
 class VideoFrame:
     # TODO(rcadene, lhoestq): move to Hugging Face `datasets` repo
@@ -397,7 +410,9 @@ def get_audio_info(video_path: Union[Path, str]) -> dict:
         "json",
         str(video_path),
     ]
-    result = subprocess.run(ffprobe_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(
+        ffprobe_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     if result.returncode != 0:
         raise RuntimeError(f"Error running ffprobe: {result.stderr}")
 
@@ -411,10 +426,16 @@ def get_audio_info(video_path: Union[Path, str]) -> dict:
         "has_audio": True,
         "audio.channels": audio_stream_info.get("channels", None),
         "audio.codec": audio_stream_info.get("codec_name", None),
-        "audio.bit_rate": int(audio_stream_info["bit_rate"]) if audio_stream_info.get("bit_rate") else None,
-        "audio.sample_rate": int(audio_stream_info["sample_rate"])
-        if audio_stream_info.get("sample_rate")
-        else None,
+        "audio.bit_rate": (
+            int(audio_stream_info["bit_rate"])
+            if audio_stream_info.get("bit_rate")
+            else None
+        ),
+        "audio.sample_rate": (
+            int(audio_stream_info["sample_rate"])
+            if audio_stream_info.get("sample_rate")
+            else None
+        ),
         "audio.bit_depth": audio_stream_info.get("bit_depth", None),
         "audio.channel_layout": audio_stream_info.get("channel_layout", None),
     }
@@ -433,7 +454,9 @@ def get_video_info(video_path: Union[Path, str]) -> dict:
         "json",
         str(video_path),
     ]
-    result = subprocess.run(ffprobe_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(
+        ffprobe_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     if result.returncode != 0:
         raise RuntimeError(f"Error running ffprobe: {result.stderr}")
 

@@ -1,7 +1,9 @@
 import logging
+
 from dora import Node
 
 logger = logging.getLogger(__name__)
+
 
 def main() -> None:
     sn_set = set()  # 使用集合来避免重复
@@ -15,18 +17,20 @@ def main() -> None:
                 if event["value"]:
                     struct = event["value"][0]
                     serial_number = struct.get("serial_number").as_py()
-                    
+
                     if serial_number:
                         if serial_number not in sn_set:
                             sn_set.add(serial_number)
                             logger.info(f"Found new serial number: {serial_number}")
                         else:
-                            logger.debug(f"Serial number already recorded: {serial_number}")
+                            logger.debug(
+                                f"Serial number already recorded: {serial_number}"
+                            )
                     else:
                         logger.warning("Received input without serial number field")
                 else:
                     logger.warning("Received empty input value")
-                    
+
             elif event["type"] in ["STOP", "INPUT_CLOSED"]:
                 logger.info("Stopping event listener...")
                 break
@@ -49,10 +53,11 @@ def main() -> None:
 
     logger.info("dora_vive_sn terminated normally")
 
+
 if __name__ == "__main__":
     # 配置日志格式
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
     main()

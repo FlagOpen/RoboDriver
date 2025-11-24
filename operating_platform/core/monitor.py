@@ -1,7 +1,7 @@
 import threading
-import requests
-import json
 import time
+
+import requests
 
 from operating_platform.robots.daemon import Daemon
 
@@ -15,8 +15,7 @@ class Monitor:
 
         self._lock = threading.Lock()  # 线程锁
         self._thread = threading.Thread(
-            target=self.send_machine_info_periodically,
-            daemon=True
+            target=self.send_machine_info_periodically, daemon=True
         )
 
         self._running = False  # 控制线程启停
@@ -30,22 +29,19 @@ class Monitor:
                         continue
                     json_data = self.daemon.get_status()
                     # json_data = json.dumps(self._machine_info_dict, ensure_ascii=False)
-                
+
                 response = requests.post(
-                    self.url,
-                    data=json_data,
-                    headers=self.headers,
-                    timeout=10
+                    self.url, data=json_data, headers=self.headers, timeout=10
                 )
-                
+
                 if response.status_code == 200:
                     print(f"[{time.ctime()}] 信息发送成功: {response.text}")
                 else:
                     print(f"[{time.ctime()}] 发送失败，状态码: {response.status_code}")
-            
+
             except requests.exceptions.RequestException as e:
                 print(f"[{time.ctime()}] 请求异常: {str(e)}")
-            
+
             time.sleep(interval_seconds)
 
     def start(self):

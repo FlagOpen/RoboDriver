@@ -71,7 +71,7 @@ nodes:
 
   - id: rerun
     path: dora-rerun
-    build: 
+    build:
       # pip install git+https://github.com/rerun-io/rerun-loader-python-example-urdf.git
       pip install dora-rerun
     inputs:

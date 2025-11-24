@@ -1,19 +1,15 @@
 """TODO: Add docstring."""
 
 import os
-import time
-
-import numpy as np
-import pyarrow as pa
-import draccus
-from dora import Node
 from pathlib import Path
 
-from motors.feetech import FeetechMotorsBus, OperatingMode
+import draccus
+import pyarrow as pa
+from dora import Node
 from motors import Motor, MotorCalibration, MotorNormMode
+from motors.feetech import FeetechMotorsBus, OperatingMode
 
-
-GET_DEVICE_FROM = os.getenv("GET_DEVICE_FROM", "PORT") # SN or INDEX
+GET_DEVICE_FROM = os.getenv("GET_DEVICE_FROM", "PORT")  # SN or INDEX
 PORT = os.getenv("PORT")
 ARM_NAME = os.getenv("ARM_NAME", "SO101-Arm")
 CALIBRATION_DIR = os.getenv("CALIBRATION_DIR", "./.calibration/")
@@ -25,19 +21,20 @@ def env_to_bool(env_value: str, default: bool = True) -> bool:
     """将环境变量字符串转换为布尔值"""
     if env_value is None:
         return default
-    
-    true_values = {'True', 'true', '1', 'yes', 'on', 't', 'y'}
-    false_values = {'False', 'false', '0', 'no', 'off', 'f', 'n'}
-    
+
+    true_values = {"True", "true", "1", "yes", "on", "t", "y"}
+    false_values = {"False", "false", "0", "no", "off", "f", "n"}
+
     value_lower = env_value.strip().lower()
-    
+
     if value_lower in true_values:
         return True
     elif value_lower in false_values:
         return False
     else:
         raise ValueError(f"无效的布尔值: {env_value}")
-    
+
+
 def configure_follower(bus: FeetechMotorsBus) -> None:
     with bus.torque_disabled():
         bus.configure_motors()
@@ -48,6 +45,7 @@ def configure_follower(bus: FeetechMotorsBus) -> None:
             # Set I_Coefficient and D_Coefficient to default value 0 and 32
             bus.write("I_Coefficient", motor, 0)
             bus.write("D_Coefficient", motor, 32)
+
 
 def configure_leader(bus: FeetechMotorsBus) -> None:
     bus.disable_torque()
@@ -72,7 +70,9 @@ def main():
     except IsADirectoryError:
         raise ValueError(f"路径是目录而不是文件: {calibration_fpath}")
 
-    norm_mode_body = MotorNormMode.DEGREES if use_degrees else MotorNormMode.RANGE_M100_100
+    norm_mode_body = (
+        MotorNormMode.DEGREES if use_degrees else MotorNormMode.RANGE_M100_100
+    )
 
     arm_bus = FeetechMotorsBus(
         port=PORT,
@@ -107,7 +107,9 @@ def main():
                 if ctrl_frame > 0:
                     continue
 
-                goal_pos = {key: position[motor.id - 1] for key, motor in arm_bus.motors.items()}
+                goal_pos = {
+                    key: position[motor.id - 1] for key, motor in arm_bus.motors.items()
+                }
                 arm_bus.sync_write("Goal_Position", goal_pos)
 
             if event["id"] == "action_joint_ctrl":
@@ -115,7 +117,9 @@ def main():
 
                 ctrl_frame = 200
 
-                goal_pos = {key: position[motor.id - 1] for key, motor in arm_bus.motors.items()}
+                goal_pos = {
+                    key: position[motor.id - 1] for key, motor in arm_bus.motors.items()
+                }
                 arm_bus.sync_write("Goal_Position", goal_pos)
 
             elif event["id"] == "get_joint":

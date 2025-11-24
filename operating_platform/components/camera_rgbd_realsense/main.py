@@ -10,6 +10,8 @@ import pyrealsense2 as rs
 from dora import Node
 
 RUNNER_CI = True if os.getenv("CI") == "true" else False
+
+
 # ---------- 新增 ----------
 def camera_is_online(serial: str) -> bool:
     """枚举判断指定 serial 的相机是否插在 USB 上"""
@@ -17,6 +19,8 @@ def camera_is_online(serial: str) -> bool:
         if d.get_info(rs.camera_info.serial_number) == serial:
             return True
     return False
+
+
 # --------------------------
 def main():
     """TODO: Add docstring."""
@@ -55,8 +59,8 @@ def main():
     rgb_intr = rgb_profile.as_video_stream_profile().get_intrinsics()
     node = Node()
     # ---------- 新增 ----------
-    last_frame_ts = time.time()          # 最近一次拿到帧的时间
-    STATUS_OK      = b"True"
+    last_frame_ts = time.time()  # 最近一次拿到帧的时间
+    STATUS_OK = b"True"
     STATUS_OFFLINE = b"False"
     STATUS_NOFRAME = b"False"
     # --------------------------
@@ -137,7 +141,7 @@ def main():
                 # --------------------------
         elif event_type == "ERROR":
             raise RuntimeError(event["error"])
-        
+
         if event_type == "STOP":
             break
 

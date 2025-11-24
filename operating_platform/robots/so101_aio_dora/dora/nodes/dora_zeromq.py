@@ -1,12 +1,12 @@
-import zmq
-import threading
-import pyarrow as pa
-import time
-from dora import Node
-import numpy as np
-import queue
 import json
+import queue
+import threading
+import time
 
+import numpy as np
+import pyarrow as pa
+import zmq
+from dora import Node
 
 # IPC Address
 ipc_address_image = "ipc:///tmp/dora-zeromq-so101-image"
@@ -35,28 +35,28 @@ running_server = True
 # 创建线程安全队列 (在全局作用域)
 output_queue = queue.Queue()
 
+
 def recv_server():
     while running_server:
         try:
             message_parts = socket_joint.recv_multipart()
             if message_parts and len(message_parts) >= 2:
-                event_id = message_parts[0].decode('utf-8')
+                event_id = message_parts[0].decode("utf-8")
                 buffer_bytes = message_parts[1]
-                
+
                 array = np.frombuffer(buffer_bytes, dtype=np.float32).copy()
 
-                if 'action_joint' in event_id:
+                if "action_joint" in event_id:
                     output_queue.put(("action_joint", array))
-                    
+
         except zmq.Again:
-            print(f"Dora ZeroMQ Received Timeout")
+            print("Dora ZeroMQ Received Timeout")
             time.sleep(0.01)
             continue
-            
+
         except Exception as e:
             print("recv error:", e)
             break
-
 
 
 if __name__ == "__main__":
@@ -79,35 +79,37 @@ if __name__ == "__main__":
             if event["type"] == "INPUT":
                 event_id = event["id"]
                 buffer_bytes = event["value"].to_numpy().tobytes()
-                meta_bytes = json.dumps(event["metadata"]).encode('utf-8')
-                            
+                meta_bytes = json.dumps(event["metadata"]).encode("utf-8")
+
                 # 处理接收到的数据
                 # print(f"Send event: {event_id}")
                 # print(f"Buffer size: {len(buffer_bytes)} bytes")
 
                 if "image" in event_id:
                     try:
-                        socket_image.send_multipart([
-                            event_id.encode('utf-8'),
-                            buffer_bytes,
-                            meta_bytes,
-                        ], flags=zmq.NOBLOCK)
+                        socket_image.send_multipart(
+                            [
+                                event_id.encode("utf-8"),
+                                buffer_bytes,
+                                meta_bytes,
+                            ],
+                            flags=zmq.NOBLOCK,
+                        )
                     except zmq.Again:
                         pass
                 else:
                     try:
-                        socket_joint.send_multipart([
-                            event_id.encode('utf-8'),
-                            buffer_bytes
-                        ], flags=zmq.NOBLOCK)
+                        socket_joint.send_multipart(
+                            [event_id.encode("utf-8"), buffer_bytes], flags=zmq.NOBLOCK
+                        )
                     except zmq.Again:
                         pass
-                
+
             elif event["type"] == "STOP":
                 break
-    
+
     finally:
-        # Close server 
+        # Close server
         running_server = False
         server_thread.join()
 

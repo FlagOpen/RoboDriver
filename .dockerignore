@@ -24,7 +24,7 @@
 **/package-lock.json
 **/yarn.lock
 **/Pipfile.lock
-**/poetry.lock  
+**/poetry.lock
 
 # ===== 配置文件 & 日志 & 数据 =====
 .env

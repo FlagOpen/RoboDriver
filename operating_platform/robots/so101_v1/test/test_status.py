@@ -1,5 +1,6 @@
-import logging_mp
 from pprint import pformat
+
+import logging_mp
 
 from operating_platform.robot.robots.so101_v1 import SO101RobotStatus
 

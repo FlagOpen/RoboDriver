@@ -1,18 +1,24 @@
-import time
-import torch
 import threading
-import logging_mp
+import time
+from typing import Any, Dict, Optional, Union
 
-from typing import Any, Union, Dict, Optional
+import logging_mp
 from termcolor import colored
 
 from operating_platform.robots.configs import RobotConfig
-from operating_platform.robots.utils import make_robot_from_config, Robot, busy_wait, safe_update_status
+from operating_platform.robots.utils import (
+    Robot,
+    busy_wait,
+    make_robot_from_config,
+    safe_update_status,
+)
 
 logger = logging_mp.get_logger(__name__)
 
 
-def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None):
+def log_control_info(
+    robot: Robot, dt_s, episode_index=None, frame_index=None, fps=None
+):
     log_items = []
     if episode_index is not None:
         log_items.append(f"ep:{episode_index}")
@@ -36,12 +42,12 @@ def log_control_info(robot: Robot, dt_s, episode_index=None, frame_index=None, f
         #     key = f"read_leader_{name}_pos_dt_s"
         #     if key in robot.logs:
         #         log_dt(f"dt_R_leader_{name}", robot.logs[key])
-        if hasattr(robot, 'follower_arms') and robot.follower_arms is not None:
+        if hasattr(robot, "follower_arms") and robot.follower_arms is not None:
             for name in robot.follower_arms:
                 key = f"read_follower_{name}_pos_dt_s"
                 if key in robot.logs:
                     log_dt(f"dt_R_foll_{name}", robot.logs[key])
-        
+
         for name in robot.cameras:
             key = f"read_camera_{name}_dt_s"
             if key in robot.logs:
@@ -88,16 +94,16 @@ class Daemon:
         if not self.robot.is_connected:
             self.robot.connect()
         logger.info("Connect robot success")
-    
+
     def stop(self):
         pass
 
     def update(self):
         start_loop_t = time.perf_counter()
 
-        if hasattr(self.robot, 'teleop_step'):
+        if hasattr(self.robot, "teleop_step"):
             observation, action = self.robot.teleop_step(record_data=True)
-            
+
             self.set_observation(observation)
             self.set_obs_action(action)
 
@@ -107,12 +113,12 @@ class Daemon:
 
         status = safe_update_status(self.robot)
         self.set_status(status)
-        
+
         pre_action = self.get_pre_action()
         if pre_action is not None:
             action = self.robot.send_action(pre_action)
             # action = {"action": action}
-        
+
         dt_s = time.perf_counter() - start_loop_t
         if self.fps is not None:
             busy_wait(1 / self.fps - dt_s)
@@ -124,7 +130,7 @@ class Daemon:
             if value is None:
                 return
             self.pre_action = value.copy()
-    
+
     def set_obs_action(self, value: Union[Any, Dict[str, Any]]):
         with self.data_lock:
             if value is None:
@@ -154,13 +160,13 @@ class Daemon:
             if self.obs_action is None:
                 return None
             return self.obs_action.copy()
-    
+
     def get_observation(self) -> Union[Any, Dict[str, Any]]:
         with self.data_lock:
             if self.observation is None:
                 return None
             return self.observation.copy()
-        
+
     def get_status(self) -> Optional[str]:
         with self.data_lock:
             if self.status is None:

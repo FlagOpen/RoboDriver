@@ -69,7 +69,9 @@ def wrap_joints_and_values(
         mask = values.is_null()
 
     return pa.StructArray.from_arrays(
-        arrays=[joints, values], names=["joints", "values"], mask=mask,
+        arrays=[joints, values],
+        names=["joints", "values"],
+        mask=mask,
     ).drop_null()
 
 
@@ -296,7 +298,9 @@ class DynamixelBus:
         values = pa.array(
             [
                 self.group_readers[group_key].getData(
-                    idx, packet_address, packet_bytes_size,
+                    idx,
+                    packet_address,
+                    packet_bytes_size,
                 )
                 for idx in motor_ids
             ],

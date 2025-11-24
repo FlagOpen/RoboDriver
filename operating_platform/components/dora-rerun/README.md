@@ -215,7 +215,7 @@ All inputs require a `"primitive"` field in the metadata to specify the visualiz
 - **Required metadata**: `{ "primitive": "image", "width": int, "height": int, "encoding": str }`
 - **Supported encodings**: "bgr8", "rgb8", "jpeg", "png", "avif"
 
-### 2. depth  
+### 2. depth
 - **Data**: Float32Array
 - **Required metadata**: `{ "primitive": "depth", "width": int, "height": int }`
 - **Optional metadata for 3D reconstruction**:
@@ -295,7 +295,7 @@ Make sure to name the dataflow as follows:
     <ENTITY_NAME>_transform: 0 0.3 0
 ```
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > Make sure that the urdf file name correspond to your dataflow object name otherwise, it will not be able to link to the corresponding entity.
 
 > [!WARNING]

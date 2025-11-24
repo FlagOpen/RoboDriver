@@ -1,10 +1,10 @@
 import os
-import pyarrow as pa
 from functools import cache
 
+import pyarrow as pa
 from dora import Node
-from .dynamixel import *
 
+from .dynamixel import *
 
 HORIZONTAL_POSITION = np.array([0, 0, 0, 0, 0, 0, 0, 0])
 TARGET_90_DEGREE_POSITION = np.array([0, 0, 0, 0, 0, 0, 0, 0])
@@ -14,16 +14,22 @@ SCALE_FACTOR = 90 / 1024  # 电机值到关节角度的比例系数
 GRIPPER_SCALE = 100 / 600  # 夹爪转换比例系数
 
 
-id = os.getenv("ARM_ID", "arm_right")           # ARM_ID: Arm identifier; defaults to "arm_right" if not set
-port = os.getenv("ARM_PORT", "/dev/ttyUSB0")    # ARM_PORT: Connection USB port; defaults to /dev/ttyUSB0 if not set
-ctrl_key = os.getenv("CTRL_KEY", 'd')           # CTRL_KEY: The key that controls the change of the robotic arm's functions.
+id = os.getenv(
+    "ARM_ID", "arm_right"
+)  # ARM_ID: Arm identifier; defaults to "arm_right" if not set
+port = os.getenv(
+    "ARM_PORT", "/dev/ttyUSB0"
+)  # ARM_PORT: Connection USB port; defaults to /dev/ttyUSB0 if not set
+ctrl_key = os.getenv(
+    "CTRL_KEY", "d"
+)  # CTRL_KEY: The key that controls the change of the robotic arm's functions.
 
 start_pose_str = os.getenv("START_POSE", "0.0, 0.0, 0.0, 0.0, 0.0, 0.0")
 joint_p_limit_str = os.getenv("JOINT_P_LIMIT", "0.0, 0.0, 0.0, 0.0, 0.0, 0.0")
 joint_n_limit_str = os.getenv("JOINT_N_LIMIT", "0.0, 0.0, 0.0, 0.0, 0.0, 0.0")
-start_pose = [float(x) for x in start_pose_str.split(',')]
-joint_p_limit = [float(x) for x in joint_p_limit_str.split(',')]
-joint_n_limit = [float(x) for x in joint_n_limit_str.split(',')]
+start_pose = [float(x) for x in start_pose_str.split(",")]
+joint_p_limit = [float(x) for x in joint_p_limit_str.split(",")]
+joint_n_limit = [float(x) for x in joint_n_limit_str.split(",")]
 
 node = Node()
 
@@ -46,6 +52,7 @@ def is_headless():
         print()
         return True
 
+
 def init_keyboard_listener():
     # Allow to exit early while recording an episode or resetting the environment,
     # by tapping the right arrow key '->'. This might require a sudo permission
@@ -65,7 +72,7 @@ def init_keyboard_listener():
 
     def on_press(key):
         try:
-            hasattr(key, 'char')
+            hasattr(key, "char")
             if key.char.lower() == ctrl_key:
                 print("key pressed")
                 events["complete"] = True
@@ -76,6 +83,7 @@ def init_keyboard_listener():
     listener.start()
 
     return listener, events
+
 
 def apply_homing_offset(values: np.array, homing_offset: np.array) -> np.array:
     for i in range(len(values)):
@@ -91,18 +99,26 @@ def apply_drive_mode(values: np.array, drive_mode: np.array) -> np.array:
     return values
 
 
-def apply_offset_and_drivemode(values: np.array, homing_offset: np.array, drive_mode: np.array) -> np.array:
+def apply_offset_and_drivemode(
+    values: np.array, homing_offset: np.array, drive_mode: np.array
+) -> np.array:
     values = apply_drive_mode(values, drive_mode)
     values = apply_homing_offset(values, homing_offset)
     return values
 
-def revert_appropriate_positions(positions: np.array, drive_mode: list[bool]) -> np.array:
+
+def revert_appropriate_positions(
+    positions: np.array, drive_mode: list[bool]
+) -> np.array:
     for i, revert in enumerate(drive_mode):
         if not revert and positions[i] is not None:
             positions[i] = -positions[i]
     return positions
 
-def compute_corrections(positions: np.array, drive_mode: list[bool], target_position: np.array) -> np.array:
+
+def compute_corrections(
+    positions: np.array, drive_mode: list[bool], target_position: np.array
+) -> np.array:
     correction = revert_appropriate_positions(positions, drive_mode)
 
     for i in range(len(positions)):
@@ -113,6 +129,7 @@ def compute_corrections(positions: np.array, drive_mode: list[bool], target_posi
                 correction[i] += target_position[i]
 
     return correction
+
 
 def compute_nearest_rounded_positions(positions: np.array) -> np.array:
     return np.array(
@@ -149,7 +166,9 @@ class DynamixelArm:
 
     def init_arm(self):
         self.arm.write("Torque_Enable", TorqueMode.ENABLED.value)
-        self.arm.write("Operating_Mode", OperatingMode.CURRENT_CONTROLLED_POSITION.value)
+        self.arm.write(
+            "Operating_Mode", OperatingMode.CURRENT_CONTROLLED_POSITION.value
+        )
         self.arm.write("Goal_Current", 300)
 
         self.arm.write("Homing_Offset", 0)
@@ -160,10 +179,18 @@ class DynamixelArm:
     def reset_arm(self):
         self.arm.write("Torque_Enable", TorqueMode.DISABLED.value)
 
-        all_motors_except_gripper = [name for name in self.arm.motor_names if name != "gripper"]
-        self.arm.write("Operating_Mode", OperatingMode.EXTENDED_POSITION.value, all_motors_except_gripper)
+        all_motors_except_gripper = [
+            name for name in self.arm.motor_names if name != "gripper"
+        ]
+        self.arm.write(
+            "Operating_Mode",
+            OperatingMode.EXTENDED_POSITION.value,
+            all_motors_except_gripper,
+        )
 
-        self.arm.write("Operating_Mode", OperatingMode.CURRENT_CONTROLLED_POSITION.value, "gripper")
+        self.arm.write(
+            "Operating_Mode", OperatingMode.CURRENT_CONTROLLED_POSITION.value, "gripper"
+        )
         self.arm.write("Goal_Current", 50, "gripper")
 
         self.arm.write("Torque_Enable", 1, "gripper")
@@ -176,9 +203,7 @@ class DynamixelArm:
         listener, events = init_keyboard_listener()
 
         # Move to horizontal
-        print(
-            f"Please move the {id} to the horizontal position.)"
-        )
+        print(f"Please move the {id} to the horizontal position.)")
 
         while True:
             current = self.arm.read("Present_Current")
@@ -189,16 +214,22 @@ class DynamixelArm:
                 if value >> 15 == 1:
                     buma = value  # 补码（这里实际上只是获取 value[0] 的值）
                     fanma = buma - 1  # 反码（这里实际上是 value[0] 减 1）
-                    yuanma = int(format(~fanma & 0xFFFF, '016b'), 2)  # 原码（这里是对 fanma 进行按位取反操作）  
+                    yuanma = int(
+                        format(~fanma & 0xFFFF, "016b"), 2
+                    )  # 原码（这里是对 fanma 进行按位取反操作）
                     p_current = yuanma * -1
                 else:
                     p_current = float(value)
                 print(f"index = {index}, value = {value}, p_current = {p_current}")
                 print(f"index = {index}, current[{index}] = {current[index]}")
                 print(f"index = {index}, pos[{index}] = {pos[index]}")
-                print(f"index = {index}, arm.motor_names[{index}] = {self.arm.motor_names[index]}")
+                print(
+                    f"index = {index}, arm.motor_names[{index}] = {self.arm.motor_names[index]}"
+                )
                 if abs(p_current) >= 150:
-                    self.arm.write("Goal_Position", pos[index], self.arm.motor_names[index])
+                    self.arm.write(
+                        "Goal_Position", pos[index], self.arm.motor_names[index]
+                    )
             if events["complete"]:
                 old_gripper = self.arm.read("Present_Position", "gripper")
                 print(f"Will complete {id} calibration")
@@ -210,14 +241,16 @@ class DynamixelArm:
                 break
 
         # Get true horizontal_homing_offset from horizontal
-        present_positions = apply_offset_and_drivemode(self.arm.read("Present_Position"), HORIZONTAL_POSITION, DEFAULT_DRIVE_MODE)
+        present_positions = apply_offset_and_drivemode(
+            self.arm.read("Present_Position"), HORIZONTAL_POSITION, DEFAULT_DRIVE_MODE
+        )
         nearest_positions = compute_nearest_rounded_positions(present_positions)
-        horizontal_homing_offset = compute_corrections(nearest_positions, DEFAULT_DRIVE_MODE, HORIZONTAL_POSITION)
+        horizontal_homing_offset = compute_corrections(
+            nearest_positions, DEFAULT_DRIVE_MODE, HORIZONTAL_POSITION
+        )
 
         # Move to 90°
-        print(
-            f"Please move the {id} to the horizontal position.)"
-        )
+        print(f"Please move the {id} to the horizontal position.)")
 
         # while True:
         #     current = self.arm.read("Present_Current")
@@ -228,7 +261,7 @@ class DynamixelArm:
         #         if value >> 15 == 1:
         #             buma = value  # 补码（这里实际上只是获取 value[0] 的值）
         #             fanma = buma - 1  # 反码（这里实际上是 value[0] 减 1）
-        #             yuanma = int(format(~fanma & 0xFFFF, '016b'), 2)  # 原码（这里是对 fanma 进行按位取反操作）  
+        #             yuanma = int(format(~fanma & 0xFFFF, '016b'), 2)  # 原码（这里是对 fanma 进行按位取反操作）
         #             p_current = yuanma * -1
         #         else:
         #             p_current = float(value)
@@ -253,16 +286,24 @@ class DynamixelArm:
                 listener.stop()
 
         # Get true drive mode from 90°
-        present_positions = apply_offset_and_drivemode(self.arm.read("Present_Position"), horizontal_homing_offset, DEFAULT_DRIVE_MODE)
+        present_positions = apply_offset_and_drivemode(
+            self.arm.read("Present_Position"),
+            horizontal_homing_offset,
+            DEFAULT_DRIVE_MODE,
+        )
         nearest_positions = compute_nearest_rounded_positions(present_positions)
         drive_mode = []
         for i in range(len(nearest_positions)):
             drive_mode.append(nearest_positions[i] != TARGET_90_DEGREE_POSITION[i])
 
         # Get offset from 90°
-        present_positions = apply_offset_and_drivemode(self.arm.read("Present_Position"), HORIZONTAL_POSITION, drive_mode)
+        present_positions = apply_offset_and_drivemode(
+            self.arm.read("Present_Position"), HORIZONTAL_POSITION, drive_mode
+        )
         nearest_positions = compute_nearest_rounded_positions(present_positions)
-        homing_offset = compute_corrections(nearest_positions, drive_mode, TARGET_90_DEGREE_POSITION)
+        homing_offset = compute_corrections(
+            nearest_positions, drive_mode, TARGET_90_DEGREE_POSITION
+        )
 
         # Invert offset for all drive_mode servos
         for i in range(len(drive_mode)):
@@ -274,34 +315,33 @@ class DynamixelArm:
         print("      HOMING_OFFSET: ", " ".join([str(i) for i in homing_offset]))
         print("      DRIVE_MODE: ", " ".join([str(i) for i in drive_mode]))
         print("=====================================")
-        print(f"run_arm_calibration OK")
+        print("run_arm_calibration OK")
 
-
-        #gen72关节初始化，移动到 零位
+        # gen72关节初始化，移动到 零位
         # ret=self.follower_arms[name].movej_cmd([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        print('机械臂回到 零位 ')
-        
+        print("机械臂回到 零位 ")
+
         # Set calibration
         calibration = {}
         for idx, motor_name in enumerate(self.arm.motor_names):
             calibration[motor_name] = (homing_offset[idx], drive_mode[idx])
         self.arm.set_calibration(calibration)
-    
+
     def movej(self, joint):
         # clipped_joint = max(joint_n_limit[:7], min(joint_p_limit[:7], joint[:7]))
         # self.arm.rm_movej(clipped_joint, 30, 0, 0, 0)
-        {}  #TODO
+        {}  # TODO
 
     def ctrl_gripper(self, gripper):
         clipped_gripper = max(0, min(100, gripper))
         # self.arm.write
         # self.arm.rm_write_single_register(self.peripheral, clipped_gripper)
-        {}  #TODO
+        {}  # TODO
 
     def read_joint_degree(self):
         joint_read = []
         servo_pos = self.arm.read("Present_Position")
-        
+
         for i in range(7):
             value = round(servo_pos * SCALE_FACTOR, 2)  # 数值转换
 
@@ -315,15 +355,16 @@ class DynamixelArm:
             joint_read.append(clamped_value)
 
         return joint_read
-    
+
     def stop(self):
         # self.arm.rm_set_arm_stop()
-        {}  #TODO
-    
+        {}  # TODO
+
     def disconnect(self):
         # self.arm.rm_close_modbus_mode(1)
         self.is_connected = False
-        {}  #TODO
+        {}  # TODO
+
 
 def main():
     main_arm = DynamixelArm()
@@ -343,7 +384,7 @@ def main():
             if event["id"] == "read-joint":
                 read_joint = main_arm.read_joint_degree()
                 node.send_output("read-joint", pa.array(read_joint))
-            
+
 
 if __name__ == "__main__":
     main()

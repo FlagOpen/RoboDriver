@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>DoRobot Operating Platform</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -48,7 +48,7 @@
 
         <!-- 控制按钮 -->
         <button @click="startStream" :disabled="!selectedStream">开始播放</button>
-        
+
         <!-- 视频显示 -->
         <div class="video-container">
             <img :src="currentImage" alt="实时视频流" v-if="currentImage">
@@ -102,7 +102,7 @@
                     if (!this.selectedStream) return;
 
                     try {
-                        
+
                         await axios.post('http://localhost:7080/api/start_stream', {
                             stream_id: this.selectedStream
                         });

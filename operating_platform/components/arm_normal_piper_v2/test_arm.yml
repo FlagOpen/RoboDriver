@@ -30,7 +30,7 @@ nodes:
   # - id: rerun
   #   path: dora-rerun
   #   inputs:
-  #     image_top: 
+  #     image_top:
   #       source: camera_top/image
   #       queue_size: 1
   #     image_depth_top:

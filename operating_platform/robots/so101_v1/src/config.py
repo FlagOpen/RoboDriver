@@ -1,20 +1,15 @@
-import abc
 from dataclasses import dataclass, field
-from typing import Sequence, Dict
-
-import draccus
+from typing import Dict
 
 from operating_platform.robot.robots.com_configs.cameras import (
     CameraConfig,
     OpenCVCameraConfig,
 )
-
 from operating_platform.robot.robots.com_configs.motors import (
     FeetechMotorsBusConfig,
     MotorsBusConfig,
 )
-
-from operating_platform.robot.robots.configs import RobotConfig, ManipulatorRobotConfig
+from operating_platform.robot.robots.configs import ManipulatorRobotConfig, RobotConfig
 
 
 @RobotConfig.register_subclass("so101")
@@ -83,4 +78,3 @@ class SO101RobotConfig(ManipulatorRobotConfig):
             # "audio_left": 4,
         }
     )
-    

@@ -1,8 +1,9 @@
-import abc
 from dataclasses import dataclass, field
-from typing import Sequence, Dict
+from typing import Dict
 
-import draccus
+from lerobot.cameras import CameraConfig
+from lerobot.cameras.opencv import OpenCVCameraConfig
+from lerobot.robots.config import RobotConfig
 
 # from operating_platform.robot.robots.com_configs.cameras import (
 #     CameraConfig,
@@ -16,16 +17,12 @@ import draccus
 
 # from operating_platform.robot.robots.configs import RobotConfig, ManipulatorRobotConfig
 
-from lerobot.robots.config import RobotConfig
 
-from lerobot.cameras import CameraConfig
-from lerobot.cameras.configs import ColorMode
-from lerobot.cameras.opencv import OpenCVCameraConfig
-
-class ArmConfig():
+class ArmConfig:
     def __init__(self):
         self.port = None
         self.motors = None
+
 
 @RobotConfig.register_subclass("so101_follower_dora")
 @dataclass
@@ -71,9 +68,6 @@ class SO101FollowerDoraRobotConfig(RobotConfig):
 
     use_videos: bool = False
 
-    microphones: Dict[str, int] = field(
-        default_factory=lambda: {
-        }
-    )
-    
+    microphones: Dict[str, int] = field(default_factory=lambda: {})
+
     super().__post_init__()

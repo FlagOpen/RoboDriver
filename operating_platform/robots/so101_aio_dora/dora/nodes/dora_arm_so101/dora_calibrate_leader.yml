@@ -13,4 +13,3 @@ nodes:
       PORT: /dev/ttyACM0
       ARM_NAME: SO101-leader
       ARM_ROLE: leader
-

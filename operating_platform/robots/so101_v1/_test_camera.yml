@@ -16,7 +16,7 @@ nodes:
   #     image:
   #       source: camera_top/image
   #       queue_size: 1
-  
+
   # - id: plot2
   #   path: opencv-plot
   #   inputs:
@@ -26,6 +26,6 @@ nodes:
 
   - id: zeromq
     path: dora_zeromq.py
-    inputs: 
+    inputs:
       image_top: camera_top/image
       image_depth_top: camera_top/image_depth

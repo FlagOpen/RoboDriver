@@ -1,14 +1,12 @@
-from flask import Flask, jsonify, Response, request, send_file
-from flask_cors import CORS
-import cv2
-import numpy as np
+import logging
 import threading
 import time
-import io
-import os
-import logging
-from gevent import monkey
 
+import cv2
+import numpy as np
+from flask import Flask, Response, jsonify, request
+from flask_cors import CORS
+from gevent import monkey
 
 # 视频源配置
 VIDEO_SOURCES = {
@@ -42,11 +40,11 @@ class VideoStream:
     def start(self):
         """启动视频流（仅标记为运行）"""
         if self.running:
-            print(f"已经启动视频流")
+            print("已经启动视频流")
             return True
         self.running = True
         return True
-    
+
     def stop(self):
         """停止视频流"""
         self.running = False
@@ -59,11 +57,11 @@ class VideoStream:
         img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
         if img is None:
             return
-        
+
         # 压缩图像（可选）
         img = cv2.resize(img, (640, 480))
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-        _, jpeg = cv2.imencode('.jpg', img, encode_param)
+        _, jpeg = cv2.imencode(".jpg", img, encode_param)
         compressed_frame = jpeg.tobytes()
 
         with self.lock:
@@ -75,37 +73,40 @@ class VideoStream:
             return self.generate_blank_frame()
         with self.lock:
             return self.frame_buffers[self.buffer_index]
-    
-    @staticmethod 
+
+    @staticmethod
     def generate_blank_frame():
         blank = np.zeros((480, 640, 3), dtype=np.uint8)
-        _, jpeg = cv2.imencode('.jpg', blank)
+        _, jpeg = cv2.imencode(".jpg", blank)
         return jpeg.tobytes()
 
 
-@app.route('/api/info')
+@app.route("/api/info")
 def system_info():
     """获取系统信息"""
     active_count = sum(1 for s in stream_status.values() if s["active"])
-    
-    return jsonify({
-        "status": "running",
-        "streams_active": active_count,
-        "total_streams": len(stream_status),
-        "timestamp": time.time(),
-        "streams": stream_status
-    })
 
-@app.route('/api/stream_info', methods=['POST'])
+    return jsonify(
+        {
+            "status": "running",
+            "streams_active": active_count,
+            "total_streams": len(stream_status),
+            "timestamp": time.time(),
+            "streams": stream_status,
+        }
+    )
+
+
+@app.route("/api/stream_info", methods=["POST"])
 def update_streams():
     """更新可用视频流列表"""
 
     # 解析并验证传入数据
     data = request.get_json()
-    if not data or 'streams' not in data:
+    if not data or "streams" not in data:
         return jsonify({"error": "Invalid data format"}), 400
 
-    incoming_streams = data['streams']
+    incoming_streams = data["streams"]
 
     # 获取当前视频源配置（如摄像头索引）
     current_sources = VIDEO_SOURCES
@@ -149,37 +150,38 @@ def update_streams():
                 "id": stream_id,
                 "name": name,
                 "active": True,
-                "source": source
+                "source": source,
             }
             success.append(stream_id)
         else:
             failed.append(stream_id)
 
-    return jsonify({
-        "success": success,
-        "failed": failed,
-        "total": len(success),
-        "timestamp": time.time()
-    })
+    return jsonify(
+        {
+            "success": success,
+            "failed": failed,
+            "total": len(success),
+            "timestamp": time.time(),
+        }
+    )
 
-@app.route('/api/stream_info', methods=['GET'])
+
+@app.route("/api/stream_info", methods=["GET"])
 def get_streams():
     """获取可用视频流列表"""
-    streams = [
-        {"id": sid, "name": info["name"]} 
-        for sid, info in stream_status.items()
-    ]
+    streams = [{"id": sid, "name": info["name"]} for sid, info in stream_status.items()]
     return jsonify({"streams": streams})
 
-@app.route('/api/start_stream', methods=['POST'])
+
+@app.route("/api/start_stream", methods=["POST"])
 def start_stream():
     """启动指定视频流"""
     data = request.get_json()
-    stream_id = data.get('image')
-    
+    stream_id = data.get("image")
+
     if stream_id not in video_streams:
         return jsonify({"error": "无效的视频流ID"}), 400
-        
+
     success = video_streams[stream_id].start()
     if success:
         stream_status[stream_id]["active"] = True
@@ -187,7 +189,8 @@ def start_stream():
     else:
         return jsonify({"error": "启动视频流失败"}), 500
 
-@app.route('/api/get_stream/<stream_id>')
+
+@app.route("/api/get_stream/<stream_id>")
 def stream_video(stream_id):
     if stream_id not in video_streams:
         return jsonify({"error": "视频流不存在"}), 404
@@ -196,16 +199,17 @@ def stream_video(stream_id):
         try:
             while True:
                 frame = video_streams[stream_id].get_frame()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                yield (
+                    b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                )
                 time.sleep(0.03)  # 控制帧率
         except GeneratorExit:
             print(f"[INFO] 客户端断开视频流: {stream_id}")
 
-    return Response(generate(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-@app.route('/api/update_stream/<stream_id>', methods=['POST'])
+
+@app.route("/api/update_stream/<stream_id>", methods=["POST"])
 def update_frame(stream_id):
     if stream_id not in video_streams:
         logging.error(f"Invalid stream ID: {stream_id}")
@@ -215,7 +219,7 @@ def update_frame(stream_id):
     if not frame_data:
         logging.error("No frame data received")
         return jsonify({"error": "未接收到帧数据"}), 400
-    
+
     try:
         # 可选：验证是否为 JPEG 数据
         img = cv2.imdecode(np.frombuffer(frame_data, np.uint8), cv2.IMREAD_COLOR)
@@ -228,15 +232,16 @@ def update_frame(stream_id):
     video_streams[stream_id].update_frame(frame_data)
     return jsonify({"status": "帧已更新"})
 
-@app.route('/api/stop_stream/<stream_id>', methods=['POST'])
+
+@app.route("/api/stop_stream/<stream_id>", methods=["POST"])
 def stop_stream(stream_id):
     """停止指定视频流"""
     if stream_id not in video_streams:
         return jsonify({"error": "视频流不存在"}), 404
-        
+
     video_streams[stream_id].stop()
     stream_status[stream_id]["active"] = False
-    
+
     return jsonify({"status": "stopped"})
 
 
@@ -247,10 +252,10 @@ def init_streams():
         stream_status[stream_id] = {
             "name": f"{stream_id}",
             "active": False,
-            "source": str(source)
+            "source": str(source),
         }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_streams()
-    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=8080, debug=False, threaded=True)

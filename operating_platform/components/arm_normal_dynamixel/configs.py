@@ -1,6 +1,7 @@
 import abc
-import draccus
 from dataclasses import dataclass
+
+import draccus
 
 
 @dataclass

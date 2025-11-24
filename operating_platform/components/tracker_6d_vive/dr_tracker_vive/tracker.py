@@ -12,14 +12,13 @@ import sys
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Tuple
+from pathlib import Path
+from typing import List, Tuple
 
 import pyarrow as pa
 import pysurvive
 from dora import Node
 
-
-from pathlib import Path
 print("Current working directory:", Path.cwd())
 print("Python path:", sys.path)
 
@@ -47,6 +46,7 @@ class IMUData:
         mag: Magnetometer data (x, y, z).
         serial_number: Serial number of the device.
     """
+
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _has_data: bool = False
     acc: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
@@ -93,6 +93,7 @@ class PoseData:
         rotation: Rotation data as a quaternion (w, x, y, z).
         serial_number: Serial number of the device.
     """
+
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _has_data: bool = False
     position: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
@@ -125,6 +126,7 @@ class PoseData:
 
 def make_imu_func(imu_data: IMUData):
     """Generate an IMU callback function for pysurvive."""
+
     def imu_func(ctx, _mode, accelgyro: List[float], _timecode, _dev_id) -> None:
         try:
             if len(accelgyro) < 9:
@@ -144,6 +146,7 @@ def make_imu_func(imu_data: IMUData):
 
 def make_pose_func(pose_data: PoseData):
     """Generate a pose callback function for pysurvive."""
+
     def pose_func(ctx, _timecode, pose: List[float]) -> None:
         try:
             if len(pose) < 7:

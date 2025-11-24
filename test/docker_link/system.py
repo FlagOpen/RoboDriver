@@ -1,5 +1,6 @@
-import docker
 import time
+
+import docker
 
 client = docker.from_env()
 
@@ -25,7 +26,7 @@ finally:
     shm.unlink()
     print("IPC 管理器: 已清理共享内存")'""",
     detach=True,
-    ipc_mode="shareable"
+    ipc_mode="shareable",
 )
 
 # 等待容器就绪
@@ -36,7 +37,7 @@ while time.time() - start_time < 15:
         print("IPC 管理器已就绪")
         break
     elif ipc_manager.status == "exited":
-        logs = ipc_manager.logs().decode('utf-8', errors='replace')
+        logs = ipc_manager.logs().decode("utf-8", errors="replace")
         raise RuntimeError(f"IPC 管理器意外退出! 日志:\n{logs}")
     time.sleep(0.5)
 else:
@@ -56,7 +57,7 @@ shm.buf[:17] = b"Hello from Python";
 print("生产者: 数据写入完成");
 shm.close();'""",
     detach=True,
-    ipc_mode="container:ipc-manager"
+    ipc_mode="container:ipc-manager",
 )
 
 # ===== 3. 创建消费者容器 =====
@@ -71,7 +72,7 @@ data = bytes(shm.buf[:17]).decode();
 print(f"消费者: 读取成功 → \'{data}\'");
 shm.close();'""",
     detach=True,
-    ipc_mode="container:ipc-manager"
+    ipc_mode="container:ipc-manager",
 )
 
 # ===== 4. 等待执行完成并输出日志 =====
@@ -86,10 +87,10 @@ try:
 
     print("\n=== 最终结果 ===")
     print("消费者输出:")
-    print(consumer.logs().decode('utf-8').strip())
+    print(consumer.logs().decode("utf-8").strip())
 
     print("\n生产者输出:")
-    print(producer.logs().decode('utf-8').strip())
+    print(producer.logs().decode("utf-8").strip())
 
 finally:
     try:

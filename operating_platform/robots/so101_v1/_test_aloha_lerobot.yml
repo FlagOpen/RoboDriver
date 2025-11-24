@@ -35,7 +35,7 @@ nodes:
 
   - id: zeromq
     path: ../dora_zeromq.py
-    inputs: 
+    inputs:
       image_top: camera_top/image
       image_depth_top: camera_top/image_depth
       image_right: camera_right/image
@@ -46,7 +46,7 @@ nodes:
   # - id: rerun
   #   path: dora-rerun
   #   inputs:
-  #     image_top: 
+  #     image_top:
   #       source: camera_top/image
   #       queue_size: 1
   #     image_depth_top:

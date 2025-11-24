@@ -13,15 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import re
 import importlib
-import logging
 import pkgutil
-import logging_mp
-
+import re
 from typing import Any
-from draccus.choice_types import ChoiceRegistry
 
+import logging_mp
+from draccus.choice_types import ChoiceRegistry
 
 logger = logging_mp.get_logger(__name__)
 
@@ -37,15 +35,21 @@ def make_device_from_device_class(config: ChoiceRegistry) -> Any:
     commonly located.
     """
     if not isinstance(config, ChoiceRegistry):
-        raise ValueError(f"Config should be an instance of `ChoiceRegistry`, got {type(config)}")
+        raise ValueError(
+            f"Config should be an instance of `ChoiceRegistry`, got {type(config)}"
+        )
 
     config_cls = config.__class__
-    module_path = config_cls.__module__  # typical: lerobot_teleop_mydevice.config_mydevice
+    module_path = (
+        config_cls.__module__
+    )  # typical: lerobot_teleop_mydevice.config_mydevice
     config_name = config_cls.__name__  # typical: MyDeviceConfig
 
     # Derive device class name (strip "Config")
     if not config_name.endswith("Config"):
-        raise ValueError(f"Config class name '{config_name}' does not end with 'Config'")
+        raise ValueError(
+            f"Config class name '{config_name}' does not end with 'Config'"
+        )
 
     device_class_name = config_name[:-6]  # typical: MyDeviceConfig -> MyDevice
 
@@ -54,7 +58,9 @@ def make_device_from_device_class(config: ChoiceRegistry) -> Any:
     parent_module = ".".join(parts[:-1]) if len(parts) > 1 else module_path
     candidates = [
         parent_module,  # typical: lerobot_teleop_mydevice
-        parent_module + "." + device_class_name.lower(),  # typical: lerobot_teleop_mydevice.mydevice
+        parent_module
+        + "."
+        + device_class_name.lower(),  # typical: lerobot_teleop_mydevice.mydevice
     ]
 
     # handle modules named like "config_xxx" -> try replacing that piece with "xxx"
@@ -90,6 +96,7 @@ def make_device_from_device_class(config: ChoiceRegistry) -> Any:
         f"'Config' and that it's importable from one of those modules."
     )
 
+
 def register_third_party_devices() -> None:
     """
     Discover and import third-party robodriver_* plugins so they can register themselves.
@@ -97,7 +104,12 @@ def register_third_party_devices() -> None:
     Scans top-level modules on sys.path for packages starting with
     'robodriver_robot_', 'robodriver_camera_', "robodriver_policy_" or 'robodriver_teleoperator_' and imports them.
     """
-    prefixes = ("robodriver_robot_", "robodriver_camera_", "robodriver_policy_", "robodriver_teleoperator")
+    prefixes = (
+        "robodriver_robot_",
+        "robodriver_camera_",
+        "robodriver_policy_",
+        "robodriver_teleoperator",
+    )
     imported: list[str] = []
     failed: list[str] = []
 
@@ -110,13 +122,21 @@ def register_third_party_devices() -> None:
     for module_info in pkgutil.iter_modules():
         match = editable_pattern.match(module_info.name)
         if match:
-            original_name = match.group(1).replace("_", "-")  # Convert to canonical package name
-            if any(original_name.startswith(prefix.replace("_", "-")) for prefix in prefixes):
+            original_name = match.group(1).replace(
+                "_", "-"
+            )  # Convert to canonical package name
+            if any(
+                original_name.startswith(prefix.replace("_", "-"))
+                for prefix in prefixes
+            ):
                 # Convert back to module name format (replace - with _)
                 module_name = original_name.replace("-", "_")
                 _attempt_import(module_name, imported, failed)
 
-    logger.debug("Third-party plugin import summary: imported=%s failed=%s", imported, failed)
+    logger.debug(
+        "Third-party plugin import summary: imported=%s failed=%s", imported, failed
+    )
+
 
 def _attempt_import(module_name: str, imported: list, failed: list) -> None:
     """Helper to attempt import and update tracking lists."""

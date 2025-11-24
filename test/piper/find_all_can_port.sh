@@ -20,11 +20,11 @@ echo "ethtool 和 can-utils 均已安装。"
 for iface in $(ip -br link show type can | awk '{print $1}'); do
     # 使用 ethtool 获取 bus-info
     BUS_INFO=$(ethtool -i "$iface" | grep "bus-info" | awk '{print $2}')
-    
+
     if [ -z "$BUS_INFO" ];then
         echo "错误: 无法获取接口 $iface 的 bus-info 信息。"
         continue
     fi
-    
+
     echo "接口 $iface 插入在 USB 端口 $BUS_INFO"
 done

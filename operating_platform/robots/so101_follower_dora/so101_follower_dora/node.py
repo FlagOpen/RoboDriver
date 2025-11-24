@@ -1,11 +1,11 @@
-import logging_mp
-import threading
-import cv2
 import json
-import pyarrow as pa
-from dora import Node
+import threading
 from typing import Any, Dict
 
+import cv2
+import logging_mp
+import pyarrow as pa
+from dora import Node
 
 logger = logging_mp.get_logger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
@@ -14,13 +14,15 @@ CONNECT_TIMEOUT_FRAME = 10
 class RobotNode:
     pass
 
+
 class DoraRobotNode(RobotNode):
     pass
+
 
 class SO101FollowerDoraRobotNode(DoraRobotNode):
     def __init__(self):
         self.node = Node("so101_follower_dora")
-        
+
         self.recv_images: Dict[str, Any] = {}
         self.recv_joint: Dict[str, Any] = {}
         self.recv_images_status: Dict[str, int] = {}
@@ -39,7 +41,7 @@ class SO101FollowerDoraRobotNode(DoraRobotNode):
                 data = event["value"].to_numpy()
                 meta_data = json.dumps(event["metadata"])
 
-                if 'image' in event_id:
+                if "image" in event_id:
                     img_array = data
                     encoding = meta_data["encoding"].lower()
                     width = meta_data["width"]
@@ -61,7 +63,7 @@ class SO101FollowerDoraRobotNode(DoraRobotNode):
                             self.recv_images[event_id] = frame
                             self.recv_images_status[event_id] = CONNECT_TIMEOUT_FRAME
 
-                elif 'joint' in event_id:
+                elif "joint" in event_id:
                     if data is not None:
                         with self.lock:
                             self.recv_joint[event_id] = data
@@ -69,7 +71,7 @@ class SO101FollowerDoraRobotNode(DoraRobotNode):
 
             elif event["type"] == "STOP":
                 break
-        
+
         logger.warning("Dora Node is stopped.")
 
     def dora_send(self, event_id, data):

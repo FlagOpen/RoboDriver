@@ -1,13 +1,6 @@
-from typing import Protocol
+from typing import Optional, Protocol
 
 import numpy as np
-
-from operating_platform.robots.com_configs.cameras import (
-    CameraConfig,
-    IntelRealSenseCameraConfig,
-    OpenCVCameraConfig,
-)
-from typing import Optional
 
 
 class Camera(Protocol):

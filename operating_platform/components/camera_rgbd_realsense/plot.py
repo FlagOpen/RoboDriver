@@ -8,9 +8,7 @@ import cv2
 import numpy as np
 import pyarrow as pa
 from dora import Node
-from PIL import (
-    Image,
-)
+from PIL import Image
 
 # if True:
 #     import pillow_avif  # noqa  # noqa
@@ -198,30 +196,28 @@ def main():
                     img = img.convert("RGB")
                     plot.frame = np.array(img)
                     plot.frame = cv2.cvtColor(plot.frame, cv2.COLOR_RGB2BGR)
-                
+
                 # ========== 新增 Mono16 处理 ==========
                 elif encoding == "mono16":
                     # 16位单通道灰度图像处理
                     storage_type = np.uint16  # 16位无符号整数
                     channels = 1  # 单通道
-                    
+
                     # 1. 将原始数据转换为16位灰度图像 (height, width)
-                    frame_16bit = storage.to_numpy().astype(storage_type).reshape((height, width))
-                    
+                    frame_16bit = (
+                        storage.to_numpy().astype(storage_type).reshape((height, width))
+                    )
+
                     # 2. 转换为8位图像以便显示 (关键步骤)
                     # 方法1: 线性缩放 (保留完整动态范围)
                     frame_8bit = cv2.normalize(
-                        frame_16bit, 
-                        None, 
-                        0, 255, 
-                        cv2.NORM_MINMAX, 
-                        dtype=cv2.CV_8U
+                        frame_16bit, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
                     )
-                    
+
                     """
                     # 可选方法2: 直接右移8位 (更快但可能损失对比度)
                     # frame_8bit = (frame_16bit >> 8).astype(np.uint8)
-                    
+
                     # 可选方法3: 自定义范围映射 (如果知道实际数据范围)
                     # min_val, max_val = 0, 4095  # 例如12位传感器
                     # frame_8bit = np.clip((frame_16bit - min_val) * 255 / (max_val - min_val), 0, 255).astype(np.uint8)
@@ -229,10 +225,10 @@ def main():
 
                     # 3. 转换为BGR格式以便显示 (OpenCV需要3通道)
                     plot.frame = cv2.cvtColor(frame_8bit, cv2.COLOR_GRAY2BGR)
-                    
+
                     # 可选: 添加伪彩色增强 (用于科学可视化)
                     # plot.frame = cv2.applyColorMap(frame_8bit, cv2.COLORMAP_JET)
-                    
+
                     # 调试信息
                     min_val = np.min(frame_16bit)
                     max_val = np.max(frame_16bit)

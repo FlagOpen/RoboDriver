@@ -1,25 +1,12 @@
 import platform
 import time
-import logging_mp
 from typing import cast
 
-# from typing import Protocol
-
+import logging_mp
 from lerobot.robots import Robot, RobotConfig
 
-# from operating_platform.robot.robots.configs import RobotConfig
-# from operating_platform.robot.robots.so101_v1_dora import so101_v1_dora
-from operating_platform.utils.import_utils import make_device_from_device_class
 from operating_platform.robots.statuses import RobotStatus
-# from operating_platform.robot.robots import (  # noqa: F401
-#     so101_v1,
-#     galbot_g1,
-#     leju_kuavo4p,
-#     pika_v1,
-#     galaxea_v1,
-#     aloha_v1,
-# )
-
+from operating_platform.utils.import_utils import make_device_from_device_class
 
 logger = logging_mp.get_logger(__name__)
 
@@ -98,59 +85,31 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
     logger.info("In make_robot_from_config")
 
     if config.type == "adora":
-        from operating_platform.robot.robots.adora_v1.manipulator import AdoraManipulator
+        from operating_platform.robot.robots.adora_v1.manipulator import (
+            AdoraManipulator,
+        )
+
         logger.info("In AdoraRobotConfig")
         return AdoraManipulator(config)
-    
+
     elif config.type == "aloha_v1":
-        from operating_platform.robot.robots.aloha_v1.src.manipulator import AlohaManipulator
+        from operating_platform.robot.robots.aloha_v1.src.manipulator import (
+            AlohaManipulator,
+        )
+
         logger.info("In AlohaManipulator")
         return AlohaManipulator(config)
-    
-    elif config.type == "pika_v1":
-        from operating_platform.robot.robots.pika_v1.manipulator import PikaV1Manipulator
-        logger.info("In PikaV1Manipulator")
-        return PikaV1Manipulator(config)
-    
-    elif config.type == "so101":
-        from operating_platform.robot.robots.so101_v1.src.manipulator import SO101Manipulator
-        logger.info("In SO101Manipulator")
-        return SO101Manipulator(config)
 
-    elif config.type == "realman":
-        from operating_platform.robot.robots.realman_v1.manipulator import RealmanManipulator
-        logger.info("In RealmanRobotConfig")
-        return RealmanManipulator(config)
-    
-    elif config.type == "dexhand":
-        from operating_platform.robot.robots.dexterous_hand_v1.manipulator import DexterousHandManipulator
-        logger.info("In DexterousHandMotorsBusConfig")
-        return DexterousHandManipulator(config)
-    
-    elif config.type == "galaxea":
-        from operating_platform.robot.robots.galaxea_v1.src.manipulator import GALAXEAManipulator
-        logger.info("In GALAXEARobotConfig")
-        return GALAXEAManipulator(config)
-    
-    elif config.type == "galbot_g1":
-        from operating_platform.robot.robots.galbot_g1.manipulator import GalbotG1Manipulator
-        logger.info("In GalbotG1RobotConfig")
-        return GalbotG1Manipulator(config)
-    
-    elif config.type == "leju_kuavo4p":
-        from operating_platform.robot.robots.leju_kuavo4p.manipulator import LejuKuavo4pManipulator
-        logger.info("In LejuKuavo4pRobotConfig")
-        return LejuKuavo4pManipulator(config)
     else:
         try:
             return cast(Robot, make_device_from_device_class(config))
         except Exception as e:
             logger.critical(f"Can't create robot with config {config}")
             raise ValueError(f"Error creating robot with config {config}: {e}") from e
-    
+
 
 def safe_update_status(robot: Robot) -> str:
-    if hasattr(robot, 'update_status'):
+    if hasattr(robot, "update_status"):
         robot.update_status()
     else:
         return RobotStatus().to_json()

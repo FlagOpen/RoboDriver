@@ -64,7 +64,7 @@ nodes:
 
   - id: so101_zeromq
     path: nodes/dora_zeromq.py
-    inputs: 
+    inputs:
       image_top: camera_top/image
       image_wrist: camera_wrist/image
       image_top_dep: camera_top_dep/image

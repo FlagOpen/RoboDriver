@@ -12,7 +12,7 @@ nodes:
   #   inputs:
   #     imu: tracker/imu
   #     pose: tracker/pose
-  
+
   - id: vive-right
     path: dr_tracker_vive/visual.py
     inputs:

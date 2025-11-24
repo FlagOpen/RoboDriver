@@ -1,38 +1,34 @@
-import time
 import threading
-import logging_mp
-
-from deepdiff import DeepDiff
+import time
 from dataclasses import dataclass
 from typing import Optional
 
-from operating_platform.robots.configs import RobotConfig
-from operating_platform.robots.utils import  busy_wait, safe_disconnect, make_robot_from_config
-
-from operating_platform.dataset.dorobot_dataset import *
-# from operating_platform.dataset.functions import get_features_from_robot_new
-from operating_platform.robots.daemon import Daemon
-from operating_platform.utils import parser
-from operating_platform.utils.utils import has_method, log_say, get_current_git_branch, git_branch_log, get_container_ip_from_hosts
-
-from operating_platform.utils.constants import DOROBOT_DATASET
-from operating_platform.utils.data_file import (
-    get_data_duration, 
-    get_data_size ,
-    update_dataid_json,
-    update_common_record_json,
-    delete_dataid_json,
-    validate_session,
-)
-
-from lerobot.robots import Robot
-from lerobot.teleoperators import Teleoperator
-from lerobot.processor import (
-    make_default_processors,
+import logging_mp
+from deepdiff import DeepDiff
+from lerobot.datasets.pipeline_features import (
+    aggregate_pipeline_dataset_features,
+    create_initial_features,
 )
 from lerobot.datasets.utils import build_dataset_frame, combine_feature_dicts
-from lerobot.datasets.pipeline_features import aggregate_pipeline_dataset_features, create_initial_features
+from lerobot.processor import make_default_processors
+from lerobot.robots import Robot
+from lerobot.teleoperators import Teleoperator
 from lerobot.utils.constants import ACTION, OBS_STR
+
+from operating_platform.dataset.dorobot_dataset import *
+from operating_platform.robots.configs import RobotConfig
+
+# from operating_platform.dataset.functions import get_features_from_robot_new
+from operating_platform.robots.daemon import Daemon
+from operating_platform.robots.utils import busy_wait
+from operating_platform.utils.data_file import (
+    delete_dataid_json,
+    get_data_duration,
+    get_data_size,
+    update_common_record_json,
+    update_dataid_json,
+    validate_session,
+)
 
 logger = logging_mp.get_logger(__name__)
 
@@ -48,18 +44,21 @@ def sanity_check_dataset_robot_compatibility(
 
     mismatches = []
     for field, dataset_value, present_value in fields:
-        diff = DeepDiff(dataset_value, present_value, exclude_regex_paths=[r".*\['info'\]$"])
+        diff = DeepDiff(
+            dataset_value, present_value, exclude_regex_paths=[r".*\['info'\]$"]
+        )
         if diff:
             mismatches.append(f"{field}: expected {present_value}, got {dataset_value}")
 
     if mismatches:
         raise ValueError(
-            "Dataset metadata compatibility check failed with mismatches:\n" + "\n".join(mismatches)
+            "Dataset metadata compatibility check failed with mismatches:\n"
+            + "\n".join(mismatches)
         )
 
 
 @dataclass
-class RecordConfig():
+class RecordConfig:
     # Dataset identifier. By convention it should match '{hf_username}/{dataset_name}' (e.g. `lerobot/test`).
     repo_id: str
     # A short but accurate description of the task performed during the recording (e.g. "Pick the Lego block and drop it in the box on the right.")
@@ -70,7 +69,7 @@ class RecordConfig():
     fps: int = 30
 
     # Encode frames in the dataset into video
-    video: bool = False # 这是实际控制use_videos的地方
+    video: bool = False  # 这是实际控制use_videos的地方
 
     # Upload dataset to Hugging Face hub.
     push_to_hub: bool = False
@@ -105,7 +104,7 @@ class Record:
         teleop: Optional[Teleoperator],
         daemon: Daemon,
         record_cfg: RecordConfig,
-        record_cmd: dict
+        record_cmd: dict,
     ):
         self.robot = robot
         self.daemon = daemon
@@ -120,9 +119,13 @@ class Record:
 
         print(f"in Record init record_cmd: {self.record_cmd}")
 
-        teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+        teleop_action_processor, robot_action_processor, robot_observation_processor = (
+            make_default_processors()
+        )
 
-        action_features = teleop.action_features if teleop is not None else robot.action_features
+        action_features = (
+            teleop.action_features if teleop is not None else robot.action_features
+        )
 
         dataset_features = combine_feature_dicts(
             aggregate_pipeline_dataset_features(
@@ -132,11 +135,13 @@ class Record:
             ),
             aggregate_pipeline_dataset_features(
                 pipeline=robot_observation_processor,
-                initial_features=create_initial_features(observation=robot.observation_features),
+                initial_features=create_initial_features(
+                    observation=robot.observation_features
+                ),
                 use_videos=record_cfg.video,
             ),
         )
-                
+
         logger.info(f"Dataset features: {dataset_features}")
 
         if self.record_cfg.resume:
@@ -147,13 +152,16 @@ class Record:
             if len(robot.cameras) > 0:
                 self.dataset.start_image_writer(
                     num_processes=record_cfg.num_image_writer_processes,
-                    num_threads=record_cfg.num_image_writer_threads_per_camera * len(robot.cameras),
+                    num_threads=record_cfg.num_image_writer_threads_per_camera
+                    * len(robot.cameras),
                 )
             if len(robot.microphones) > 0:
                 self.dataset.start_audio_writer(
                     microphones=robot.microphones,
                 )
-            sanity_check_dataset_robot_compatibility(self.dataset, robot, record_cfg.fps, record_cfg.video)
+            sanity_check_dataset_robot_compatibility(
+                self.dataset, robot, record_cfg.fps, record_cfg.video
+            )
         else:
             self.dataset = DoRobotDataset.create(
                 record_cfg.repo_id,
@@ -164,7 +172,8 @@ class Record:
                 use_videos=record_cfg.video,
                 use_audios=len(robot.microphones) > 0,
                 image_writer_processes=record_cfg.num_image_writer_processes,
-                image_writer_threads=record_cfg.num_image_writer_threads_per_camera * len(robot.cameras),
+                image_writer_threads=record_cfg.num_image_writer_threads_per_camera
+                * len(robot.cameras),
             )
 
         self.thread = threading.Thread(target=self.process, daemon=True)
@@ -182,11 +191,18 @@ class Record:
                 observation = self.daemon.get_observation()
                 action = self.daemon.get_obs_action()
                 if self.dataset is not None:
-                    observation_frame = build_dataset_frame(self.dataset.features, observation, prefix=OBS_STR)
-                    action_frame = build_dataset_frame(self.dataset.features, action, prefix=ACTION)
-                
-                
-                frame = {**observation_frame, **action_frame, "task": self.record_cfg.single_task}
+                    observation_frame = build_dataset_frame(
+                        self.dataset.features, observation, prefix=OBS_STR
+                    )
+                    action_frame = build_dataset_frame(
+                        self.dataset.features, action, prefix=ACTION
+                    )
+
+                frame = {
+                    **observation_frame,
+                    **action_frame,
+                    "task": self.record_cfg.single_task,
+                }
                 self.dataset.add_frame(frame)
 
                 dt_s = time.perf_counter() - start_loop_t
@@ -194,13 +210,11 @@ class Record:
                 if self.fps is not None:
                     busy_wait(1 / self.fps - dt_s)
 
-
     def stop(self):
         if self.running == True:
             self.running = False
             self.thread.join()
             self.dataset.stop_audio_writer()
-
 
     def save(self) -> dict:
         print("will save_episode")
@@ -211,21 +225,26 @@ class Record:
 
         print(f"in Record stop record_cmd: {self.record_cmd}")
 
-        update_dataid_json(self.record_cfg.root, episode_index,  self.record_cmd)
+        update_dataid_json(self.record_cfg.root, episode_index, self.record_cmd)
         if episode_index == 0 and self.dataset.meta.total_episodes == 1:
             update_common_record_json(self.record_cfg.root, self.record_cmd)
-        
+
         print("update_dataid_json succcess")
 
         if self.record_cfg.push_to_hub:
-            self.dataset.push_to_hub(tags=self.record_cfg.tags, private=self.record_cfg.private)
+            self.dataset.push_to_hub(
+                tags=self.record_cfg.tags, private=self.record_cfg.private
+            )
 
         file_size = get_data_size(self.record_cfg.root, self.record_cmd)
         file_duration = get_data_duration(self.record_cfg.root, self.record_cmd)
 
         print("get_data_size succcess, file_size:", file_size)
 
-        validate_result = validate_session(self.record_cfg.root, "episode_{episode_index:06d}".format(episode_index = episode_index))
+        validate_result = validate_session(
+            self.record_cfg.root,
+            "episode_{episode_index:06d}".format(episode_index=episode_index),
+        )
         print(f"Data validate complete, result:{validate_result}")
 
         verification = validate_result["verification"]
@@ -244,7 +263,7 @@ class Record:
                 "file_integrity_comment": verification["file_integrity_comment"],
                 "camera_frame_rate_comment": verification["camera_frame_rate_comment"],
                 "action_frame_rate_comment": verification["action_frame_rate_comment"],
-            }
+            },
         }
 
         self.record_complete = True
@@ -254,7 +273,9 @@ class Record:
 
     def discard(self):
         if self.record_complete == True:
-            delete_dataid_json(self.record_cfg.root, self.last_record_episode_index, self.record_cmd)
+            delete_dataid_json(
+                self.record_cfg.root, self.last_record_episode_index, self.record_cmd
+            )
             self.dataset.remove_episode(self.last_record_episode_index)
         else:
             self.dataset.clear_episode_buffer()

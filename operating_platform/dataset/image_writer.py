@@ -17,12 +17,12 @@ import multiprocessing
 import queue
 import threading
 from pathlib import Path
-from PIL import Image
+from typing import Union
 
 import numpy as np
 import PIL.Image
 import torch
-from typing import Union, Optional, List
+from PIL import Image
 
 
 def safe_stop_image_writer(func):
@@ -38,6 +38,7 @@ def safe_stop_image_writer(func):
             raise e
 
     return wrapper
+
 
 def image_array_to_pil_image(
     image_array: np.ndarray,
@@ -69,15 +70,15 @@ def image_array_to_pil_image(
         if image_array.dtype != np.uint16:
             image_array = image_array.astype(np.uint16)
         # 取第一通道即可
-        return Image.fromarray(image_array[..., 0], mode='I;16')
+        return Image.fromarray(image_array[..., 0], mode="I;16")
 
     # ---------- 3. 普通 RGB ----------
     if C == 1:
-        mode = 'L'
+        mode = "L"
     elif C == 3:
-        mode = 'RGB'
+        mode = "RGB"
     elif C == 4:
-        mode = 'RGBA'
+        mode = "RGBA"
     else:
         raise ValueError(f"Unsupported channel count {C}")
 
@@ -108,6 +109,8 @@ def write_image(
         img.save(fpath)
     except Exception as e:
         print(f"Error writing image {fpath}: {e}")
+
+
 # def image_array_to_pil_image(image_array: np.ndarray, range_check: bool = True) -> PIL.Image.Image:
 #     # TODO(aliberts): handle 1 channel and 4 for depth images
 #     if image_array.ndim != 3:
@@ -158,7 +161,7 @@ def worker_thread_loop(queue: queue.Queue):
             queue.task_done()
             break
         image_array, fpath = item
-        if 'depth' in str(fpath):
+        if "depth" in str(fpath):
             write_image(image_array, fpath, True)
         else:
             write_image(image_array, fpath, False)
@@ -201,7 +204,9 @@ class AsyncImageWriter:
         self._stopped = False
 
         if num_threads <= 0 and num_processes <= 0:
-            raise ValueError("Number of threads and processes must be greater than zero.")
+            raise ValueError(
+                "Number of threads and processes must be greater than zero."
+            )
 
         if self.num_processes == 0:
             # Use threading
@@ -215,12 +220,16 @@ class AsyncImageWriter:
             # Use multiprocessing
             self.queue = multiprocessing.JoinableQueue()
             for _ in range(self.num_processes):
-                p = multiprocessing.Process(target=worker_process, args=(self.queue, self.num_threads))
+                p = multiprocessing.Process(
+                    target=worker_process, args=(self.queue, self.num_threads)
+                )
                 p.daemon = True
                 p.start()
                 self.processes.append(p)
 
-    def save_image(self, image: Union[torch.Tensor, np.ndarray, PIL.Image.Image], fpath: Path):
+    def save_image(
+        self, image: Union[torch.Tensor, np.ndarray, PIL.Image.Image], fpath: Path
+    ):
         if isinstance(image, torch.Tensor):
             # Convert tensor to numpy array to minimize main process time
             image = image.cpu().numpy()

@@ -1,9 +1,8 @@
-import cv2
-import zmq
 import threading
 
+import cv2
 import numpy as np
-
+import zmq
 
 # IPC Address
 ipc_address = "ipc:///tmp/dora-zeromq"
@@ -22,12 +21,11 @@ def recv_server():
     """接收数据线程"""
     while running_server:
         try:
-
             message_parts = socket.recv_multipart()
             if len(message_parts) < 2:
                 continue  # 协议错误
 
-            event_id = message_parts[0].decode('utf-8')
+            event_id = message_parts[0].decode("utf-8")
             buffer_bytes = message_parts[1]
 
             # 解码图像
@@ -41,7 +39,7 @@ def recv_server():
                     recv_images[event_id] = frame
         except zmq.Again:
             # 接收超时，继续循环
-            print(f"Received Timeout")
+            print("Received Timeout")
             continue
         except Exception as e:
             print("recv error:", e)
@@ -50,7 +48,7 @@ def recv_server():
 
 def main():
     global running_server
-    
+
     print("start")
 
     recv_thread = threading.Thread(target=recv_server, daemon=True)
@@ -69,12 +67,12 @@ def main():
 
             # 检测退出键
             key = cv2.waitKey(1)
-            if key == ord('q'):
+            if key == ord("q"):
                 break
 
             pass
     except KeyboardInterrupt:
-            print("用户中断")
+        print("用户中断")
     finally:
         # 清理资源
         running_server = False

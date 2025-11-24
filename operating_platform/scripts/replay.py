@@ -1,27 +1,15 @@
 from __future__ import annotations
-import logging
+
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
-from pprint import pformat
 
 import draccus
-import torch
 import logging_mp
 
-from operating_platform.robot.daemon import Daemon
-
 from operating_platform.dataset.dorobot_dataset import DoRobotDataset
-from operating_platform.robot.robots.utils import (
-    Robot,
-    RobotConfig,
-    make_robot_from_config,
-    busy_wait
-)
-from operating_platform.utils.utils import (
-    log_say,
-)
-
+from operating_platform.robot.robots.utils import Robot, busy_wait
+from operating_platform.utils.utils import log_say
 
 logging_mp.basic_config(level=logging_mp.INFO)
 logger = logging_mp.get_logger(__name__)
@@ -49,11 +37,12 @@ class ReplayConfig:
 
 @draccus.wrap()
 def replay(cfg: ReplayConfig):
-
     # logging.info(pformat(asdict(cfg)))
 
     # robot = make_robot_from_config(cfg.robot)
-    dataset = DoRobotDataset(cfg.dataset.repo_id, root=cfg.dataset.root, episodes=[cfg.dataset.episode])
+    dataset = DoRobotDataset(
+        cfg.dataset.repo_id, root=cfg.dataset.root, episodes=[cfg.dataset.episode]
+    )
     actions = dataset.hf_dataset.select_columns("action")
     # robot.connect()
     robot = cfg.robot
@@ -65,7 +54,7 @@ def replay(cfg: ReplayConfig):
         action = {}
         for i, name in enumerate(dataset.features["action"]["names"]):
             action[name] = action_array[i]
-            
+
         #     # 将 action 转换为 torch.Tensor
         #     try:
         #         action_tensor = torch.tensor([action[name].item() for name in dataset.features["action"]["names"] if name in action])
@@ -75,7 +64,7 @@ def replay(cfg: ReplayConfig):
         # robot.send_action(action_tensor)
 
         print(f"Replay action: {action}")
-        
+
         robot.send_action(action)
 
         dt_s = time.perf_counter() - start_episode_t

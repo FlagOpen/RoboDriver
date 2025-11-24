@@ -1,17 +1,15 @@
 # import logging
-import os
-import os.path as osp
+import json
 import platform
 import subprocess
 from copy import copy
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Union, Dict
-import json
+from typing import Dict, Union
 
+import logging_mp
 import numpy as np
 import torch
-import logging_mp
+
 logger = logging_mp.get_logger(__name__)
 
 # import colored_logging as clog
@@ -22,20 +20,18 @@ logger = logging_mp.get_logger(__name__)
 def cameras_to_stream_json(cameras: Dict[str, int]):
     """
     将摄像头字典转换为包含流信息的 JSON 字符串。
-    
+
     参数:
         cameras (dict[str, int]): 摄像头名称到 ID 的映射
-    
+
     返回:
         str: 格式化的 JSON 字符串
     """
     stream_list = [{"id": cam_id, "name": name} for name, cam_id in cameras.items()]
     # 修改depth
-    result = {
-        "total": len(stream_list),
-        "streams": stream_list
-    }
+    result = {"total": len(stream_list), "streams": stream_list}
     return json.dumps(result)
+
 
 # class CustomFormatter(logging.Formatter):
 #     """自定义日志格式化器"""
@@ -67,6 +63,7 @@ def cameras_to_stream_json(cameras: Dict[str, int]):
 #     logger.addHandler(console_handler)
 #     logger.setLevel(level)
 
+
 def auto_select_torch_device() -> torch.device:
     """Tries to select automatically a torch device."""
     if torch.cuda.is_available():
@@ -76,24 +73,28 @@ def auto_select_torch_device() -> torch.device:
         logger.info("Metal backend detected, using cuda.")
         return torch.device("mps")
     else:
-        logger.warning("No accelerated backend detected. Using default cpu, this will be slow.")
+        logger.warning(
+            "No accelerated backend detected. Using default cpu, this will be slow."
+        )
         return torch.device("cpu")
-    
+
+
 def get_container_ip_from_hosts():
     """通过 /etc/hosts 获取容器 IP（Docker 默认写入）"""
     hostname = None
-    with open('/proc/sys/kernel/hostname', 'r') as f:
+    with open("/proc/sys/kernel/hostname", "r") as f:
         hostname = f.read().strip()
-    
-    with open('/etc/hosts', 'r') as f:
+
+    with open("/etc/hosts", "r") as f:
         for line in f:
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
             parts = line.split()
             if len(parts) > 1 and parts[1] == hostname:
                 return parts[0]
-    
+
     raise RuntimeError("无法从 /etc/hosts 获取 IP")
+
 
 # TODO(Steven): Remove log. log shouldn't be an argument, this should be handled by the logger level
 def get_safe_torch_device(try_device: str, log: bool = False) -> torch.device:
@@ -120,6 +121,7 @@ def get_safe_torch_device(try_device: str, log: bool = False) -> torch.device:
 
     return device
 
+
 def get_safe_dtype(dtype: torch.dtype, device: Union[str, torch.device]):
     """
     mps is currently not compatible with float64
@@ -130,17 +132,18 @@ def get_safe_dtype(dtype: torch.dtype, device: Union[str, torch.device]):
         return torch.float32
     else:
         return dtype
-    
+
+
 def git_branch_log():
     current_branch = get_current_git_branch()
-    
+
     # 分支匹配规则：优先级从上到下
     branch_patterns = {
-        'main':    ('🚀', '正在主分支上运行'),
-        'release': ('📦', '正在正式分支上运行'),
-        'dev':     ('🛠️', '正在开发分支上运行'),
-        'test':    ('🧪', '正在测试分支上运行'),
-        'debug':   ('🐞', '正在调试分支上运行'),
+        "main": ("🚀", "正在主分支上运行"),
+        "release": ("📦", "正在正式分支上运行"),
+        "dev": ("🛠️", "正在开发分支上运行"),
+        "test": ("🧪", "正在测试分支上运行"),
+        "debug": ("🐞", "正在调试分支上运行"),
     }
 
     if not current_branch:
@@ -162,20 +165,22 @@ def git_branch_log():
 
     # 完全未知的分支
     logger.warning(f"❓ 当前分支: {current_branch}")
-    
+
+
 def get_current_git_branch():
     """获取当前 Git 分支名称"""
     try:
         # 执行 git 命令获取当前分支
         branch = subprocess.check_output(
-            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stderr=subprocess.STDOUT,
-            universal_newlines=True
+            universal_newlines=True,
         ).strip()
         return branch
     except (subprocess.CalledProcessError, FileNotFoundError):
         # 处理异常情况（非 git 仓库或未安装 git）
         return None
+
 
 def is_torch_device_available(try_device: str) -> bool:
     try_device = str(try_device)  # Ensure try_device is a string
@@ -186,7 +191,9 @@ def is_torch_device_available(try_device: str) -> bool:
     elif try_device == "cpu":
         return True
     else:
-        raise ValueError(f"Unknown device {try_device}. Supported devices are: cuda, mps or cpu.")
+        raise ValueError(
+            f"Unknown device {try_device}. Supported devices are: cuda, mps or cpu."
+        )
 
 
 def is_amp_available(device: str):
@@ -243,10 +250,26 @@ def print_cuda_memory_usage():
     gc.collect()
     # Also clear the cache if you want to fully release the memory
     torch.cuda.empty_cache()
-    print("Current GPU Memory Allocated: {:.2f} MB".format(torch.cuda.memory_allocated(0) / 1024**2))
-    print("Maximum GPU Memory Allocated: {:.2f} MB".format(torch.cuda.max_memory_allocated(0) / 1024**2))
-    print("Current GPU Memory Reserved: {:.2f} MB".format(torch.cuda.memory_reserved(0) / 1024**2))
-    print("Maximum GPU Memory Reserved: {:.2f} MB".format(torch.cuda.max_memory_reserved(0) / 1024**2))
+    print(
+        "Current GPU Memory Allocated: {:.2f} MB".format(
+            torch.cuda.memory_allocated(0) / 1024**2
+        )
+    )
+    print(
+        "Maximum GPU Memory Allocated: {:.2f} MB".format(
+            torch.cuda.max_memory_allocated(0) / 1024**2
+        )
+    )
+    print(
+        "Current GPU Memory Reserved: {:.2f} MB".format(
+            torch.cuda.memory_reserved(0) / 1024**2
+        )
+    )
+    print(
+        "Maximum GPU Memory Reserved: {:.2f} MB".format(
+            torch.cuda.max_memory_reserved(0) / 1024**2
+        )
+    )
 
 
 def capture_timestamp_utc():
@@ -278,7 +301,9 @@ def say(text, blocking=False):
     if blocking:
         subprocess.run(cmd, check=True)
     else:
-        subprocess.Popen(cmd, creationflags=subprocess.CREATE_NO_WINDOW if system == "Windows" else 0)
+        subprocess.Popen(
+            cmd, creationflags=subprocess.CREATE_NO_WINDOW if system == "Windows" else 0
+        )
 
 
 def log_say(text, play_sounds, blocking=False):

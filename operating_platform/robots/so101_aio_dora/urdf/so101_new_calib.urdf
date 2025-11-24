@@ -448,6 +448,6 @@
       <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
-  </transmission> 
+  </transmission>
 
 </robot>

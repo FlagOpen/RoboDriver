@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
 from operating_platform.robot.robots.statuses import (
-    RobotStatus,
-    CameraStatus,
+    ArmInfo,
     ArmStatus,
     CameraInfo,
-    ArmInfo,
+    CameraStatus,
+    RobotStatus,
 )
 
 
@@ -26,7 +26,7 @@ class SO101AIODoraRobotStatus(RobotStatus):
                     type="单目视觉相机",
                     width=640,
                     height=480,
-                    is_connect=False
+                    is_connect=False,
                 ),
                 CameraInfo(
                     name="image_wrist",
@@ -34,7 +34,7 @@ class SO101AIODoraRobotStatus(RobotStatus):
                     type="单目视觉相机",
                     width=640,
                     height=480,
-                    is_connect=False
+                    is_connect=False,
                 ),
             ]
         )
@@ -47,7 +47,7 @@ class SO101AIODoraRobotStatus(RobotStatus):
                     start_pose=[],
                     joint_p_limit=[90.0, 90.0, 90.0, 90.0, 90.0],
                     joint_n_limit=[-90.0, -90.0, -90.0, -90.0, -90.0],
-                    is_connect=False
+                    is_connect=False,
                 ),
                 ArmInfo(
                     name="follower",
@@ -55,7 +55,7 @@ class SO101AIODoraRobotStatus(RobotStatus):
                     start_pose=[],
                     joint_p_limit=[90.0, 90.0, 90.0, 90.0, 90.0],
                     joint_n_limit=[-90.0, -90.0, -90.0, -90.0, -90.0],
-                    is_connect=False
+                    is_connect=False,
                 ),
             ]
         )

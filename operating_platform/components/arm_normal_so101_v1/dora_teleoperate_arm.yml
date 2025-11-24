@@ -28,4 +28,3 @@ nodes:
     path: print_joint.py
     inputs:
       joint: arm_so101_follower/joint
-

@@ -10,4 +10,3 @@ nodes:
     path: dr_gripper_pika/plot.py
     inputs:
       gripper_distance: gripper/distance
-  

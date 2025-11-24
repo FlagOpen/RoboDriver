@@ -2,16 +2,8 @@ import logging
 import sys
 import threading
 import time
-import signal
 
-from dataclasses import dataclass, field
-
-import pyarrow as pa
 from dora import Node
-
-from tracker_6d_vive.pa_schema import pa_imu_schema as imu_schema
-from tracker_6d_vive.pa_schema import pa_pose_schema as pose_schema
-
 
 logger = logging.getLogger(__name__)
 node = Node()
@@ -21,7 +13,6 @@ survive_close_event = threading.Event()
 
 def test_function() -> None:
     logger.info("Starting test thread.")
-
 
     try:
         while not dora_stop_event.is_set():
