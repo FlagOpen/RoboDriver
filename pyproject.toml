@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     { name = "Xiang Yang", email = "ryu-yang@qq.com" }
 ]
-requires-python = ">=3.8,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
     "opencv-python",
     "lerobot>=0.4.0",
