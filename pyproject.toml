@@ -12,14 +12,13 @@ authors = [
 ]
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "opencv-python",
     "lerobot>=0.4.0",
     "logging_mp",
 
     "sounddevice",
     "soundfile",
 
-    "rerun-sdk==0.26.0",
+    "rerun-sdk==0.26.2",
 
     "python-socketio"
 

@@ -68,6 +68,9 @@ async def async_main(cfg: ControlPipelineConfig):
                 action = teleop.get_action()
                 daemon.set_obs_action(action)
                 daemon.set_pre_action(action)
+            else:
+                action = daemon.robot.get_action()
+                daemon.set_obs_action(action)
 
             if observation is not None:
                 tasks = []

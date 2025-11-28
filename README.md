@@ -27,7 +27,8 @@ Project Documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Do
 ## Key Features
 
 - **Multiple Robot Integration Methods**: RoboDriver supports integration beyond SDKs, including ROS and Dora.
-- **LeRobot Compatibility**: RoboDriver directly uses LeRobot's `Robot` class for its robot interface, which means it...
+- **LeRobot Compatibility**: RoboDriver's robot interface directly uses LeRobot's `Robot` class, which means RoboDriver and LeRobot are mutually compatible.
+
 - **Enhanced LeRobot Dataset Format**: Different data structures are used at different stages of data handling. Data is stored as individual entries at the collection end for easier editing and transmission. The format also extends the original LeRobot specification.
 
 ## Quick Start

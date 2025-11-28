@@ -190,6 +190,9 @@ class Record:
 
                 observation = self.daemon.get_observation()
                 action = self.daemon.get_obs_action()
+
+                # logger.info(f"observation: {observation} \n action:{action}")
+
                 if self.dataset is not None:
                     observation_frame = build_dataset_frame(
                         self.dataset.features, observation, prefix=OBS_STR

@@ -31,7 +31,7 @@
 ## 主要特点
 
 - **多种机器人接入方式**： RoboDriver 考虑了除SDK外，使用ROS、Dora的接入方式。
-- **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的Robot类，这意味着在
+- **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的`Robot`类，这意味着RoboDriver与LeRobot可以互相兼容。
 - **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
 
 ## 快速入门

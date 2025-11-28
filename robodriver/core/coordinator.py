@@ -319,6 +319,7 @@ class Coordinator:
                         web_port=RERUN_WEB_PORT,
                         ws_port=RERUN_WS_PORT,
                         stop_event=stop_event,  # 需要replay函数支持stop_event参数
+                        open_browser=False,
                     )
                 except Exception as e:
                     error_queue.put(e)

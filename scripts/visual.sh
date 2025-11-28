@@ -1,4 +1,4 @@
-python3 operating_platform/dataset/visual/visual_dataset.py \
-    --repo-id "20251028/dev/加热三明治_liuyou_test_220/加热三明治_liuyou_test_220_27179" \
+python3 robodriver/dataset/visual/visual_dataset.py \
+    --repo-id "20251127/dev/place the okra into the bowl_place the okra into the pink bowl_502/place the okra into the bowl_place the okra into the pink bowl_502_63092" \
     --episode-index 0 \
     --mode distant
