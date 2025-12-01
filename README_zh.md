@@ -9,14 +9,15 @@
 [![简体中文版自述文件](https://img.shields.io/badge/简体中文-d9d9d9)](./README_zh.md)
 
 
-项目文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
-
-
 # RoboDriver
+RoboDriver是DataCollect的核心驱动层组件，也是[CoRobot](https://github.com/FlagOpen/CoRobot)数据体系中的标准化机器人接入模块。
 
+如图所示，RoboDriver为“设备端驱动适配层”，[RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server)是“数据/控制的桥接层与通道路由器”，[RoboXStudio](https://ei2data.baai.ac.cn/home)是“云端或平台侧总控制台与数据管理中心”。
+
+RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
 ## 最新消息
 
-- [2025-11-20] 创建了项目文档
+- [2025-12-01] RoboDriver项目开源
 
 ## 目录
 
