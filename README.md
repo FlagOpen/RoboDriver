@@ -6,13 +6,19 @@
 [![README in English](https://img.shields.io/badge/English-d9d9d9)](./README.md)
 [![Simplified Chinese README](https://img.shields.io/badge/简体中文-d9d9d9)](./README_zh.md)
 
-Project Documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
-
 # RoboDriver
+
+## Overview
+
+RoboDriver is the core driver-layer component of DataCollect and serves as the standardized robot access module within the [CoRobot](https://github.com/FlagOpen/CoRobot) data stack.
+
+As shown above, RoboDriver acts as the device-side driver adaptation layer. [RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server) is the data/control bridge layer and channel router, and [RoboXStudio](https://ei2data.baai.ac.cn/home) is the cloud- or platform-side console and data management center.
+
+RoboDriver documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
 
 ## Latest News
 
-- [2025-11-20] Project documentation created
+- [2025-12-01] RoboDriver project open sourced
 
 ## Table of Contents
 
@@ -28,7 +34,6 @@ Project Documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Do
 
 - **Multiple Robot Integration Methods**: RoboDriver supports integration beyond SDKs, including ROS and Dora.
 - **LeRobot Compatibility**: RoboDriver's robot interface directly uses LeRobot's `Robot` class, which means RoboDriver and LeRobot are mutually compatible.
-
 - **Enhanced LeRobot Dataset Format**: Different data structures are used at different stages of data handling. Data is stored as individual entries at the collection end for easier editing and transmission. The format also extends the original LeRobot specification.
 
 ## Quick Start
@@ -63,8 +68,3 @@ RoboDriver's source code is licensed under the Apache 2.0 License. This project 
   url = {https://github.com/FlagOpen/RoboDriver}
 }
 ```
-
-## TODO
-
-- Function: Compare server code version
-- Save device info
