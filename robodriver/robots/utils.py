@@ -85,13 +85,13 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
     logger.info("In make_robot_from_config")
 
     if config.type == "adora":
-        from robodriver.robot.robots.adora_v1.manipulator import AdoraManipulator
+        from robodriver.robots.adora_v1.manipulator import AdoraManipulator
 
         logger.info("In AdoraRobotConfig")
         return AdoraManipulator(config)
 
     elif config.type == "aloha_v1":
-        from robodriver.robot.robots.aloha_v1.src.manipulator import AlohaManipulator
+        from robodriver.robots.aloha_v1.src.manipulator import AlohaManipulator
 
         logger.info("In AlohaManipulator")
         return AlohaManipulator(config)

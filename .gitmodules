@@ -4,3 +4,6 @@
 [submodule "robodriver/teleoperators/so101_leader_dora"]
 	path = robodriver/teleoperators/so101_leader_dora
 	url = https://github.com/BAAI-EI-DATA/robodriver-teleoperator-so101-leader-dora.git
+[submodule "robodriver/robots/so101_aio_dora"]
+	path = robodriver/robots/so101_aio_dora
+	url = https://github.com/BAAI-EI-DATA/robodriver-robot-so101-aio-dora.git
