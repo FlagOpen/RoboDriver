@@ -1,0 +1,119 @@
+{
+    "develop_mode": "ros2",
+    "use_videos": false,
+    "components": [
+        {
+            "type": "camera/image",
+            "params": {
+                "topic": "/image_raw",
+                "msgs": "Image",
+                "period": 30,
+                "width": 640,
+                "height": 480,
+                "channels": 3,
+                "encoding": null,
+                "output": [
+                    "image"
+                ]
+            },
+            "id": "image_top",
+            "outputs_info": {
+                "image": {
+                    "width": 640,
+                    "height": 480,
+                    "channels": 3
+                }
+            }
+        },
+        {
+            "type": "arm/ros2_joints_or_pose",
+            "params": {
+                "topic": "/joint_states",
+                "msgs": "sensor_msgs/JointState",
+                "group": "action",
+                "period": 30,
+                "output": [
+                    "joints"
+                ],
+                "msgs_data_floors": "",
+                "joint_index": "[0, 1, 2, 3, 4, 5]"
+            },
+            "id": "leader_arm",
+            "outputs_info": {
+                "joints": {
+                    "motors": {
+                        "joint_0": [
+                            1,
+                            "robot_motor"
+                        ],
+                        "joint_1": [
+                            2,
+                            "robot_motor"
+                        ],
+                        "joint_2": [
+                            3,
+                            "robot_motor"
+                        ],
+                        "joint_3": [
+                            4,
+                            "robot_motor"
+                        ],
+                        "joint_4": [
+                            5,
+                            "robot_motor"
+                        ],
+                        "joint_5": [
+                            6,
+                            "robot_motor"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "type": "arm/ros2_joints_or_pose",
+            "params": {
+                "topic": "/f_joint_states",
+                "msgs": "sensor_msgs/JointState",
+                "group": "observation",
+                "period": 30,
+                "output": [
+                    "joints"
+                ],
+                "msgs_data_floors": "JointStates",
+                "joint_index": "[0, 1, 2, 3, 4, 5,]"
+            },
+            "id": "follower_arm",
+            "outputs_info": {
+                "joints": {
+                    "motors": {
+                        "joint_0": [
+                            1,
+                            "robot_motor"
+                        ],
+                        "joint_1": [
+                            2,
+                            "robot_motor"
+                        ],
+                        "joint_2": [
+                            3,
+                            "robot_motor"
+                        ],
+                        "joint_3": [
+                            4,
+                            "robot_motor"
+                        ],
+                        "joint_4": [
+                            5,
+                            "robot_motor"
+                        ],
+                        "joint_5": [
+                            6,
+                            "robot_motor"
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+}

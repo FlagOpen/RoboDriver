@@ -144,6 +144,6 @@ def _attempt_import(module_name: str, imported: list, failed: list) -> None:
         importlib.import_module(module_name)
         imported.append(module_name)
         logger.info("✅ Successfully imported plugin: %s", module_name)
-    except Exception:
+    except Exception as e:
         failed.append(module_name)
-        logger.warning("❌ FAILED to import plugin: %s", module_name)
+        logger.warning("❌ FAILED to import plugin: %s - %s", module_name, e)

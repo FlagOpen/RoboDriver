@@ -1,0 +1,308 @@
+dora:
+  camera:
+    opencv:
+      default_params:
+        path: ../../components/camera_opencv/main.py
+        period: 30
+        width: 640
+        height: 480
+        output:  
+          - image
+        encoding: "bgr8"
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+
+    realsense:
+      default_params:
+        path: ../../components/camera_rgbd_realsense/main.py
+        period: 30
+        width: 640
+        height: 480
+        device_serial: ""
+        output:  
+          - image
+          - image_depth
+        encoding: "bgr8"
+      outputs_info:
+        image:oding: "bgr8"
+        device_serial: ""
+        output:  
+          - image
+          - image_depth
+        encoding: "bgr8"
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+        image_depth:
+          width: 640
+          height: 480
+          channels: 3
+
+    zed:
+      default_params:
+        path: ../../components/camera_rgbd_zed/main.py
+        period: 30
+        width: 640
+        height: 480
+        device_serial: ""
+        output:  
+          - image_left
+          - image_right
+        encoding: "bgr8"
+      outputs_info:
+        image_left:
+          width: 640
+          height: 480
+          channels: 3
+        image_right:
+          width: 640
+          height: 480
+          channels: 3
+
+  arm:
+    robot_arm:
+      default_params:
+        path: ../../components/robot_arm/main.py
+        period: 30
+        output:
+          - pose
+      outputs_info:
+        psoe:
+          motors:
+            joint_1: [1, "piper-motor"]
+            joint_2: [2, "piper-motor"]
+            joint_3: [3, "piper-motor"]
+            joint_4: [4, "piper-motor"]
+            joint_5: [5, "piper-motor"]
+            joint_6: [6, "piper-motor"]
+            pose_x:  [7, "piper-pose"]
+            pose_y:  [8, "piper-pose"]
+            pose_z:  [9, "piper-pose"]
+            pose_rx: [10, "piper-pose"]
+            pose_ry: [11, "piper-pose"]
+            pose_rz: [12, "piper-pose"]
+            gripper: [13, "piper-gripper"]
+
+ros1:
+  camera:
+    image:
+      default_params:
+        topic: ""
+        msgs: "Image"
+        period: 30
+        width: 640
+        height: 480
+        channels: 3
+        encoding:
+        output:
+          - image
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+      param_options:
+        msgs:
+          - "Image"
+          - "CompressedImage"
+
+    depth_image:
+      default_params:
+        topic: ""
+        msgs: "Image"
+        period: 30
+        width: 640
+        height: 480
+        encoding:
+        channels: 1
+        output:
+          - depth_image
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+      param_options:
+        msgs:
+          - "Image"
+          - "CompressedImage"
+
+  arm:
+    ros1_pose:
+      default_params:
+        topic: ""
+        msgs: "PoseStamped"
+        group: ""
+        period: 30
+        output:
+          - pose
+      outputs_info:
+        pose:
+          motors:
+            "position_x": [1, "robot_motor"]
+            "position_y": [2, "robot_motor"]
+            "position_z": [3, "robot_motor"]
+            "orientation_x": [4, "robot_motor"]
+            "orientation_y": [5, "robot_motor"]
+            "orientation_z": [6, "robot_motor"]
+            "orientation_w": [7, "robot_motor"]
+
+    ros1_odom:
+      default_params:
+        topic: ""
+        msgs: "Odometry"
+        group: ""
+        period: 30
+        output:
+          - odom
+      outputs_info:
+        odom:
+          motors:
+            "position_x": [1, "robot_motor"]
+            "position_y": [2, "robot_motor"]
+            "position_z": [3, "robot_motor"]
+            "orientation_x": [4, "robot_motor"]
+            "orientation_y": [5, "robot_motor"]
+            "orientation_z": [6, "robot_motor"]
+            "orientation_w": [7, "robot_motor"]
+            "linear_x": [8, "robot_motor"]
+            "linear_y": [9, "robot_motor"]
+            "linear_z": [10, "robot_motor"]
+            "angular_x": [11, "robot_motor"]
+            "angular_y": [12, "robot_motor"]
+            "angular_z": [13, "robot_motor"]
+
+    ros1_joints:
+      default_params:
+        topic: ""
+        msgs: "sensor_msgs/JointState"
+        group: ""
+        period: 30
+        output:
+          - joints
+        msgs_data_floors: ""
+        joint_index: [0,1,2,3,4,5,6]
+      outputs_info:
+        joints:
+          motors:
+            "joint": [1, "robot_motor"]
+      param_options:
+        group:  
+          - "action"
+          - "observation"
+
+ros2:
+  camera:
+    image:
+      default_params:
+        topic: ""
+        msgs: "Image"
+        period: 30
+        width: 640
+        height: 480
+        channels: 3
+        encoding:
+        output:
+          - image
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+      param_options:
+        msgs:
+          - "Image"
+          - "CompressedImage"
+
+    depth_image:
+      default_params:
+        topic: ""
+        msgs: "Image"
+        period: 30
+        width: 640
+        height: 480
+        channels: 1
+        encoding:
+        output:
+          - depth_image
+      outputs_info:
+        image:
+          width: 640
+          height: 480
+          channels: 3
+      param_options:
+        msgs:
+          - "Image"
+          - "CompressedImage"
+
+  arm:
+    ros2_pose:
+      default_params:
+        topic: ""
+        msgs: "PoseStamped"
+        group: ""
+        period: 30
+        output:
+          - pose
+      outputs_info:
+        pose:
+          motors:
+            "position_x": [1, "robot_motor"]
+            "position_y": [2, "robot_motor"]
+            "position_z": [3, "robot_motor"]
+            "orientation_x": [4, "robot_motor"]
+            "orientation_y": [5, "robot_motor"]
+            "orientation_z": [6, "robot_motor"]
+            "orientation_w": [7, "robot_motor"]
+
+    ros2_odom:
+      default_params:
+        topic: ""
+        msgs: "Odometry"
+        group: ""
+        period: 30
+        output:
+          - odom
+      outputs_info:
+        odom:
+          motors:
+            "position_x": [1, "robot_motor"]
+            "position_y": [2, "robot_motor"]
+            "position_z": [3, "robot_motor"]
+            "orientation_x": [4, "robot_motor"]
+            "orientation_y": [5, "robot_motor"]
+            "orientation_z": [6, "robot_motor"]
+            "orientation_w": [7, "robot_motor"]
+            "linear_x": [8, "robot_motor"]
+            "linear_y": [9, "robot_motor"]
+            "linear_z": [10, "robot_motor"]
+            "angular_x": [11, "robot_motor"]
+            "angular_y": [12, "robot_motor"]
+            "angular_z": [13, "robot_motor"]
+
+    ros2_joints_or_pose:
+      default_params:
+        topic: ""
+        msgs: "sensor_msgs/JointState"
+        group: ""
+        period: 30
+        output:
+          - joints
+        msgs_data_floors: ""
+        joint_index: [0,1,2,3,4,5,6]
+      outputs_info:
+        joints:
+          motors:
+            "joint": [1, "robot_motor"]
+      param_options:
+        group:  
+          - "action"
+          - "observation"
+
+
+
