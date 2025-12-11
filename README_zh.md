@@ -26,10 +26,11 @@ RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-D
 1. [概述](#概述)
 2. [主要特点](#主要特点)
 3. [快速入门](#快速入门)
-4. [参与贡献](#参与贡献)
-5. [帮助支持](#帮助支持)
-6. [许可证与致谢](#许可证和致谢)
-7. [引用](#引用)
+4. [机器人示例](#机器人示例)
+5. [参与贡献](#参与贡献)
+6. [帮助支持](#帮助支持)
+7. [许可证与致谢](#许可证和致谢)
+8. [引用](#引用)
 
 ## 主要特点
 
@@ -37,9 +38,44 @@ RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-D
 - **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的`Robot`类，这意味着RoboDriver与LeRobot可以互相兼容。
 - **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
 
+
 ## 快速入门
 
 请参考项目文档：[RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+
+## 机器人示例
+RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下（各仓库包含对应机器人的接入步骤、环境配置、指令适配等完整指南）：
+
+### 🔌 ROS1 接入
+| 机器人型号 | 简介 | 仓库链接 | 仓库贡献人（联系方式） |
+|------------|------|--------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机    | https://github.com/BAAI-EI-DATA/robodriver-robot-realman-aio-ros1             | yangxiang（yangxiang@baai.ac.cn） |
+
+
+### 🔌 ROS2 接入
+| 机器人型号   | 简介                                                         | 代码链接                                                                 | 贡献人（联系方式） |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------|------------------------|
+| GALAXEALITE  | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机           | https://github.com/BAAI-EI-DATA/robodriver-robot-galaxealite-aio-ros2        | liuyou（liuyou@baai.ac.cn） |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | https://github.com/BAAI-EI-DATA/robodriver-robot-so101-aio-ros2              | yangxiang（yangxiang@baai.ac.cn） |
+
+### 🔌 Dora（SDK）接入
+| 机器人型号   | 简介                                                         | 代码链接                                                                 | 贡献人（联系方式） |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机                  | https://github.com/BAAI-EI-DATA/robodriver-robot-realman1-aio-dora           | xuruntian（xuruntian@baai.ac.cn） |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | https://github.com/BAAI-EI-DATA/robodriver-robot-so101-aio-dora              | yangxiang（yangxiang@baai.ac.cn） |
+
+> ✨ 说明：
+> 1. 接入方式命名规范：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`（如 `aio`/`follwer`/`teleoperate`, `ros2`/`dora`）；
+> 2. 每个适配仓库内包含**环境搭建、配置修改、采集/控制验证**等完整接入指南；
+> 3. 持续新增适配机器人，可关注本列表或项目更新。
+
+我们非常欢迎社区开发者贡献更多机器人的实现！可按以下方式参与：
+1. 参考已适配机器人的代码结构和 README 模板，按接入类型（ROS1/ROS2/Dora）完成适配开发；
+2. 将适配代码新增至主仓库的 `robodriver/robots/` 目录下（命名规范与已适配机器人保持一致）；
+3. 确保代码规范、文档完整（包含环境准备、配置步骤、功能验证）；
+4. 提交代码 PR 至主仓库的 `dev` 分支，我们将及时审核并合并。
+
+期待与您一起丰富 RoboDriver 的机器人生态！ 🤝
 
 ## 参与贡献
 
