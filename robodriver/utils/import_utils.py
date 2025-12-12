@@ -107,6 +107,7 @@ def register_third_party_devices() -> None:
     prefixes = (
         "robodriver_robot_",
         "robodriver_camera_",
+        "robodriver_sim",
         "robodriver_policy_",
         "robodriver_teleoperator",
     )

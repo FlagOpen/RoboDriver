@@ -153,8 +153,8 @@ def visualize_dataset(
 
     try:
         if mode == "distant":
-            server_uri = rr.serve_grpc()
-            rr.serve_web_viewer(open_browser=open_browser, connect_to=server_uri)
+            server_uri = rr.serve_grpc(grpc_port=ws_port)
+            rr.serve_web_viewer(open_browser=open_browser, connect_to=server_uri, web_port=web_port)
         logging.info("Logging to Rerun")
 
         for batch in tqdm.tqdm(dataloader, total=len(dataloader)):
@@ -289,13 +289,13 @@ def main():
     parser.add_argument(
         "--web-port",
         type=int,
-        default=9095,
+        default=9195,
         help="Web port for rerun.io when `--mode distant` is set.",
     )
     parser.add_argument(
         "--ws-port",
         type=int,
-        default=9185,
+        default=9285,
         help="Web socket port for rerun.io when `--mode distant` is set.",
     )
     parser.add_argument(
