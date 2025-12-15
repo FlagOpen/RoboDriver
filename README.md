@@ -1,65 +1,102 @@
+
 ![RoboDriver](assets/images/robodriver.png)
 
 [![GitHub Issues](https://img.shields.io/github/issues/FlagOpen/RoboDriver)](https://github.com/FlagOpen/RoboDriver/issues)
 [![GitHub Discussions](https://img.shields.io/github/discussions/FlagOpen/RoboDriver)](https://github.com/FlagOpen/RoboDriver/discussions)
 
+
 [![README in English](https://img.shields.io/badge/English-d9d9d9)](./README.md)
-[![Simplified Chinese README](https://img.shields.io/badge/简体中文-d9d9d9)](./README_zh.md)
+[![简体中文版自述文件](https://img.shields.io/badge/简体中文-d9d9d9)](./README_zh.md)
+
 
 # RoboDriver
-
-## Overview
-
-RoboDriver is the core driver-layer component of DataCollect and serves as the standardized robot access module within the [CoRobot](https://github.com/FlagOpen/CoRobot) data stack.
+RoboDriver是DataCollect的核心驱动层组件，也是[CoRobot](https://github.com/FlagOpen/CoRobot)数据体系中的标准化机器人接入模块。
 
 ![1](assets/images/robodriver_struct_1.png)
 
-As shown above, RoboDriver acts as the device-side driver adaptation layer. [RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server) is the data/control bridge layer and channel router, and [RoboXStudio](https://ei2data.baai.ac.cn/home) is the cloud- or platform-side console and data management center.
+如图所示，RoboDriver为“设备端驱动适配层”，[RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server)是“数据/控制的桥接层与通道路由器”，[RoboXStudio](https://ei2data.baai.ac.cn/home)是“云端或平台侧总控制台与数据管理中心”。
 
-RoboDriver documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+## 最新消息
 
-## Latest News
+- [2025-12-01] RoboDriver项目开源
 
-- [2025-12-01] RoboDriver project open sourced
+## 目录
 
-## Table of Contents
+1. [概述](#概述)
+2. [主要特点](#主要特点)
+3. [快速入门](#快速入门)
+4. [机器人示例](#机器人示例)
+5. [参与贡献](#参与贡献)
+6. [帮助支持](#帮助支持)
+7. [许可证与致谢](#许可证和致谢)
+8. [引用](#引用)
 
-1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Quick Start](#quick-start)
-4. [Contributing](#contributing)
-5. [Support](#support)
-6. [License and Acknowledgements](#license-and-acknowledgements)
-7. [Citation](#citation)
+## 主要特点
 
-## Key Features
+- **多种机器人接入方式**： RoboDriver 考虑了除SDK外，使用ROS、Dora的接入方式。
+- **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的`Robot`类，这意味着RoboDriver与LeRobot可以互相兼容。
+- **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
 
-- **Multiple Robot Integration Methods**: RoboDriver supports integration beyond SDKs, including ROS and Dora.
-- **LeRobot Compatibility**: RoboDriver's robot interface directly uses LeRobot's `Robot` class, which means RoboDriver and LeRobot are mutually compatible.
-- **Enhanced LeRobot Dataset Format**: Different data structures are used at different stages of data handling. Data is stored as individual entries at the collection end for easier editing and transmission. The format also extends the original LeRobot specification.
 
-## Quick Start
+## 快速入门
 
-Please refer to the project documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+请参考项目文档：[RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
 
-## Contributing
+## 机器人示例
+RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下（各仓库包含对应机器人的接入步骤、环境配置、指令适配等完整指南）：
 
-We sincerely welcome *any form of contribution* from the community. Whether it's **pull requests for new features**, **bug reports**, or even **small suggestions** to make RoboDriver more user-friendly—we deeply appreciate all contributions!
+### 🔌 ROS1 接入
+| 机器人型号 | 简介 | 仓库链接 | 仓库贡献人（联系方式） |
+|------------|------|--------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机    | https://github.com/BAAI-EI-DATA/robodriver-robot-realman-aio-ros1             | yangxiang（yangxiang@baai.ac.cn） |
 
-## Support
 
-- Please use GitHub [Issues](https://github.com/FlagOpen/RoboDriver/issues) to report bugs and request new features.
-- Please use GitHub [Discussions](https://github.com/FlagOpen/RoboDriver/discussions) to share ideas and ask questions.
+### 🔌 ROS2 接入
+| 机器人型号   | 简介                                                         | 代码链接                                                                 | 贡献人（联系方式） |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------|------------------------|
+| GALAXEALITE  | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机           | https://github.com/BAAI-EI-DATA/robodriver-robot-galaxealite-aio-ros2        | liuyou（liuyou@baai.ac.cn） |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | https://github.com/BAAI-EI-DATA/robodriver-robot-so101-aio-ros2              | yangxiang（yangxiang@baai.ac.cn） |
 
-## License and Acknowledgements
+### 🔌 Dora（SDK）接入
+| 机器人型号   | 简介                                                         | 代码链接                                                                 | 贡献人（联系方式） |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机                  | https://github.com/BAAI-EI-DATA/robodriver-robot-realman1-aio-dora           | xuruntian（xuruntian@baai.ac.cn） |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | https://github.com/BAAI-EI-DATA/robodriver-robot-so101-aio-dora              | yangxiang（yangxiang@baai.ac.cn） |
 
-RoboDriver's source code is licensed under the Apache 2.0 License. This project would not be possible without the following amazing open-source projects:
+> ✨ 说明：
+> 1. 接入方式命名规范：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`（如 `aio`/`follwer`/`teleoperate`, `ros2`/`dora`）；
+> 2. 每个适配仓库内包含**环境搭建、配置修改、采集/控制验证**等完整接入指南；
+> 3. 持续新增适配机器人，可关注本列表或项目更新。
 
-- Thanks to the LeRobot team for open-sourcing 🤗 [LeRobot](https://github.com/huggingface/lerobot). RoboDriver is built as an improvement upon LeRobot.
-- Thanks to TheRobotStudio team for open-sourcing the SO-100 and SO-101 robot arms 🤗 [SO-101](https://github.com/TheRobotStudio/SO-ARM100). The SO-101 arm is used as a deployment example in this project.
-- Thanks to the dora-rs team for open-sourcing their robotics framework 🤗 [dora](https://github.com/dora-rs/dora). This framework enables a novel integration method for robots in this project.
+我们非常欢迎社区开发者贡献更多机器人的实现！可按以下方式参与：
+1. 参考已适配机器人的代码结构和 README 模板，按接入类型（ROS1/ROS2/Dora）完成适配开发；
+2. 将适配代码新增至主仓库的 `robodriver/robots/` 目录下（命名规范与已适配机器人保持一致）；
+3. 确保代码规范、文档完整（包含环境准备、配置步骤、功能验证）；
+4. 提交代码 PR 至主仓库的 `dev` 分支，我们将及时审核并合并。
 
-## Citation
+期待与您一起丰富 RoboDriver 的机器人生态！ 🤝
+
+## 参与贡献
+
+我们真诚地欢迎来自社区的 *任何形式的贡献*。从**新功能的拉取请求**、**错误报告**，到甚至是使RoboDriver更易用的微小**建议**，我们都全心全意地感谢！
+
+## 帮助支持
+
+- 请使用 Github [Issues](https://github.com/FlagOpen/RoboDriver/issues) 报告错误和提出功能请求。
+
+- 请使用 GitHub [Discussions](https://github.com/FlagOpen/RoboDriver/discussions) 讨论想法和提问。
+
+
+## 许可证和致谢
+
+RoboDriver 源代码根据 Apache 2.0 许可证授权。 没有这些令人惊叹的开源项目，RoboDriver 的开发是不可能的：
+
+- 感谢LeRobot团队开源LeRobot🤗, [LeRobot](https://github.com/huggingface/lerobot)。本项目由LeRobot改进而来。
+- 感谢TheRobotStudio团队开源的SO100和SO101机械臂🤗, [SO101](https://github.com/TheRobotStudio/SO-ARM100)。在本项目中，SO101机械臂作为部署案例。
+- 感谢dora-rs团队开源的机器人框架🤗, [dora](https://github.com/dora-rs/dora)。在本项目中，该框架为机器人带来了全新的接入方式。
+
+## 引用
 
 ```bibtex
 @misc{RoboDriver,
