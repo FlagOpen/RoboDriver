@@ -50,7 +50,7 @@ RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-D
 
 RoboDriver 已完成 `Genesis` 仿真环境的适配，`mujoco` 和 `isaac sim` 等环境的适配正在开发中。使用请参考项目文档和仓库内对应的文件夹内`README`。
 
-### 🔌 Genesis
+### 🪞 Genesis
 
 | 机器人型号 | 简介 | 仓库链接 | 仓库贡献人（联系方式） |
 |------------|------|--------------|------------------------|
