@@ -12,10 +12,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "dora-rs (>=0.3.11,<0.4.0)",
+    "dora-rs-cli (>=0.3.11,<0.4.0)",
     "genesis-world>=0.3.7",
     "torch",
     "pynput",
+    "dora-rerun",
 ]
 
 [tool.setuptools]
