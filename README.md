@@ -4,8 +4,8 @@
 [![GitHub Discussions](https://img.shields.io/github/discussions/FlagOpen/RoboDriver)](https://github.com/FlagOpen/RoboDriver/discussions)
 
 
-[![README in English](https://img.shields.io/badge/English-d9d9d9)](./README.md)
-[![简体中文版自述文件](https://img.shields.io/badge/简体中文-d9d9d9)](./README_zh.md)
+[![README in English](https://img.shields.io/badge/English-d9d9d9)](./README_en.md)
+[![简体中文版自述文件](https://img.shields.io/badge/简体中文-d9d9d9)](./README.md)
 
 
 # RoboDriver
@@ -19,7 +19,9 @@ RoboDriver是DataCollect的核心驱动层组件，也是[CoRobot](https://githu
 
 RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
 ## 最新消息
-- [2025-12-01] RoboDriver项目开源
+
+- [2025-12-16] RoboDriver-仿真 和 AutoDriver 正式发布
+- [2025-12-01] RoboDriver 项目开源
 
 ## 目录
 
