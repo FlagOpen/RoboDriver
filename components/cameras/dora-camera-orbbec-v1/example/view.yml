@@ -1,0 +1,57 @@
+nodes:
+  - id: camera_top
+    path: ../dora_camera_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1T35300CF
+
+  - id: camera_right
+    path: ../dora_camera_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1635300DB
+
+  - id: camera_left
+    path: ../dora_camera_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1635300FK
+
+  - id: rerun
+    path: dora-rerun
+    inputs:
+      image_top: 
+        source: camera_top/image
+        queue_size: 1
+      image_depth_top:
+        source: camera_top/image_depth
+        queue_size: 1
+      image_right:
+        source: camera_right/image
+        queue_size: 1
+      image_depth_right:
+        source: camera_right/image_depth
+        queue_size: 1
+      image_left:
+        source: camera_left/image
+        queue_size: 1
+      image_depth_left:
+        source: camera_left/image_depth
+        queue_size: 1
+    env:
+      RERUN_MEMORY_LIMIT: 25%

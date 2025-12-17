@@ -1,0 +1,30 @@
+[project]
+name = "dora_arm_realman"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Runtian Xu",email = "xuruntian03@163.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9,<3.11"  
+dependencies = [
+    "dora-rs-cli (>=0.3.11,<0.4.0)",
+    "numpy",
+    "pyarrow",
+    "deepdiff",
+    "tqdm",
+    "pygame",
+    "draccus",
+    "pynput",
+    "Robotic_Arm=1.0.4.1",
+    "opencv-python",
+    "pyrealsense2",
+    "draccus"
+]
+
+[tool.setuptools]
+packages = []
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
