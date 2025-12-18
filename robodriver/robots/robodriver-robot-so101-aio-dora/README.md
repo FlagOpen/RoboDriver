@@ -86,7 +86,7 @@ dora build dataflow.yml --uv
     ```
 
 6. 为机械臂 USB 接口赋予权限：
-    ‵‵‵
+    ```
     sudo chmod 666 /dev/ttyACM0
     sudo chmod 666 /dev/ttyACM1
     ```
