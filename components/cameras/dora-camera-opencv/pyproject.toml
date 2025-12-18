@@ -2,10 +2,11 @@
 requires = ["uv>=0.1.0", "setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
+
 [project]
-name = "dora-arm-so101"
+name = "dora-camera-opencv"
 version = "0.0.1"
-description = ""
+description = "Dora Node for OpenCV Camera"
 authors = [
     {name = "Xiang Yang",email = "ryu-yang@qq.com"}
 ]
@@ -13,15 +14,9 @@ readme = "README.md"
 requires-python = ">=3.8,<3.14"
 dependencies = [
     "dora-rs (>=0.3.11,<0.4.0)",
-    "feetech-servo-sdk>=1.0.0",
-    "numpy",
-    "pyarrow",
-    "deepdiff",
-    "tqdm",
-    "pygame",
-    "draccus",
-    "pynput"
+    "opencv-python >= 4.1.1",
+    "numpy"
 ]
 
 [project.scripts]
-dora-arm-so101 = "dora_arm_so101.main:main"
+dora-camera-opencv = "dora_camera_opencv.main:main"

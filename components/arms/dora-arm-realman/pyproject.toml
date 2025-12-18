@@ -1,5 +1,5 @@
 [project]
-name = "dora_arm_realman"
+name = "dora-arm-realman"
 version = "0.1.0"
 description = ""
 authors = [
@@ -19,7 +19,6 @@ dependencies = [
     "Robotic_Arm=1.0.4.1",
     "opencv-python",
     "pyrealsense2",
-    "draccus"
 ]
 
 [tool.setuptools]
