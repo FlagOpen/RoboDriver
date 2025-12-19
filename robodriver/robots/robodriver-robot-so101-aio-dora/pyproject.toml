@@ -13,7 +13,7 @@ authors = [
 ]
 keywords = ["robotics", "lerobot", "so101"]
 dependencies = [
-    "dora-rs-cli",
+    "dora-rs",
     "logging_mp",
     "opencv-python",
 ]

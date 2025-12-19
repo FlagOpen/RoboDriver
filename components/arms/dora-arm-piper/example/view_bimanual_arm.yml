@@ -1,0 +1,45 @@
+nodes:
+  - id: piper_left
+    # build: pip install dora-piper
+    path: ../dora_arm_piper/main.py
+    inputs:
+      tick: dora/timer/millis/40
+    outputs:
+      - slave_jointstate
+    env:
+      CAN_BUS: can_left
+      TEACH_MODE: True
+
+  - id: piper_right
+    # build: pip install dora-piper
+    path: ../dora_arm_piper/main.py
+    inputs:
+      tick: dora/timer/millis/40
+    outputs:
+      - slave_jointstate
+    env:
+      CAN_BUS: can_right
+      TEACH_MODE: True
+
+  - id: rerun
+    path: dora-rerun
+    build: |
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/base_link.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link1.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link2.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link3.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link4.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link5.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link6.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link7.STL
+      wget -nc -P ../assets/urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link8.STL
+
+    inputs:
+      jointstate_piper_left: piper_left/slave_jointstate
+      jointstate_piper_right: piper_right/slave_jointstate
+    env:
+      piper_left_urdf: ../assets/urdf/piper_left.urdf
+      piper_right_urdf: ../assets/urdf/piper_right.urdf
+      piper_left_transform: 0 0.3 0
+      piper_right_transform: 0 -0.3 0
+      RERUN_MEMORY_LIMIT: 25%

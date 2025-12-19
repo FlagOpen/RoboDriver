@@ -1,40 +1,47 @@
 nodes:
   - id: camera_top
-    path: nodes/dora_camera_opencv.py
+    build: pip install dora_camera_opencv
+    path: dora_camera_opencv
     inputs:
       tick: dora/timer/millis/33
     outputs:
       - image
     env:
+      VIRTUAL_ENV: ./camera.venv
       CAPTURE_PATH: 4
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
   - id: camera_top_dep
-    path: nodes/dora_camera_opencv.py
+    build: pip install dora_camera_opencv
+    path: dora_camera_opencv
     inputs:
       tick: dora/timer/millis/33
     outputs:
       - image
     env:
+      VIRTUAL_ENV: camera.venv
       CAPTURE_PATH: 2
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
+
   - id: camera_wrist
-    path: nodes/dora_camera_opencv.py
+    build: pip install dora_camera_opencv
+    path: dora_camera_opencv
     inputs:
       tick: dora/timer/millis/33
     outputs:
       - image
     env:
+      VIRTUAL_ENV: camera.venv
       CAPTURE_PATH: 6
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
   - id: arm_so101_leader
-    path: nodes/dora_arm_so101/dora_arm_so101/main.py
-    build: pip install -e nodes/dora_arm_so101
+    build: pip install dora_arm_so101
+    path: dora_arm_so101
     inputs:
       get_joint: dora/timer/millis/33
     outputs:
@@ -46,15 +53,16 @@ nodes:
       - joint_gripper
       - all_joint
     env:
+      VIRTUAL_ENV: arm.venv
       GET_DEVICE_FROM: PORT
       PORT: /dev/ttyACM0
       ARM_NAME: SO101-leader
       ARM_ROLE: leader
-      CALIBRATION_DIR: nodes/dora_arm_so101/examples/.calibration/
+      CALIBRATION_DIR: .calibration/
 
   - id: arm_so101_follower
-    path: nodes/dora_arm_so101/dora_arm_so101/main.py
-    build: pip install -e nodes/dora_arm_so101
+    build: pip install dora_arm_so101
+    path: dora_arm_so101
     inputs:
       get_joint: dora/timer/millis/33
       action_joint: arm_so101_leader/all_joint
@@ -67,11 +75,12 @@ nodes:
       - joint_wrist_roll
       - joint_gripper
     env:
+      VIRTUAL_ENV: arm.venv
       GET_DEVICE_FROM: PORT
       PORT: /dev/ttyACM1
       ARM_NAME: SO101-follower
       ARM_ROLE: follower
-      CALIBRATION_DIR: nodes/dora_arm_so101/examples/.calibration/
+      CALIBRATION_DIR: .calibration/
 
   - id: so101_aio_dora
     path: dynamic

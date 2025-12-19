@@ -1,0 +1,31 @@
+nodes:
+  - id: arm_realman_left
+    path: ../dora_arm_realman/main.py
+    inputs:
+      get_joint: dora/timer/millis/30
+    outputs:
+      - joint
+    env:
+      ARM_IP: 169.254.128.18
+      ARM_PORT: 8080
+      ARM_NAME: RealMan-follower-left
+      ARM_ROLE: follower
+
+  - id: arm_realman_right
+    path: ../dora_arm_realman/main.py
+    inputs:
+      get_joint: dora/timer/millis/30
+    outputs:
+      - joint
+    env:
+      ARM_IP: 169.254.128.19
+      ARM_PORT: 8080
+      ARM_NAME: RealMan-follower-right
+      ARM_ROLE: follower
+
+
+  - id: print_joint
+    path: ../dora_arm_realman/print_joint.py
+    inputs:
+      joint_left: arm_realman_left/joint
+      joint_right: arm_realman_right/joint

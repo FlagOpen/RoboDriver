@@ -1,0 +1,19 @@
+nodes:
+  - id: arm_so101
+    path: ../dora_arm_so101/main.py
+    inputs:
+      get_joint: dora/timer/millis/30
+    outputs:
+      - joint
+    env:
+      GET_DEVICE_FROM: PORT
+      PORT: /dev/ttyACM0
+      ARM_NAME: SO101-leader
+      ARM_ROLE: leader
+      CALIBRATION_DIR: .calibration/
+
+  - id: print_joint
+    path: ../dora_arm_so101/print_joint.py
+    inputs:
+      joint: arm_so101/joint
+

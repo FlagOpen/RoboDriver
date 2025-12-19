@@ -1,0 +1,16 @@
+nodes:
+  - id: keybord
+    path: ../dora_arm_so101/keybord.py
+    outputs:
+      - char
+
+  - id: arm_so101_calibrate
+    path: ../dora_arm_so101/calibrate.py
+    inputs:
+      key: keybord/char
+    env:
+      GET_DEVICE_FROM: PORT
+      PORT: /dev/ttyACM0
+      ARM_NAME: SO101-leader
+      ARM_ROLE: leader
+
