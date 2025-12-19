@@ -1,4 +1,4 @@
-# robodriver-robot-galaxealite-aio-ros2
+# robodriver-robot-galaxealite-aio-ros1
 ## Quick Start
 ### Access Requirements
 #### 1. Hardware Requirements
@@ -6,12 +6,13 @@ Refer to the document: [https://jwolpxeehx.feishu.cn/wiki/LYcNwC2rBirg4Dk9CoScem
 
 #### 2. Environment & Network Requirements
 - Galaxea teleoperation function is normal;
-- ROS2 (Humble/Iron version) is installed on the host, which can receive galaxea topic data;
+- ROS1 (Noetic version) is installed on the host, which can receive galaxea topic data;
 - The host and galaxea main controller are connected to the same local area network (Ethernet connection is recommended);
 - Host is connected to the internet and can access the web normally;
-- Set ROS Domain ID (example):
+- Set ROS Master URI (example):
   ```bash
-  export ROS_DOMAIN_ID=1
+  export ROS_MASTER_URI=http://localhost:11311
+  export ROS_IP=your_host_ip
   ```
 
 ### Prerequisites (Execute first if not completed)
@@ -24,9 +25,9 @@ Refer to the document: [https://jwolpxeehx.feishu.cn/wiki/LYcNwC2rBirg4Dk9CoScem
 git clone https://github.com/FlagOpen/RoboDriver.git
 ```
 
-#### 2. Enter Galaxea ROS2 folder
+#### 2. Enter Galaxea ROS1 folder
 ```bash
-cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros2
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros1
 ```
 
 ### Create Miniconda Virtual Environment
@@ -51,7 +52,7 @@ cd /path/to/your/RoboDriver
 pip install -e .
 
 # Install galaxea robot hardware dependencies
-cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros2
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros1
 pip install -e .
 ```
 
@@ -81,10 +82,6 @@ This script implements core functions such as multi-topic synchronous subscripti
 |-------------------------|--------------------------------------------|---------------------------|
 | `sub_joint_left`        | `/motion_target/target_joint_state_arm_left` | Subscribe to left arm joint target values |
 | `sub_joint_right`       | `/motion_target/target_joint_state_arm_right` | Subscribe to right arm joint target values |
-| `sub_joint_torso`       | `/motion_target/target_joint_state_torso` | Subscribe to torso joint target values |
-| `sub_pose_left`         | `/motion_target/target_pose_arm_left` | Subscribe to left arm pose target values |
-| `sub_pose_right`        | `/motion_target/target_pose_arm_right` | Subscribe to right arm pose target values |
-| `sub_torso`             | `/motion_target/target_pose_torso` | Subscribe to torso pose target values |
 | `sub_gripper_left`      | `/motion_target/target_position_gripper_left` | Subscribe to left gripper position target values |
 | `sub_gripper_right`     | `/motion_target/target_position_gripper_right` | Subscribe to right gripper position target values |
 
@@ -98,30 +95,21 @@ This script implements core functions such as multi-topic synchronous subscripti
 
 **Modification Example**: Change the top-left camera subscription topic to a custom path
 ```python
-sub_camera_top_left = Subscriber(self, CompressedImage, '/my_robot/camera/top_left/compressed')
+sub_camera_top_left = rospy.Subscriber('/my_robot/camera/top_left/compressed', CompressedImage, self.callback_camera_top_left)
 ```
 
 #### 5. Key Parameter Adjustments
 ##### (1) QoS Configuration (Network Transmission Strategy)
+In ROS1, mainly controlled by setting the subscriber queue size:
 ```python
-# Reliable transmission (default for publishers/critical feedback)
-self.qos = QoSProfile(
-    durability=DurabilityPolicy.VOLATILE,  # Non-persistent
-    reliability=ReliabilityPolicy.RELIABLE, # Ensure message delivery
-    history=HistoryPolicy.KEEP_LAST,        # Keep last N messages
-    depth=10                                # Queue depth
-)
-
-# Best-effort transmission (non-critical commands, prioritize speed)
-self.qos_best_effort = QoSProfile(
-    reliability=ReliabilityPolicy.BEST_EFFORT,
-    depth=10
-)
+# Set subscriber queue size (default is 10)
+sub_arm_left = rospy.Subscriber('/hdas/feedback_arm_left', JointState, self.callback_arm_left, queue_size=10)
 ```
 
 ##### (2) Multi-Topic Synchronization Parameters
 ```python
-self.sync = ApproximateTimeSynchronizer(
+# Use message_filters to achieve multi-topic synchronization
+self.ts = message_filters.ApproximateTimeSynchronizer(
     [sub_arm_left, sub_arm_right, sub_gripper_left, sub_gripper_right, sub_torso],
     queue_size=10,  # Larger queue = higher fault tolerance, more memory usage
     slop=0.1        # Time tolerance (seconds): maximum allowed timestamp difference between topics
@@ -131,7 +119,7 @@ self.sync = ApproximateTimeSynchronizer(
 ##### (3) Publish Frequency Limit
 ```python
 # Default 30Hz, example to modify to 10Hz
-self.min_interval_ns = 1e9 / 10
+self.rate = rospy.Rate(10)  # 10 Hz
 ```
 
 ### Configure config.py (Hardware Collection Template)
@@ -168,11 +156,11 @@ conda activate robodriver
 ```
 
 ### 2. Start Galaxealite Topics
-Execute the robot's built-in startup script to ensure ROS2 topics are published normally.
+Execute the robot's built-in startup script to ensure ROS1 topics are published normally.
 
 ### 3. Start RoboDriver
 ```bash
-python -m robodriver.scripts.run  --robot.type=galaxealite-aio-ros2 
+python -m robodriver.scripts.run  --robot.type=galaxealite-aio-ros1 
 ```
 
 ### 4. Publish Tasks and Start Collection

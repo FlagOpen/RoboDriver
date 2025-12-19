@@ -1,4 +1,4 @@
-# robodriver-robot-galaxealite-aio-ros2
+# robodriver-robot-galaxealite-aio-ros1
 ## 快速开始
 ### 接入要求
 #### 1. 硬件要求
@@ -6,13 +6,9 @@
 
 #### 2. 环境与网络要求
 - galaxea 遥操作功能正常；
-- 主机已安装 ROS2（Humble/Iron 版本），可接收 galaxea 话题数据；
+- 主机已安装 ROS1（Noetic 版本），可接收 galaxea 话题数据；
 - 主机与 galaxea 主控接入同一局域网（推荐网线直连）；
 - 主机连接网络，可以正常上网；
-- 设置 ROS 域 ID（示例）：
-  ```bash
-  export ROS_DOMAIN_ID=1
-  ```
 
 ### 前置准备（未完成需先执行）
 1. 具身平台申请：[https://ei2data.baai.ac.cn/home](https://ei2data.baai.ac.cn/home)
@@ -25,9 +21,9 @@
 git clone https://github.com/FlagOpen/RoboDriver.git
 ```
 
-#### 2. 进入 galaxea ros2 文件夹
+#### 2. 进入 galaxea ros1 文件夹
 ```bash
-git /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros2
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros1
 ```
 
 ### 创建 Miniconda 虚拟环境
@@ -52,7 +48,7 @@ cd /path/to/your/RoboDriver
 pip install -e .
 
 # 安装 galaxea 机器人硬件依赖
-cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros2
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-galaxealite-aio-ros1
 pip install -e .
 ```
 
@@ -82,10 +78,6 @@ pip install -e .
 |--------------------|-------------------------------------------|--------------------------|
 | `sub_joint_left`   | `/motion_target/target_joint_state_arm_left` | 左臂关节目标值订阅       |
 | `sub_joint_right`  | `/motion_target/target_joint_state_arm_right` | 右臂关节目标值订阅      |
-| `sub_joint_torso`  | `/motion_target/target_joint_state_torso` | 躯干关节目标值订阅       |
-| `sub_pose_left`    | `/motion_target/target_pose_arm_left` | 左臂位姿目标值订阅        |
-| `sub_pose_right`   | `/motion_target/target_pose_arm_right` | 右臂位姿目标值订阅       |
-| `sub_torso`        | `/motion_target/target_pose_torso` | 躯干位姿目标值订阅        |
 | `sub_gripper_left` | `/motion_target/target_position_gripper_left` | 左夹爪位置目标值订阅    |
 | `sub_gripper_right`| `/motion_target/target_position_gripper_right` | 右夹爪位置目标值订阅   |
 
@@ -99,30 +91,21 @@ pip install -e .
 
 **修改示例**：将顶部左相机订阅话题改为自定义路径
 ```python
-sub_camera_top_left = Subscriber(self, CompressedImage, '/my_robot/camera/top_left/compressed')
+sub_camera_top_left = rospy.Subscriber('/my_robot/camera/top_left/compressed', CompressedImage, self.callback_camera_top_left)
 ```
 
 #### 5. 关键参数调整
 ##### （1）QoS 配置（网络传输策略）
+在 ROS1 中，主要通过设置订阅器的队列大小来控制：
 ```python
-# 可靠传输（默认用于发布器/关键反馈）
-self.qos = QoSProfile(
-    durability=DurabilityPolicy.VOLATILE,  # 不持久化
-    reliability=ReliabilityPolicy.RELIABLE, # 确保消息到达
-    history=HistoryPolicy.KEEP_LAST,        # 保留最后N条
-    depth=10                                # 队列深度
-)
-
-# 尽力传输（非关键指令，优先速度）
-self.qos_best_effort = QoSProfile(
-    reliability=ReliabilityPolicy.BEST_EFFORT,
-    depth=10
-)
+# 设置订阅器队列大小（默认为10）
+sub_arm_left = rospy.Subscriber('/hdas/feedback_arm_left', JointState, self.callback_arm_left, queue_size=10)
 ```
 
 ##### （2）多话题同步参数
 ```python
-self.sync = ApproximateTimeSynchronizer(
+# 使用 message_filters 实现多话题同步
+self.ts = message_filters.ApproximateTimeSynchronizer(
     [sub_arm_left, sub_arm_right, sub_gripper_left, sub_gripper_right, sub_torso],
     queue_size=10,  # 队列越大容错越高，内存占用越多
     slop=0.1        # 时间容差（秒）：允许话题时间戳最大差值
@@ -132,7 +115,7 @@ self.sync = ApproximateTimeSynchronizer(
 ##### （3）发布频率限制
 ```python
 # 默认 30Hz，修改为 10Hz 示例
-self.min_interval_ns = 1e9 / 10
+self.rate = rospy.Rate(10)  # 10 Hz
 ```
 
 ### 配置 config.py（硬件采集模板）
@@ -169,11 +152,11 @@ conda activate robodriver
 ```
 
 ### 2. 启动 Galaxealite 话题
-执行机器人自带的启动脚本，确保 ROS2 话题正常发布。
+执行机器人自带的启动脚本，确保 ROS1 话题正常发布。
 
 ### 3. 启动 RoboDriver
 ```bash
-python -m robodriver.scripts.run  --robot.type=galaxealite-aio-ros2 
+python -m robodriver.scripts.run  --robot.type=galaxealite-aio-ros1 
 ```
 
 ### 4. 任务发布与采集
@@ -248,3 +231,10 @@ TaskName_TaskId/
         ├── observation.images.image_right_tac_r/ # 右侧触觉右相机
         └── observation.images.image_top/         # 顶部相机
 ```
+
+## Acknowledgment
+
+- Thanks to LeRobot team 🤗, [LeRobot](https://github.com/huggingface/lerobot).
+- Thanks to dora-rs 🤗, [dora](https://github.com/dora-rs/dora).
+
+## Cite
