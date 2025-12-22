@@ -25,7 +25,7 @@ dora -V
 dora-cli <版本号>
 ```
 
-如果没有，请参考 [dora安装](https://dora-rs.ai/docs/guides/Installation/installing)
+如果没有，请参考 [RoboDriver文档/概览/安装与部署/推荐可选安装/dora](https://flagopen.github.io/RoboDriver-Doc/docs/overview/installation/#dora)
 
 确保进入RoboDriver目录，如果已经进入就跳过：
 
