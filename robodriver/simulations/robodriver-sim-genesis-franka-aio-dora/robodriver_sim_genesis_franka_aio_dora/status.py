@@ -68,11 +68,11 @@ class RobotStatus(draccus.ChoiceRegistry, abc.ABC):
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
-@RobotStatus.register_subclass("so101_aio_dora")
+@RobotStatus.register_subclass("sim_genesis_franka_aio_dora")
 @dataclass
 class SO101AIODoraRobotStatus(RobotStatus):
-    device_name: str = "so101_aio_dora"
-    device_body: str = "SO101"
+    device_name: str = "sim_genesis_franka_aio_dora"
+    device_body: str = "franka"
 
     def __post_init__(self):
         self.specifications.end_type = "二指夹爪"
