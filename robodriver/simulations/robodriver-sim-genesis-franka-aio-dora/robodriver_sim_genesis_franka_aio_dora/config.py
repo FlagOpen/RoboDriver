@@ -7,7 +7,7 @@ from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.motors import Motor, MotorNormMode
 
 
-@RobotConfig.register_subclass("sim_franka_aio_dora")
+@RobotConfig.register_subclass("sim_genesis_franka_aio_dora")
 @dataclass
 class SimFrankaAIODoraRobotConfig(RobotConfig):
     use_degrees = False
