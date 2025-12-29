@@ -72,9 +72,9 @@ class Simulator:
 
         self.scene.build()
 
-        self.arm.control_dofs_position(
-            np.zeros(self.arm.n_dofs),
-        )
+        # self.arm.control_dofs_position(
+        #     np.zeros(self.arm.n_dofs),
+        # )
 
     def update(self, action: dict[str, Any], prefix: str, suffix: str):
         print("action:", action)
@@ -85,9 +85,22 @@ class Simulator:
         print("dofs_idx:", dofs_idx)
 
         goal_joint_numpy = np.array(goal_joint, dtype=np.float32)
+        print("goal_joint_numpy:", goal_joint_numpy)
+
+
+        # 假设 goal_joint 是角度值，需要转换为弧度
+        goal_joint_degrees = np.array(goal_joint, dtype=np.float32)  # 角度值
+        print("原始角度值 (deg):", goal_joint_degrees)
+
+        # if 需要从角度转化弧度
+        # 转换为弧度
+        goal_joint_radians = goal_joint_degrees * (np.pi / 180.0)
+        print("转换为弧度 (rad):", goal_joint_radians)
+
+
 
         self.arm.control_dofs_position(
-            goal_joint_numpy,
+            goal_joint_radians,
             dofs_idx,
         )
 
