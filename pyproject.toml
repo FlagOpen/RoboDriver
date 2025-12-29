@@ -12,15 +12,17 @@ authors = [
 ]
 requires-python = ">=3.10,<4.0"
 dependencies = [
+    "torch>=2.7.1",
     "lerobot>=0.4.0",
+    "genesis-world",
+
     "logging_mp",
+    "python-socketio",
 
     "sounddevice",
     "soundfile",
 
     "rerun-sdk==0.26.2",
-
-    "python-socketio",
 ]
 
 [project.optional-dependencies]

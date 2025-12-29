@@ -10,6 +10,8 @@ from lerobot.teleoperators import TeleoperatorConfig
 
 from robodriver.core.coordinator import Coordinator
 from robodriver.core.monitor import Monitor
+from robodriver.core.simulator import SimulatorConfig
+from robodriver.core.simulator import Simulator
 from robodriver.robots.daemon import Daemon
 
 # from operating_platform.robot.robots.configs import RobotConfig
@@ -29,6 +31,7 @@ logger = logging_mp.get_logger(__name__)
 class ControlPipelineConfig:
     robot: RobotConfig
     teleop: TeleoperatorConfig | None = None
+    sim: SimulatorConfig | None = None
 
     @classmethod
     def __get_path_fields__(cls) -> List[str]:
@@ -44,6 +47,7 @@ async def async_main(cfg: ControlPipelineConfig):
     teleop = (
         make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
     )
+    sim = Simulator(backend=cfg.sim.backend, show_viewer=cfg.sim.show_viewer, urdf_path = cfg.sim.urdf_path, mjcf_path=cfg.sim.mjcf_path) if cfg.sim is not None and (cfg.sim.urdf_path is not None or cfg.sim.mjcf_path is not None) else None
     if teleop is not None:
         teleop.connect()
 
@@ -57,6 +61,8 @@ async def async_main(cfg: ControlPipelineConfig):
     await coordinator.start()
 
     coordinator.stream_info(daemon.cameras_info)
+    if sim is not None:
+        coordinator.stream_info_add("image_sim", 21)
     await coordinator.update_stream_info_to_server()
 
     try:
@@ -72,24 +78,36 @@ async def async_main(cfg: ControlPipelineConfig):
                 action = daemon.robot.get_action()
                 daemon.set_obs_action(action)
 
+            if sim is not None:
+                observation_sim = sim.update(action)
+
+            tasks = []
             if observation is not None:
-                tasks = []
                 for key in observation:
                     if "image" in key and "depth" not in key:
                         img = cv2.cvtColor(observation[key], cv2.COLOR_RGB2BGR)
                         # name = key[len("observation.images."):]
                         tasks.append(coordinator.update_stream_async(key, img))
-                #         cv2.imshow(key, img)
-                # cv2.waitKey(1)
-                if tasks:
-                    try:
-                        await asyncio.wait_for(
-                            asyncio.gather(*tasks, return_exceptions=True), timeout=0.2
-                        )
-                    except asyncio.TimeoutError:
-                        pass
+                        # cv2.imshow(key, img)
+            
+            if observation_sim is not None:
+                observation_sim = cv2.cvtColor(observation_sim, cv2.COLOR_RGB2BGR)
+                tasks.append(coordinator.update_stream_async("image_sim", observation_sim))
+                # cv2.imshow("image_sim", observation_sim)
+            
+            if tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*tasks, return_exceptions=True), timeout=0.2
+                    )
+                except asyncio.TimeoutError:
+                    pass
+
+            
             else:
                 logger.warning("observation is none")
+            
+            # cv2.waitKey(1)
             await asyncio.sleep(0)
     except KeyboardInterrupt:
         logger.info("coordinator and daemon stop")

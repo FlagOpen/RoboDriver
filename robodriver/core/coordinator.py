@@ -399,6 +399,22 @@ class Coordinator:
         self.cameras = info.copy()
         logger.info(f"更新摄像头信息: {self.cameras}")
 
+    def stream_info_add(self, camera_name: str, camera_id: int):
+        """添加或更新单个摄像头的流信息
+        
+        Args:
+            camera_name: 摄像头名字
+            camera_id: 摄像头编号
+        """
+        if not hasattr(self, 'cameras'):
+            self.cameras = {}
+        
+        self.cameras[camera_name] = camera_id
+        logger.info(f"添加摄像头 {camera_name} 编号: {camera_id}")
+        
+        # 可选：返回更新后的总流数
+        return sum(self.cameras.values())
+
     async def update_stream_info_to_server(self):
         stream_info_data = cameras_to_stream_json(self.cameras)
         logger.info(f"stream_info_data: {stream_info_data}")
