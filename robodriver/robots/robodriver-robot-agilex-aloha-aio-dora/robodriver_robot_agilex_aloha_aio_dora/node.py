@@ -24,13 +24,22 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
     def __init__(self):
         self.node = Node("agilex_aloha_aio_dora")
         
+        # Update dictionaries to match Agilex Aloha hardware
         self.send_queue = queue.Queue(maxsize=100)
-        self.recv_images: Dict[str, float] = {}
-        self.recv_joint_leader: Dict[str, float] = {}
-        self.recv_joint_follower: Dict[str, float] = {}
-        self.recv_images_status: Dict[str, int] = {}
-        self.recv_joint_leader_status: Dict[str, int] = {}
-        self.recv_joint_follower_status: Dict[str, int] = {}
+        self.recv_images: Dict[str, Any] = {}
+        self.recv_leader_joint_right: list[float] = []
+        self.recv_leader_joint_left: list[float] = []
+        self.recv_follower_joint_right: list[float] = []
+        self.recv_follower_joint_left: list[float] = []
+        self.recv_follower_endpose_right: list[float] = []
+        self.recv_follower_endpose_left: list[float] = []
+        self.recv_images_status: int = 0
+        self.recv_leader_joint_right_status: int = 0
+        self.recv_leader_joint_left_status: int = 0
+        self.recv_follower_joint_right_status: int = 0
+        self.recv_follower_joint_left_status: int = 0
+        self.recv_follower_endpose_right_status: int = 0
+        self.recv_follower_endpose_left_status: int = 0
 
         self.lock = threading.Lock()
 
@@ -108,6 +117,8 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
                 self._process_image(event_id, data, meta_data)
             elif 'joint' in event_id:
                 self._process_joint(event_id, data)
+            elif 'endpose' in event_id:
+                self._process_endpose(event_id, data)
 
     def _process_image(self, event_id, data, meta_data):
         """处理图像数据"""
@@ -134,14 +145,28 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
     def _process_joint(self, event_id, data):
         """处理关节数据"""
         if data is not None:
-            if "leader" in event_id:
-                scalar_value = float(data.item())
-                self.recv_joint_leader[event_id] = scalar_value
-                self.recv_joint_leader_status[event_id] = CONNECT_TIMEOUT_FRAME
-            elif "follower" in event_id:
-                scalar_value = float(data.item())
-                self.recv_joint_follower[event_id] = scalar_value
-                self.recv_joint_follower_status[event_id] = CONNECT_TIMEOUT_FRAME
+            if "leader" in event_id and "right" in event_id:
+                self.recv_leader_joint_right = data
+                self.recv_leader_joint_right_status = CONNECT_TIMEOUT_FRAME
+            elif "leader" in event_id and "left" in event_id:
+                self.recv_leader_joint_left = data
+                self.recv_leader_joint_left_status = CONNECT_TIMEOUT_FRAME
+            elif "follower" in event_id and "right" in event_id:
+                self.recv_follower_joint_right = data
+                self.recv_follower_joint_right_status = CONNECT_TIMEOUT_FRAME
+            elif "follower" in event_id and "left" in event_id:
+                self.recv_follower_joint_left = data
+                self.recv_follower_joint_left_status = CONNECT_TIMEOUT_FRAME
+
+    def _process_endpose(self, event_id, data):
+        """处理末端位姿数据"""
+        if data is not None:
+            if "right" in event_id:
+                self.recv_follower_endpose_right = data
+                self.recv_follower_endpose_right_status = CONNECT_TIMEOUT_FRAME
+            elif "left" in event_id:
+                self.recv_follower_endpose_left = data
+                self.recv_follower_endpose_left_status = CONNECT_TIMEOUT_FRAME
 
     def start(self):
         """Start Dora node thread"""

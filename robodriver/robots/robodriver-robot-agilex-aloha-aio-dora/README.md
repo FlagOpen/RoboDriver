@@ -33,7 +33,7 @@ dora-cli <版本号>
 cd RoboDriver/
 ```
 
-进入到 `robodriver-robot-so101-aio-dora/dora` 目录。
+进入到 `robodriver-robot-agilex-aloha-aio-dora/dora` 目录。
 
 ```bash
 cd robodriver/robots/robodriver-robot-so101-aio-dora/dora
@@ -58,37 +58,24 @@ dora build dataflow.yml --uv
 
 1. 断开所有硬件USB连接。
 
-2. 插入头部摄像头，这里默认插入的是 `realsense 435` 相机，如果您用的是别的相机或电脑自带有相机，编号及其数量可能会有所不同，请根据情况修改dora/dataflow.yml：
+2. 连接三个 Orbbec 摄像头（顶部、右侧、左侧）：
+    - 确保摄像头已连接并通电
+    - 检查设备序列号与 dataflow.yml 中的配置匹配
 
+3. 连接 Piper 右臂 CAN 总线：
     ```bash
-    ls /dev/video*
-    # 可以看到： /dev/video0 /dev/video1 /dev/video2 /dev/video3 /dev/video4 /dev/video5
-    # 可以查看(请先安装sudo apt install ffmpeg)： ffplay /dev/video2
-    # 如果编号不同，请查看确认后，调整dora/dataflow.yml
+    sudo ip link set can_right up type can bitrate 1000000
     ```
 
-3. 插入腕部摄像头
+4. 连接 Piper 左臂 CAN 总线：
     ```bash
-    ls /dev/video*
-    # 可以看到： /dev/video0 /dev/video1 /dev/video2 /dev/video3 /dev/video4 /dev/video5 /dev/video6 /dev/video7
+    sudo ip link set can_left up type can bitrate 1000000
     ```
 
-4. 插入 SO101 主臂 USB（如何区分主从臂? 主臂末端是一个扳机，主臂使用5V电源）：
+5. 检查 CAN 总线状态：
     ```bash
-    ls /dev/ttyACM*
-    # 可以看到: /dev/ttyACM0
-    ```
-
-5. 插入 SO101 从臂 USB（如何区分主从臂? 主臂末端是一个扳机，主臂使用5V电源）：
-    ```bash
-    ls /dev/ttyACM*
-    # 可以看到: /dev/ttyACM0 /dev/ttyACM1
-    ```
-
-6. 为机械臂 USB 接口赋予权限：
-    ```
-    sudo chmod 666 /dev/ttyACM0
-    sudo chmod 666 /dev/ttyACM1
+    ip -details link show can_right
+    ip -details link show can_left
     ```
 
 启动 `dora` ：
@@ -119,10 +106,10 @@ cd RoboDriver/
 source .venv/bin/activate
 ```
 
-进入到 `robodriver-robot-so101-aio-dora` 目录。
+进入到 `robodriver-robot-agilex-aloha-aio-dora` 目录。
 
 ```bash
-cd robodriver/robots/robodriver-robot-so101-aio-dora
+cd robodriver/robots/robodriver-robot-agilex-aloha-aio-dora
 ```
 
 安装依赖
@@ -134,18 +121,21 @@ uv pip install -e .
 `RoboDriver` 部分启动命令如下:
 
 ```bash
-robodriver-run --robot.type=so101_aio_dora
+robodriver-run --robot.type=agilex_aloha_aio_dora
 ```
 
 ## TODO
 
 - 完善校准程序
+- 改进错误处理
+- 添加更多文档
 
 ## 致谢
 
 - Thanks to LeRobot team 🤗, [LeRobot](https://github.com/huggingface/lerobot).
-- Thanks to TheRobotStudio 🤗, [SO101](https://github.com/TheRobotStudio/SO-ARM100).
+- Thanks to Agilex Robotics 🤗, [Agilex Robotics](https://www.agilex.ai/).
 - Thanks to dora-rs 🤗, [dora](https://github.com/dora-rs/dora).
+- Thanks to Piper team 🤗, [Piper](https://github.com/your-piper-repo).
 
 ## 引用
 

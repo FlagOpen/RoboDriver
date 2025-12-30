@@ -8,6 +8,7 @@ nodes:
       - image
       - image_depth
     env:
+      VIRTUAL_ENV: camera.venv
       GET_DEVICE_FROM: SN
       DEVICE_SN: CC1T35300CF
 
@@ -20,6 +21,7 @@ nodes:
       - image
       - image_depth
     env:
+      VIRTUAL_ENV: camera.venv
       GET_DEVICE_FROM: SN
       DEVICE_SN: CC1635300DB
 
@@ -32,6 +34,7 @@ nodes:
       - image
       - image_depth
     env:
+      VIRTUAL_ENV: camera.venv
       GET_DEVICE_FROM: SN
       DEVICE_SN: CC1635300FK
 
@@ -47,6 +50,7 @@ nodes:
       - follower_jointstate
       - follower_endpose
     env:
+      VIRTUAL_ENV: arm.venv
       CAN_BUS: can_right
       TEACH_MODE: True
 
@@ -62,6 +66,7 @@ nodes:
       - follower_jointstate
       - follower_endpose
     env:
+      VIRTUAL_ENV: arm.venv
       CAN_BUS: can_left
       TEACH_MODE: True
 
@@ -69,11 +74,11 @@ nodes:
     path: dynamic
     inputs: 
       image_top: camera_top/image
-      image_depth_top: camera_top/image_depth
+      # image_depth_top: camera_top/image_depth
       image_right: camera_right/image
-      image_depth_right: camera_right/image_depth
+      # image_depth_right: camera_right/image_depth
       image_left: camera_left/image
-      image_depth_left: camera_left/image_depth
+      # image_depth_left: camera_left/image_depth
       leader_jointstate_right: piper_right/leader_jointstate
       leader_jointstate_left: piper_left/leader_jointstate
       follower_jointstate_right: piper_right/follower_jointstate

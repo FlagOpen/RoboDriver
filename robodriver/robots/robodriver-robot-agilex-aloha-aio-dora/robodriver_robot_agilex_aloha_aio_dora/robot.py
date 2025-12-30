@@ -1,279 +1,111 @@
-import time
-import zmq
-import torch
 import threading
-import cv2
-import json
+import time
+from typing import Any, Tuple
+
+import logging_mp
 import numpy as np
+import torch
+from lerobot.cameras import make_cameras_from_configs
+from lerobot.robots.robot import Robot
+from lerobot.utils.errors import DeviceNotConnectedError, DeviceAlreadyConnectedError
+from functools import cached_property
 
-from typing import Any
-
-from operating_platform.robot.robots.utils import RobotDeviceNotConnectedError
-from operating_platform.robot.robots.aloha_v1 import AlohaRobotConfig
-from operating_platform.robot.robots.aloha_v1 import AlohaRobotStatus
-from operating_platform.robot.robots.com_configs.cameras import CameraConfig, OpenCVCameraConfig
-
-from operating_platform.robot.robots.camera import Camera
-
-
-recv_images = {}
-recv_master_jointstats = {}
-recv_follower_jointstats = {}
-recv_follower_pose = {}
-lock = threading.Lock()  # 线程锁
-
-# IPC Address
-ipc_address_image = "ipc:///tmp/dora-zeromq-image"
-ipc_address_piper = "ipc:///tmp/dora-zeromq-piper"
-
-context = zmq.Context()
-running_recv_image_server = True
-running_recv_piper_server = True
-
-socket_image = context.socket(zmq.PAIR)
-socket_image.connect(ipc_address_image)
-socket_image.setsockopt(zmq.SNDHWM, 2000)
-socket_image.setsockopt(zmq.SNDBUF, 2**25)
-socket_image.setsockopt(zmq.SNDTIMEO, 2000)
-socket_image.setsockopt(zmq.RCVTIMEO, 2000)  # 设置接收超时（毫秒）
-socket_image.setsockopt(zmq.LINGER, 0)
-
-socket_piper = context.socket(zmq.PAIR)
-socket_piper.connect(ipc_address_piper)
-socket_piper.setsockopt(zmq.SNDHWM, 2000)
-socket_piper.setsockopt(zmq.SNDBUF, 2**25)
-socket_piper.setsockopt(zmq.SNDTIMEO, 2000)
-socket_piper.setsockopt(zmq.RCVTIMEO, 2000)  # 设置接收超时（毫秒）
-socket_piper.setsockopt(zmq.LINGER, 0)
-
-def piper_zmq_send(event_id, buffer, wait_time_s):
-    buffer_bytes = buffer.tobytes()
-    print(f"zmq send event_id:{event_id}, value:{buffer}")
-    try:
-        socket_piper.send_multipart([
-            event_id.encode('utf-8'),
-            buffer_bytes
-        ], flags=zmq.NOBLOCK)
-    except zmq.Again:
-        pass
-    time.sleep(wait_time_s)
-
-def recv_img_server():
-    """接收数据线程"""
-    while running_recv_image_server:
-        try:
-            message_parts = socket_image.recv_multipart()
-            if len(message_parts) < 2:
-                continue  # 协议错误
-
-            event_id = message_parts[0].decode('utf-8')
-            buffer_bytes = message_parts[1]
-            metadata = json.loads(message_parts[2].decode('utf-8'))
-
-            if 'image' in event_id:
-                # 解码图像
-                img_array = np.frombuffer(buffer_bytes, dtype=np.uint8)
-                encoding = metadata["encoding"].lower()
-                width = metadata["width"]
-                height = metadata["height"]
-
-                if encoding == "bgr8":
-                    channels = 3
-                    frame = (
-                        img_array.reshape((height, width, channels))
-                        .copy()  # Copy So that we can add annotation on the image
-                    )
-                elif encoding == "rgb8":
-                    channels = 3
-                    frame = (img_array.reshape((height, width, channels)))
-                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-                elif encoding in ["jpeg", "jpg", "jpe", "bmp", "webp", "png"]:
-                    channels = 3
-                    frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-                
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                if frame is not None:
-                    with lock:
-                        recv_images[event_id] = frame
-
-        except zmq.Again:
-            print(f"Manipulator Receive Image Timeout")
-            continue
-        except Exception as e:
-            print("Manipulator Receive Image Recv Error:", e)
-            break
-
-def recv_piper_server():
-    """接收数据线程"""
-    while running_recv_piper_server:
-        try:
-            message_parts = socket_piper.recv_multipart()
-            if len(message_parts) < 2:
-                continue  # 协议错误
-
-            event_id = message_parts[0].decode('utf-8')
-            buffer_bytes = message_parts[1]
-
-            if 'jointstat' in event_id and 'master' in event_id:
-                joint_array = np.frombuffer(buffer_bytes, dtype=np.float32)
-                if joint_array is not None:
-                    with lock:
-                        recv_master_jointstats[event_id] = joint_array
-
-            if 'jointstat' in event_id and 'follower' in event_id:
-                joint_array = np.frombuffer(buffer_bytes, dtype=np.float32)
-                if joint_array is not None:
-                    with lock:
-                        recv_follower_jointstats[event_id] = joint_array
-
-            if 'endpose' in event_id and 'follower' in event_id:
-                pose_array = np.frombuffer(buffer_bytes, dtype=np.float32)
-                if pose_array is not None:
-                    with lock:
-                        recv_follower_pose[event_id] = pose_array
-
-        except zmq.Again:
-            print(f"Manipulator Receive Piper Timeout")
-            continue
-        except Exception as e:
-            print("Manipulator Receive Piper Recv Error:", e)
-            break
+from .config import AgilexAlohaAIODoraRobotConfig
+from .status import AgilexAlohaAIODoraRobotStatus
+from .node import AgilexAlohaAIODoraRobotNode
 
 
-class OpenCVCamera:
-    def __init__(self, config: OpenCVCameraConfig):
+logger = logging_mp.get_logger(__name__)
+
+
+class AgilexAlohaAIODoraRobot(Robot):
+    config_class = AgilexAlohaAIODoraRobotConfig
+    name = "agilex_aloha_aio_dora"
+
+    def __init__(self, config: AgilexAlohaAIODoraRobotConfig):
+        super().__init__(config)
         self.config = config
-        self.camera_index = config.camera_index
-        self.port = None
-
-        # Store the raw (capture) resolution from the config.
-        self.capture_width = config.width
-        self.capture_height = config.height
-
-        # If rotated by ±90, swap width and height.
-        if config.rotation in [-90, 90]:
-            self.width = config.height
-            self.height = config.width
-        else:
-            self.width = config.width
-            self.height = config.height
-
-        self.fps = config.fps
-        self.channels = config.channels
-        self.color_mode = config.color_mode
-        self.mock = config.mock
-
-        self.camera = None
-        self.is_connected = False
-        self.thread = None
-        self.stop_event = None
-        self.color_image = None
-        self.logs = {}
-
-
-
-def make_cameras_from_configs(camera_configs: dict[str, CameraConfig]) -> list[Camera]:
-    cameras = {}
-
-    for key, cfg in camera_configs.items():
-        if cfg.type == "opencv":
-            cameras[key] = OpenCVCamera(cfg)
-        else:
-            raise ValueError(f"The camera type '{cfg.type}' is not valid.")
-
-    return cameras
-
-
-
-class AlohaManipulator:
-    def __init__(self, config: AlohaRobotConfig):
-        self.config = config
-        self.status = AlohaRobotStatus()
         self.robot_type = self.config.type
-
         self.use_videos = self.config.use_videos
+        self.microphones = self.config.microphones
 
-        self.follower_arms = {}
-        self.follower_arms['right'] = self.config.right_leader_arm.motors
-        self.follower_arms['left'] = self.config.left_leader_arm.motors
+        self.right_leader_motors = config.right_leader_motors
+        self.left_leader_motors = config.left_leader_motors
+        self.right_follower_motors = config.right_follower_motors
+        self.left_follower_motors = config.left_follower_motors
+        self.cameras = make_cameras_from_configs(self.config.cameras)
 
         self.connect_excluded_cameras = ["image_pika_pose"]
 
-        self.cameras = make_cameras_from_configs(self.config.cameras)
-        self.microphones = self.config.microphones
+        self.status = AgilexAlohaAIODoraRobotStatus()
+        self.robot_dora_node = AgilexAlohaAIODoraRobotNode()
+        self.robot_dora_node.start()
 
-        self.recv_img_thread = threading.Thread(target=recv_img_server, daemon=True)
-        self.recv_img_thread.start()
-
-        self.recv_piper_thread = threading.Thread(target=recv_piper_server, daemon=True)
-        self.recv_piper_thread.start()
-        
-        self.is_connected = False
+        self.connected = False
         self.logs = {}
-        self.frame_counter = 0  # 帧计数器
-
-        
-
-    def get_motor_names(self, arm: dict[str, dict]) -> list:
-        return [f"{arm}_{motor}" for arm, motors in arm.items() for motor in motors]
 
     @property
-    def camera_features(self) -> dict:
-        cam_ft = {}
-        for cam_key, cam in self.cameras.items():
-            key = f"observation.images.{cam_key}"
-            cam_ft[key] = {
-                "shape": (cam.height, cam.width, cam.channels),
-                "names": ["height", "width", "channels"],
-                "info": None,
-            }
-        return cam_ft
+    def _right_leader_motors_ft(self) -> dict[str, type]:
+        return {f"right_leader_{motor}.pos": float for motor in self.right_leader_motors}
+
+    @property
+    def _left_leader_motors_ft(self) -> dict[str, type]:
+        return {f"left_leader_{motor}.pos": float for motor in self.left_leader_motors}
+
+    @property
+    def _right_follower_motors_ft(self) -> dict[str, type]:
+        return {f"right_leader_{motor}.pos": float for motor in self.right_follower_motors}
+
+    @property
+    def _left_follower_motors_ft(self) -> dict[str, type]:
+        return {f"left_leader_{motor}.pos": float for motor in self.left_follower_motors}
+
+    @property
+    def _cameras_ft(self) -> dict[str, tuple]:
+        return {
+            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras
+        }
+
+    @cached_property
+    def observation_features(self) -> dict[str, type | tuple]:
+        return {**self._right_follower_motors_ft, **self._left_follower_motors_ft, **self._cameras_ft}
+
+    @cached_property
+    def action_features(self) -> dict[str, type]:
+        return {**self._right_leader_motors_ft, **self._left_leader_motors_ft}
     
     @property
-    def motor_features(self) -> dict:
-        action_names = self.get_motor_names(self.follower_arms)
-        state_names = self.get_motor_names(self.follower_arms)
-        return {
-            "action": {
-                "dtype": "float32",
-                "shape": (len(action_names),),
-                "names": action_names,
-            },
-            "observation.state": {
-                "dtype": "float32",
-                "shape": (len(state_names),),
-                "names": state_names,
-            },
-        }
+    def is_connected(self) -> bool:
+        return self.connected
     
     def connect(self):
-        timeout = 50  # 统一的超时时间（秒）
+        timeout = 20  # 统一的超时时间（秒）
         start_time = time.perf_counter()
 
+        if self.connected:
+            raise DeviceAlreadyConnectedError(f"{self} already connected")
+
+        # 定义所有需要等待的条件及其错误信息
         conditions = [
             (
-                lambda: all(name in recv_images for name in self.cameras if name not in self.connect_excluded_cameras),
-                lambda: [name for name in self.cameras if name not in recv_images],
-                "等待摄像头图像超时"
+                lambda: all(
+                    name in self.robot_dora_node.recv_images
+                    for name in self.cameras
+                    if name not in self.connect_excluded_cameras
+                ),
+                lambda: [name for name in self.cameras if name not in self.robot_dora_node.recv_images],
+                "等待摄像头图像超时",
             ),
             (
-                lambda: all(
-                    any(name in key for key in recv_follower_jointstats)
-                    for name in self.follower_arms
-                ),
-                lambda: [name for name in self.follower_arms if not any(name in key for key in recv_follower_jointstats)],
-                "等待机械臂从臂关节超时"
+                lambda: len(self.robot_dora_node.recv_leader_joint_right) > 0,
+                lambda: [] if len(self.robot_dora_node.recv_leader_joint_right) > 0 else ["recv_leader_joint_right"],
+                "等待右臂关节角度超时",
             ),
             (
-                lambda: all(
-                    any(name in key for key in recv_master_jointstats)
-                    for name in self.follower_arms
-                ),
-                lambda: [name for name in self.follower_arms if not any(name in key for key in recv_master_jointstats)],
-                "等待机械臂主臂关节超时"
-            )
+                lambda: len(self.robot_dora_node.recv_leader_joint_left) > 0,
+                lambda: [] if len(self.robot_dora_node.recv_leader_joint_left) > 0 else ["recv_leader_joint_left"],
+                "等待左臂关节角度超时",
+            ),
         ]
 
         # 跟踪每个条件是否已完成
@@ -309,14 +141,22 @@ class AlohaManipulator:
                             completed[i] = True
                             continue
 
-                        # 计算已接收的项
-                        if i == 0:
-                            received = [name for name in self.cameras if name not in missing]
-                        else:
-                            received = [name for name in self.follower_arms if name not in missing]
-
                         # 构造错误信息
-                        msg = f"{base_msg}: 未收到 [{', '.join(missing)}]; 已收到 [{', '.join(received)}]"
+                        if i == 0:  # 摄像头条件
+                            received = [
+                                name for name in self.cameras if name not in missing
+                            ]
+                            msg = f"{base_msg}: 未收到 [{', '.join(missing)}]; 已收到 [{', '.join(received)}]"
+                        else:  # 关节角度条件
+                            # 对于关节角度条件，missing要么是空列表，要么是["recv_leader_joint_right"]或["recv_leader_joint_left"]
+                            if i == 1:  # 右臂关节角度
+                                data_source = self.robot_dora_node.recv_leader_joint_right
+                            else:  # 左臂关节角度
+                                data_source = self.robot_dora_node.recv_leader_joint_left
+                            
+                            received_count = len(data_source)
+                            msg = f"{base_msg}: 未收到数据; 已收到 {received_count} 个数据点"
+
                         failed_messages.append(msg)
 
                 # 如果所有条件都已完成，break
@@ -324,7 +164,9 @@ class AlohaManipulator:
                     break
 
                 # 抛出超时异常
-                raise TimeoutError(f"连接超时，未满足的条件: {'; '.join(failed_messages)}")
+                raise TimeoutError(
+                    f"连接超时，未满足的条件: {'; '.join(failed_messages)}"
+                )
 
             # 减少 CPU 占用
             time.sleep(0.01)
@@ -333,252 +175,222 @@ class AlohaManipulator:
         success_messages = []
         # 摄像头连接状态
         if conditions[0][0]():
-            cam_received = [name for name in self.cameras 
-                        if name in recv_images and name not in self.connect_excluded_cameras]
+            cam_received = [
+                name
+                for name in self.cameras
+                if name in self.robot_dora_node.recv_images and name not in self.connect_excluded_cameras
+            ]
             success_messages.append(f"摄像头: {', '.join(cam_received)}")
-        
-        # 机械臂数据状态
-        arm_data_types = ["主臂关节角度", "从臂关节角度"]
-        for i, data_type in enumerate(arm_data_types, 1):
-            if conditions[i][0]():
-                arm_received = [name for name in self.follower_arms 
-                            if any(name in key for key in (recv_master_jointstats, recv_follower_jointstats)[i-1])]
-                success_messages.append(f"{data_type}: {', '.join(arm_received)}")
-        
-        # 打印成功连接信息
-        print("\n[连接成功] 所有设备已就绪:")
-        for msg in success_messages:
-            print(f"  - {msg}")
-        print(f"  总耗时: {time.perf_counter() - start_time:.2f}秒\n")
+
+        # 右臂关节角度状态
+        if conditions[1][0]():
+            # 检查recv_leader_joint_right字典中实际接收到的键
+            received_keys = list(self.robot_dora_node.recv_leader_joint_right.keys())
+            success_messages.append(f"右臂关节角度: 已接收 ({len(received_keys)}个数据点)")
+
+        # 左臂关节角度状态
+        if conditions[2][0]():
+            # 检查recv_leader_joint_left字典中实际接收到的键
+            received_keys = list(self.robot_dora_node.recv_leader_joint_left.keys())
+            success_messages.append(f"左臂关节角度: 已接收 ({len(received_keys)}个数据点)")
+
+        log_message = "\n[连接成功] 所有设备已就绪:\n"
+        log_message += "\n".join(f"  - {msg}" for msg in success_messages)
+        log_message += f"\n  总耗时: {time.perf_counter() - start_time:.2f} 秒\n"
+        logger.info(log_message)
         # ===========================
 
-        self.is_connected = True
-    
-    @property
-    def features(self):
-        return {**self.motor_features, **self.camera_features}
+        for i in range(self.status.specifications.camera.number):
+            self.status.specifications.camera.information[i].is_connect = True
+        for i in range(self.status.specifications.arm.number):
+            self.status.specifications.arm.information[i].is_connect = True
+
+        self.connected = True
 
     @property
-    def has_camera(self):
-        return len(self.cameras) > 0
+    def is_calibrated(self) -> bool:
+        """Whether the robot is currently calibrated or not. Should be always `True` if not applicable"""
+        return True
 
-    @property
-    def num_cameras(self):
-        return len(self.cameras)
-    
-    def follower_record(self):
-        follower_joint = {}
-        for name in self.follower_arms:
-            for match_name in recv_follower_jointstats:
-                if name in match_name:
-                    now = time.perf_counter()
+    def calibrate(self) -> None:
+        """
+        Calibrate the robot if applicable. If not, this should be a no-op.
 
-                    byte_array = np.zeros(6, dtype=np.float32)
-                    joint_read = recv_follower_jointstats[match_name]
+        This method should collect any necessary data (e.g., motor offsets) and update the
+        :pyattr:`calibration` dictionary accordingly.
+        """
+        pass
 
-                    byte_array[:6] = joint_read[:6]
-                    byte_array = np.round(byte_array, 3)
-                    
-                    follower_joint[name] = torch.from_numpy(byte_array)
+    def configure(self) -> None:
+        """
+        Apply any one-time or runtime configuration to the robot.
+        This may include setting motor parameters, control modes, or initial state.
+        """
+        pass
 
-                    self.logs[f"read_follower_{name}_joint_dt_s"] = time.perf_counter() - now
+    def get_observation(self) -> dict[str, Any]:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
 
-        follower_pos = {}
-        for name in self.follower_arms:
-            for match_name in recv_follower_pose:
-                if name in match_name:
-                    now = time.perf_counter()
+        self.robot_dora_node.recv_images_status = max(0, self.robot_dora_node.recv_images_status - 1)
+        self.robot_dora_node.recv_follower_joint_right_status = max(0, self.robot_dora_node.recv_follower_joint_right_status - 1)
+        self.robot_dora_node.recv_follower_joint_left_status = max(0, self.robot_dora_node.recv_follower_joint_left_status - 1)
 
-                    byte_array = np.zeros(6, dtype=np.float32)
-                    pose_read = recv_follower_pose[match_name]
-
-                    byte_array[:6] = pose_read[:]
-                    byte_array = np.round(byte_array, 3)
-                    
-                    follower_pos[name] = torch.from_numpy(byte_array)
-
-                    self.logs[f"read_follower_{name}_pos_dt_s"] = time.perf_counter() - now
-
-        follower_gripper = {}
-        for name in self.follower_arms:
-            for match_name in recv_follower_jointstats:
-                if name in match_name:
-                    now = time.perf_counter()
-
-                    byte_array = np.zeros(1, dtype=np.float32)
-                    gripper_read = recv_follower_jointstats[match_name][6]
-
-                    byte_array[0] = gripper_read
-                    byte_array = np.round(byte_array, 3)
-                    
-                    follower_gripper[name] = torch.from_numpy(byte_array)
-
-                    self.logs[f"read_follower_{name}_gripper_dt_s"] = time.perf_counter() - now
+        # Read arm position
+        start = time.perf_counter()
+        obs_dict = {}
         
-        return follower_joint, follower_pos, follower_gripper
-    
-    def master_record(self):
-        master_joint = {}
-        for name in self.follower_arms:
-            for match_name in recv_master_jointstats:
-                if name in match_name:
-                    now = time.perf_counter()
-
-                    byte_array = np.zeros(6, dtype=np.float32)
-                    joint_read = recv_master_jointstats[match_name]
-
-                    byte_array[:6] = joint_read[:6]
-                    byte_array = np.round(byte_array, 3)
-                    
-                    master_joint[name] = torch.from_numpy(byte_array)
-
-                    self.logs[f"read_master_{name}_joint_dt_s"] = time.perf_counter() - now
-
-        master_gripper = {}
-        for name in self.follower_arms:
-            for match_name in recv_master_jointstats:
-                if name in match_name:
-                    now = time.perf_counter()
-
-                    byte_array = np.zeros(1, dtype=np.float32)
-                    gripper_read = recv_master_jointstats[match_name][6]
-
-                    byte_array[0] = gripper_read
-                    byte_array = np.round(byte_array, 3)
-                    
-                    master_gripper[name] = torch.from_numpy(byte_array)
-
-                    self.logs[f"read_master_{name}_gripper_dt_s"] = time.perf_counter() - now
+        # Add right arm positions
+        for i, motor in enumerate(self.right_follower_motors):
+            if "joint" in motor:
+                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
+            if "pose" in motor:
+                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-6]
+            if "gripper" in motor:
+                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i-6]
+                
         
-        return master_joint, master_gripper
-
-    def teleop_step(
-        self, record_data=False, 
-    ) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
-        self.frame_counter += 1
-
-        if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "Aloha is not connected. You need to run `robot.connect()`."
-            )
-
-        if not record_data:
-            return
-
-        follower_joint, follower_pos, follower_gripper = self.follower_record()
-
-        # master_joint, master_pos, master_gripper = self.master_record()
-        master_joint, master_gripper = self.master_record()
-
-        #记录当前关节角度
-        state = []
-        for name in self.follower_arms:
-            if name in follower_joint:
-                state.append(follower_joint[name])
-            if name in follower_pos:
-                state.append(follower_pos[name])
-            if name in follower_gripper:
-                state.append(follower_gripper[name])
-        state = torch.cat(state)
-
-        #将关节目标位置添加到 action 列表中
-        action = []
-        for name in self.follower_arms:
-            if name in master_joint:
-                action.append(master_joint[name])
-            if name in follower_pos:
-                action.append(follower_pos[name])
-            if name in master_gripper:
-                action.append(master_gripper[name])
-        action = torch.cat(action)
+        # Add left arm positions
+        for i, motor in enumerate(self.left_follower_motors):
+            if "joint" in motor:
+                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i]
+            if "pose" in motor:
+                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-6]
+            if "gripper" in motor:
+                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-6]
+                
+        
+        dt_ms = (time.perf_counter() - start) * 1e3
+        logger.debug(f"{self} read state: {dt_ms:.1f} ms")
 
         # Capture images from cameras
-        
-        images = {}
-        for name in self.cameras:
-            now = time.perf_counter()
+        for cam_key, _cam in self.cameras.items():
+            start = time.perf_counter()
             
-            images[name] = recv_images[name]
+            for name, val in self.robot_dora_node.recv_images.items():
+                if cam_key in name:
+                    obs_dict[cam_key] = val
+            
+            dt_ms = (time.perf_counter() - start) * 1e3
+            logger.debug(f"{self} read {cam_key}: {dt_ms:.1f} ms")
 
-            # images[name] = self.cameras[name].async_read()
-            images[name] = torch.from_numpy(images[name])
-            # self.logs[f"read_camera_{name}_dt_s"] = self.cameras[name].logs["delta_timestamp_s"]
-            self.logs[f"read_camera_{name}_dt_s"] = time.perf_counter() - now
+        return obs_dict
+    
+    def get_action(self) -> Tuple[dict[str, Any], dict[str, Any]]:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
 
-        # Populate output dictionnaries and format to pytorch
-        obs_dict, action_dict = {}, {}
-        obs_dict["observation.state"] = state
-        action_dict["action"] = action
-        for name in self.cameras:
-            obs_dict[f"observation.images.{name}"] = images[name]
+
+        self.robot_dora_node.recv_leader_joint_right_status = max(0, self.robot_dora_node.recv_leader_joint_right_status - 1)
+        self.robot_dora_node.recv_leader_joint_left_status = max(0, self.robot_dora_node.recv_leader_joint_left_status - 1)
         
-        # print("end teleoperate record")
+        # Read arm position
+        start = time.perf_counter()
+        act_dict = {}
 
-        return obs_dict, action_dict
 
+        # Add right arm positions
+        for i, motor in enumerate(self.right_leader_motors):
+            if "joint" in motor:
+                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
+            if "pose" in motor:
+                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-6]
+            if "gripper" in motor:
+                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i-6]
+                
+        
+        # Add left arm positions
+        for i, motor in enumerate(self.left_leader_motors):
+            if "joint" in motor:
+                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i]
+            if "pose" in motor:
+                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-6]
+            if "gripper" in motor:
+                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-6]
+        
+        # # Add right arm positions
+        # for name, val in self.robot_dora_node.recv_leader_joint_right.items():
+        #     for motor in self.right_leader_motors:
+        #         if motor in name:
+        #             act_dict[f"right_leader_{motor}.pos"] = val
+        
+        # # Add left arm positions
+        # for name, val in self.robot_dora_node.recv_leader_joint_left.items():
+        #     for motor in self.left_leader_motors:
+        #         if motor in name:
+        #             act_dict[f"left_leader_{motor}.pos"] = val
+        
+        dt_ms = (time.perf_counter() - start) * 1e3
+        logger.debug(f"{self} read action: {dt_ms:.1f} ms")
 
-    def send_action(self, action: dict[str, Any]):
+        return act_dict
+
+    def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         """The provided action is expected to be a vector."""
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "KochRobot is not connected. You need to run `robot.connect()`."
+            raise DeviceNotConnectedError(
+                f"{self} is not connected. You need to run `robot.connect()`."
             )
+        
+        # Separate right and left arm actions
+        right_arm_action = []
+        left_arm_action = []
+        
+        for key, val in action.items():
+            if "right_leader" in key:
+                right_arm_action.append(val)
+            elif "left_leader" in key:
+                left_arm_action.append(val)
+        
+        # Send right arm action
+        if right_arm_action:
+            goal_joint_numpy = np.array(right_arm_action, dtype=np.float32)
+            self.robot_dora_node.dora_send(f"action_joint_right", goal_joint_numpy)
+        
+        # Send left arm action
+        if left_arm_action:
+            goal_joint_numpy = np.array(left_arm_action, dtype=np.float32)
+            self.robot_dora_node.dora_send(f"action_joint_left", goal_joint_numpy)
+        
+        return {f"{arm_motor}.pos": val for arm_motor, val in action.items()}
 
-        for name in self.follower_arms:
-            goal_joint = [ val for key, val in action.items() if name in key and "joint" in key]
-            goal_gripper = [ val for key, val in action.items() if name in key and "gripper" in key]
+    def update_status(self) -> str:
+        for i in range(self.status.specifications.camera.number):
+            match_name = self.status.specifications.camera.information[i].name
+            for name in self.robot_dora_node.recv_images_status:
+                if match_name in name:
+                    self.status.specifications.camera.information[i].is_connect = (
+                        True if self.robot_dora_node.recv_images_status[name] > 0 else False
+                    )
 
-            # goal_joint = action[(arm_index*arm_action_dim+from_idx):(arm_index*arm_action_dim+to_idx)]
-            # goal_gripper = action[arm_index*arm_action_dim + 12]
-            # arm_index += 1
-            goal_joint_numpy = np.array([t.item() for t in goal_joint], dtype=np.float32)
-            goal_gripper_numpy = np.array([t.item() for t in goal_gripper], dtype=np.float32)
-            position = np.concatenate([goal_joint_numpy, goal_gripper_numpy], axis=0)
+        for i in range(self.status.specifications.arm.number):
+            match_name = self.status.specifications.arm.information[i].name
+            for name in self.robot_dora_node.recv_leader_joint_right_status:
+                if match_name in name:
+                    self.status.specifications.arm.information[i].is_connect = (
+                        True if self.robot_dora_node.recv_leader_joint_right_status[name] > 0 else False
+                    )
 
-            piper_zmq_send(f"action_joint_{name}", position, wait_time_s=0.01)
-            # piper_zmq_send(f"action_gripper_{name}", goal_gripper_numpy, wait_time_s=0.01)
+        for i in range(self.status.specifications.arm.number):
+            match_name = self.status.specifications.arm.information[i].name
+            for name in self.robot_dora_node.recv_leader_joint_left_status:
+                if match_name in name:
+                    self.status.specifications.arm.information[i].is_connect = (
+                        True if self.robot_dora_node.recv_leader_joint_left_status[name] > 0 else False
+                    )
 
-            # action_sent.append(goal_joint)
-
-    # def update_status(self) -> str:
-
-    #     for i in range(self.status.specifications.camera.number):
-    #         match_name = self.status.specifications.camera.information[i].name
-    #         for name in recv_images_status:
-    #             if match_name in name:
-    #                 self.status.specifications.camera.information[i].is_connect = True if recv_images_status[name]>0 else False
-
-    #     for i in range(self.status.specifications.arm.number):
-    #         match_name = self.status.specifications.arm.information[i].name
-    #         for name in recv_joint_status:
-    #             if match_name in name:
-    #                 self.status.specifications.arm.information[i].is_connect = True if recv_joint_status[name]>0 else False
-
-    #     return self.status.to_json()
+        return self.status.to_json()
 
     def disconnect(self):
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "Aloha is not connected. You need to run `robot.connect()` before disconnecting."
+            raise DeviceNotConnectedError(
+                "Agilex Aloha is not connected. You need to run `robot.connect()` before disconnecting."
             )
-        
 
-        self.is_connected = False
-        
-        global running_recv_image_server
-        global running_recv_piper_server
+        self.robot_dora_node.running = False
+        self.robot_dora_node.stop()
 
-        running_recv_image_server = False
-        running_recv_piper_server = False
-
-        self.recv_img_thread.join()
-        self.recv_piper_thread.join()
-
-        socket_image.close()
-        socket_piper.close()
-
-        context.term()
-        
+        self.connected = False
 
     def __del__(self):
         if getattr(self, "is_connected", False):
