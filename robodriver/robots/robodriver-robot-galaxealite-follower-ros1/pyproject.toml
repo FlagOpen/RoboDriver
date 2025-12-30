@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver_robot_galaxealite_follower_ros1"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "You Liu", email = "liuyou@baai.ac.cn"},
+]
+keywords = ["robotics", "lerobot", "galaxea"]
+dependencies = [
+    "logging_mp",
+    "opencv-python",
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_robot_galaxealite_follower_ros1",
+    "lerobot_robot_galaxealite_follower_ros1"
+]
