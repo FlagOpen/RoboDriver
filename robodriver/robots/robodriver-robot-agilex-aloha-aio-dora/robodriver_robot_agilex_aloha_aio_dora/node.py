@@ -33,7 +33,7 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
         self.recv_follower_joint_left: list[float] = []
         self.recv_follower_endpose_right: list[float] = []
         self.recv_follower_endpose_left: list[float] = []
-        self.recv_images_status: int = 0
+        self.recv_images_status: Dict[str, int] = {}
         self.recv_leader_joint_right_status: int = 0
         self.recv_leader_joint_left_status: int = 0
         self.recv_follower_joint_right_status: int = 0

@@ -1,6 +1,6 @@
 nodes:
   - id: camera_top
-    path: nodes/dora_camera_realsense.py
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
     inputs:
       tick: dora/timer/millis/33
     outputs:
@@ -13,7 +13,7 @@ nodes:
       IMAGE_HEIGHT: 480
 
   - id: camera_left_wrist
-    path: nodes/dora_camera_realsense.py
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
     inputs:
       tick: dora/timer/millis/33
     outputs:
@@ -26,7 +26,7 @@ nodes:
       IMAGE_HEIGHT: 480
 
   - id: camera_right_wrist
-    path: nodes/dora_camera_realsense.py
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
     inputs:
       tick: dora/timer/millis/33
     outputs:

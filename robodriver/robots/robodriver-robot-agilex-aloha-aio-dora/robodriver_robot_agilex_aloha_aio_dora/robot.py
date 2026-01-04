@@ -185,14 +185,12 @@ class AgilexAlohaAIODoraRobot(Robot):
         # 右臂关节角度状态
         if conditions[1][0]():
             # 检查recv_leader_joint_right字典中实际接收到的键
-            received_keys = list(self.robot_dora_node.recv_leader_joint_right.keys())
-            success_messages.append(f"右臂关节角度: 已接收 ({len(received_keys)}个数据点)")
+            success_messages.append(f"右臂关节角度: 已接收 ({len(self.robot_dora_node.recv_leader_joint_right)}个数据点)")
 
         # 左臂关节角度状态
         if conditions[2][0]():
             # 检查recv_leader_joint_left字典中实际接收到的键
-            received_keys = list(self.robot_dora_node.recv_leader_joint_left.keys())
-            success_messages.append(f"左臂关节角度: 已接收 ({len(received_keys)}个数据点)")
+            success_messages.append(f"左臂关节角度: 已接收 ({len(self.robot_dora_node.recv_leader_joint_left)}个数据点)")
 
         log_message = "\n[连接成功] 所有设备已就绪:\n"
         log_message += "\n".join(f"  - {msg}" for msg in success_messages)
@@ -232,7 +230,8 @@ class AgilexAlohaAIODoraRobot(Robot):
         if not self.connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
-        self.robot_dora_node.recv_images_status = max(0, self.robot_dora_node.recv_images_status - 1)
+        for key in self.robot_dora_node.recv_images_status:
+            self.robot_dora_node.recv_images_status[key] = max(0, self.robot_dora_node.recv_images_status[key] - 1)
         self.robot_dora_node.recv_follower_joint_right_status = max(0, self.robot_dora_node.recv_follower_joint_right_status - 1)
         self.robot_dora_node.recv_follower_joint_left_status = max(0, self.robot_dora_node.recv_follower_joint_left_status - 1)
 
@@ -363,21 +362,12 @@ class AgilexAlohaAIODoraRobot(Robot):
                         True if self.robot_dora_node.recv_images_status[name] > 0 else False
                     )
 
-        for i in range(self.status.specifications.arm.number):
-            match_name = self.status.specifications.arm.information[i].name
-            for name in self.robot_dora_node.recv_leader_joint_right_status:
-                if match_name in name:
-                    self.status.specifications.arm.information[i].is_connect = (
-                        True if self.robot_dora_node.recv_leader_joint_right_status[name] > 0 else False
-                    )
-
-        for i in range(self.status.specifications.arm.number):
-            match_name = self.status.specifications.arm.information[i].name
-            for name in self.robot_dora_node.recv_leader_joint_left_status:
-                if match_name in name:
-                    self.status.specifications.arm.information[i].is_connect = (
-                        True if self.robot_dora_node.recv_leader_joint_left_status[name] > 0 else False
-                    )
+        self.status.specifications.arm.information[0].is_connect = (
+            True if self.robot_dora_node.recv_leader_joint_right_status > 0 else False
+        )
+        self.status.specifications.arm.information[1].is_connect = (
+            True if self.robot_dora_node.recv_leader_joint_left_status > 0 else False
+        )
 
         return self.status.to_json()
 

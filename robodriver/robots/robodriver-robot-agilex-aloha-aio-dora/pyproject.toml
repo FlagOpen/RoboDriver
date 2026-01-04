@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "robodriver_robot_agilex_aloha_aio_dora"
+name = "robodriver-robot-agilex-aloha-aio-dora"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.8"
