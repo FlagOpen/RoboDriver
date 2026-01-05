@@ -47,7 +47,7 @@ async def async_main(cfg: ControlPipelineConfig):
     teleop = (
         make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
     )
-    sim = Simulator(backend=cfg.sim.backend, show_viewer=cfg.sim.show_viewer, arm_config=cfg.sim.arm_config, urdf_path = cfg.sim.urdf_path, mjcf_path=cfg.sim.mjcf_path) if cfg.sim is not None and (cfg.sim.urdf_path is not None or cfg.sim.mjcf_path is not None) else None
+    sim = Simulator(backend=cfg.sim.backend, show_viewer=cfg.sim.show_viewer, arm_config=cfg.sim.arm_config, urdf_path = cfg.sim.urdf_path, mjcf_path=cfg.sim.mjcf_path) if cfg.sim is not None and (cfg.sim.arm_config is not None or cfg.sim.urdf_path is not None or cfg.sim.mjcf_path is not None) else None
     observation_sim = None
     if teleop is not None:
         teleop.connect()
