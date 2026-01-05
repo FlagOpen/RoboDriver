@@ -137,7 +137,7 @@ class KeyboardController:
         print("="*50 + "\n")
 
 ########################## init ##########################
-gs.init(backend=gs.gpu, logging_level="warn")
+gs.init(backend=gs.gpu, logging_level="info")
 
 ########################## 创建场景 ##########################
 scene = gs.Scene(
