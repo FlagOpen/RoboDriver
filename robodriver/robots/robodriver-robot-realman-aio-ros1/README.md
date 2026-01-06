@@ -5,8 +5,7 @@
 ### 1.1 Clone the repository / 克隆仓库
 
 ```bash
-git clone --recurse-submodules https://github.com/BAAI-EI-DATA/robodriver-robot-realman-aio-ros1.git
-cd robodriver-robot-realman-aio-ros1
+git clone https://github.com/FlagOpen/RoboDriver.git
 ```
 
 ### 1.2 Install the project to RoboDriver / 安装到 RoboDriver 环境
@@ -15,6 +14,7 @@ Make sure you are in the `robodriver` conda env.
 确保你已经进入 `robodriver` 的 conda 环境：
 
 ```bash
+conda create -n robodriver python=3.10
 conda activate robodriver
 pip install -e .
 ```
@@ -44,7 +44,7 @@ In this repository directory:
 在本仓库目录中运行：
 
 ```bash
-cd /path/to/your/robodriver-robot-realman-aio-ros1
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman-aio-ros1
 python -m robodriver_robot_realman_aio_ros1.ros1_zmq_bridge
 ```
 
@@ -55,6 +55,7 @@ In your RoboDriver project directory:
 
 ```bash
 cd /path/to/your/RoboDriver
+conda activate robodriver
 python robodriver/scripts/run.py   --robot.type=realman_aio_ros1
 ```
 
