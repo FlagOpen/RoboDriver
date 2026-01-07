@@ -46,6 +46,6 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
 
 def safe_update_status(robot: Robot) -> str:
     if hasattr(robot, "update_status"):
-        robot.update_status()
+        return robot.update_status()
     else:
         return RobotStatus().to_json()
