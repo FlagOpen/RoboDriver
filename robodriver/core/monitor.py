@@ -45,8 +45,8 @@ class Monitor:
 
     def start(self):
         """启动后台线程"""
-        self._thread.start()
         self._running = True
+        self._thread.start()
 
     def stop(self):
         """停止后台线程"""
