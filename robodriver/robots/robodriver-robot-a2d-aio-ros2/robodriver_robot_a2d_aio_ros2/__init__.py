@@ -1,2 +1,2 @@
-from .robot import So101AioRos2Robot
-from .config import So101AioRos2RobotConfig
+from .robot import A2DAioRos2Robot
+from .config import A2DAioRos2RobotConfig
