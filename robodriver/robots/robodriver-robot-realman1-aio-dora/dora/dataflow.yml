@@ -7,7 +7,7 @@ nodes:
       - image
       - image_depth
     env:
-      VIRTUAL_ENV: /home/rm/robodriver-robot-realman1-aio-dora/.venv
+      VIRTUAL_ENV: ../.venv
       DEVICE_SERIAL: 150622072280
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
@@ -20,7 +20,7 @@ nodes:
       - image
       - image_depth
     env:
-      VIRTUAL_ENV: /home/rm/robodriver-robot-realman1-aio-dora/.venv
+      VIRTUAL_ENV: ../.venv
       DEVICE_SERIAL: 216322070529
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
@@ -33,36 +33,36 @@ nodes:
       - image
       - image_depth
     env:
-      VIRTUAL_ENV: /home/rm/robodriver-robot-realman1-aio-dora/.venv
+      VIRTUAL_ENV: ../.venv
       DEVICE_SERIAL: 152222072189 
       IMAGE_WIDTH: 640
       IMAGE_HEIGHT: 480
 
   - id: arm_realman1_aio_left
-    path: nodes/dora_arm_realman/dora_arm_realman/main.py
-    build: pip install -e nodes/dora_arm_realman
+    path: ../../../../components/arms/dora-arm-realman/dora_arm_realman/main.py
+    build: pip install -e ../../../../components/arms/dora-arm-realman/dora_arm_realman
     inputs:
       get_joint: dora/timer/millis/33
       action_joint: realman1_aio_dora/action_joint
     outputs:
       - joint
     env:
-      VIRTUAL_ENV: /home/rm/robodriver-robot-realman1-aio-dora/.venv
+      VIRTUAL_ENV: ../.venv
       ARM_IP: 169.254.128.18
       ARM_PORT: 8080
       ARM_NAME: RealMan-aio-left
       ARM_ROLE: aio
 
   - id: arm_realman1_aio_right
-    path: nodes/dora_arm_realman/dora_arm_realman/main.py
-    build: pip install -e nodes/dora_arm_realman
+    path: ../../../../components/arms/dora-arm-realman/dora_arm_realman/main.py
+    build: pip install -e ../../../../components/arms/dora-arm-realman/dora_arm_realman
     inputs:
       get_joint: dora/timer/millis/33
       action_joint: realman1_aio_dora/action_joint
     outputs:
       - joint
     env:
-      VIRTUAL_ENV: /home/rm/robodriver-robot-realman1-aio-dora/.venv
+      VIRTUAL_ENV: ../.venv
       ARM_IP: 169.254.128.19
       ARM_PORT: 8080
       ARM_NAME: RealMan-aio-right

@@ -7,6 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
+from robodriver.utils.qc_tools import VideoCorruptionChecker, check_action_state_naming_compliance
 
 
 def calculate_thresholds_fps(
@@ -89,6 +90,9 @@ def validate_action_data(df, joint_change_thresholds, cut_list=None):
     """校验动作数据质量"""
     if "action" not in df.columns:
         return False, "Parquet文件中缺少'action'列"
+    
+    # 定义需要屏蔽的关节索引（夹爪数据，可根据需求修改）
+    skip_joint_indices = []
 
     action_data = np.stack(df["action"].values)
     print(f"动作数据形状: {action_data.shape}")
@@ -150,10 +154,16 @@ def validate_action_data(df, joint_change_thresholds, cut_list=None):
 
     if np.any(n_violations_per_frame > 0):
         first_violation_frame = np.where(n_violations_per_frame > 0)[0][0] + 1
-        problematic_frame_idx = first_violation_frame
-        exceeding_dims = np.where(violations[problematic_frame_idx - 1])[0]
-        error_msg = f"检测到 {problematic_frame_idx} 帧发生突变（无效动作），位于索引: {exceeding_dims}"
-        return False, error_msg
+        # 获取该帧所有违规关节索引
+        all_exceeding_dims = np.where(violations[first_violation_frame - 1])[0]
+        
+        # 方法：将数组转为列表，筛选不在skip_joint_indices中的索引
+        valid_exceeding_dims = [dim for dim in all_exceeding_dims if dim not in skip_joint_indices]
+        
+        # 只有当存在有效违规索引（非屏蔽索引）时，才返回错误
+        if len(valid_exceeding_dims) > 0:
+            error_msg = f"检测到第 {first_violation_frame} 帧发生突变（无效动作），涉及关节索引: {valid_exceeding_dims}"
+            return False, error_msg
 
     action_data_subset_list = []
     most_common_ratio_list = []
@@ -206,13 +216,30 @@ def compare_images(img1, img2):
     return similarity
 
 
-def validate_image_data(
-    img_files, camera_name, image_sample_interval=30, image_change_threshold=0.98
+def validate_media_data(
+    media_files, media_type, camera_name, image_sample_interval=30, image_change_threshold=0.98
 ):
     """校验图像数据"""
-    if not img_files:
-        return False, f"检测到{camera_name}没有图像数据"
+    if not media_files:
+        return False, f"检测到{camera_name}没有数据"
+    # 图像数据校验（原有逻辑）
+    if media_type == "image":
+        return validate_image_data(media_files, camera_name, image_sample_interval, image_change_threshold)
+    
+     # 视频数据校验（新增逻辑，兼容单视频/多视频文件）
+    elif media_type == "video":
+        checker = VideoCorruptionChecker(image_sample_interval, image_change_threshold)
+        for video_file in media_files:
+            # 执行视频校验，返回布尔值（是否损坏）
+            is_corrupted = checker.check_video_corruption(video_file)
+            if is_corrupted:
+                return False, f"相机{camera_name}的视频文件{video_file.name}异常"
+        return True, None
+    else:
+        return False, f"不支持的媒体类型: {media_type}"
 
+
+def validate_image_data(img_files, camera_name, image_sample_interval=30, image_change_threshold=0.98):
     # 抽样检查
     sample_indices = list(range(0, len(img_files), image_sample_interval))
     if len(img_files) - 1 not in sample_indices:
@@ -236,13 +263,15 @@ def validate_image_data(
     if len(similar_pairs) > len(sample_indices) * 0.5:
         first_img = cv2.imread(str(img_files[0]))
         all_same = True
-        for img_file in img_files[1:]:
-            img = cv2.imread(str(img_file))
-            if not np.array_equal(first_img, img):
+        # 抽样验证，避免遍历所有图像耗时过长
+        check_indices = list(range(0, len(img_files), max(1, len(img_files)//100)))
+        for idx in check_indices[1:]:
+            img = cv2.imread(str(img_files[idx]))
+            if img is None or not np.array_equal(first_img, img):
                 all_same = False
                 break
         if all_same:
-            return False, f"检测到{camera_name}部分图像数据完全相同"
+            return False, f"检测到{camera_name}的图像数据完全相同"
 
     # 检查首尾图像
     first_img = cv2.imread(str(img_files[0]))
@@ -261,26 +290,75 @@ def validate_image_data(
     return True, None
 
 
-def validate_frame_count(df, img_files):
-    """校验动作数据和图像帧数是否一致"""
-    if len(df) != len(img_files):
-        return False, (
-            f"帧数不匹配: 动作数据 {len(df)} 帧 vs " f"图像数据 {len(img_files)} 帧"
-        )
+def validate_frame_count(df, media_files, media_type):
+    """校验动作数据和图像/视频帧数是否一致
+    新增逻辑：针对视频，每个视频的帧数都必须和df的帧数完全匹配
+    """
+    action_frame_count = len(df)  # 预期帧数（每个视频都需等于该值）
+
+    # 图像帧数：保持原有逻辑（总文件数和df帧数一致）
+    if media_type == "image":
+        media_frame_count = len(media_files)
+        if action_frame_count != media_frame_count:
+            return False, (
+                f"帧数不匹配: 动作数据 {action_frame_count} 帧 vs "
+                f"图像总文件数 {media_frame_count} 帧"
+            )
+    # 视频帧数：逐个校验每个视频的帧数是否等于df帧数
+    elif media_type == "video":
+        for video_file in media_files:
+            cap = cv2.VideoCapture(str(video_file))
+            # 校验视频是否能正常打开
+            if not cap.isOpened():
+                cap.release()  # 确保释放资源
+                return False, f"无法获取视频文件{video_file.name}的帧数（文件无法打开）"
+            # 获取当前视频的帧数
+            video_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()  # 及时释放视频流资源
+            
+            # 逐个校验：当前视频帧数是否与动作数据帧数一致
+            if video_frame_count != action_frame_count:
+                return False, (
+                    f"视频{video_file.name}帧数不匹配: "
+                    f"预期（动作数据）{action_frame_count} 帧 vs 实际 {video_frame_count} 帧"
+                )
+    # 不支持的媒体类型
+    else:
+        return False, f"不支持的媒体类型: {media_type}"
+
+    # 所有校验通过
     return True, None
 
-
 def validate_session(
-    _dir,
+    _dir, 
     session_id,
     episodes_stats="episodes_stats.jsonl",
     info_json="info.json",
     image_sample_interval=30,
-    image_change_threshold=0.98,
+    image_change_threshold=0.98,  
     threshold_percentage=0.5,
-    cut_list=None,
-):  # cut_list举例,用来切片action信息进行比对  [(0,75),(75,150),(150,201)]
-    """验证单个会话的数据，返回结构化验证结果"""
+    cut_list=None, # cut_list举例,用来切片action信息进行比对  [(0,75),(75,150),(150,201)]
+):  
+    """验证单个会话的数据，返回结构化验证结果
+
+    Args:
+        _dir (str/Path): 会话根目录
+        session_id (str): 会话ID（格式：episode_000000）
+        episodes_stats (str, optional):  episode统计文件名称，默认"episodes_stats.jsonl"
+        info_json (str, optional): 会话信息JSON文件名称，默认"info.json"
+        image_sample_interval (int, optional): 图像抽样校验间隔，默认30（每30帧抽样1张）
+        image_change_threshold (float, optional): 图像相似度判定阈值，取值范围[0,1]。
+            值越大，允许图像相似度越高（校验越宽松）；值越小，要求图像差异越明显（校验越严格）。
+            默认值0.98，适用于动作幅度较小、图像小幅变化的场景，避免误判。
+        threshold_percentage (float, optional): 动作关节突变判定百分比阈值，取值范围[0,1]。
+            基于动作关节的最大最小差值（动作范围）计算突变阈值（突变阈值=动作范围×该百分比）。
+            值越大，允许的帧间动作突变幅度越大（校验越宽松）；值越小，突变容忍度越低（校验越严格）。
+            默认值0.5（50%），平衡严格性与容错性，避免正常动作波动误判为无效突变。
+        cut_list (list[tuple], optional): action数据切片区间列表，用于分段校验动作重复率，默认None
+
+    Returns:
+        dict: 结构化验证结果，包含各类校验项的通过状态及备注
+    """
     print(f"正在验证会话: {session_id}")
 
     # 初始化返回结构
@@ -296,6 +374,7 @@ def validate_session(
     data_dir = Path(os.path.join(_dir, "data"))
     images_dir = Path(os.path.join(_dir, "images"))
     meta_dir = Path(os.path.join(_dir, "meta"))
+    videos_dir = Path(os.path.join(_dir, "videos","chunk-000"))
 
     # 解析episode_id
     try:
@@ -306,7 +385,7 @@ def validate_session(
             f"无效的会话ID格式: {session_id}"
         )
         return {"verification": verification_result}
-
+    # print(check_action_state_naming_compliance(meta_dir / info_json))
     # 计算阈值和FPS
     try:
         joint_change_thresholds, fps = calculate_thresholds_fps(
@@ -330,18 +409,28 @@ def validate_session(
         )
         return {"verification": verification_result}
 
-    if not img_session_dir.exists():
-        verification_result["file_integrity"] = "no pass"
-        verification_result["file_integrity_comment"] = (
-            f"检测不到图像目录: {img_session_dir}"
-        )
-        return {"verification": verification_result}
-
     try:
         df = pd.read_parquet(parquet_path)
     except Exception as e:
         verification_result["file_integrity"] = "no pass"
         verification_result["file_integrity_comment"] = f"读取Parquet文件失败: {str(e)}"
+        return {"verification": verification_result}
+    
+    # 2. 确定媒体目录和类型（核心：优先videos，后images）
+    media_dir = None
+    media_type = None
+    if videos_dir.exists():
+        media_dir = videos_dir
+        media_type = "video"
+        print(f"[INFO] 检测到videos目录，优先使用该目录校验: {videos_dir}")
+    elif images_dir.exists():
+        media_dir = images_dir
+        media_type = "image"
+        print(f"[INFO] 未检测到videos目录，使用images目录校验: {images_dir}")
+    else:
+        verification_result["camera_frame_rate"] = "no pass"
+        verification_result["file_integrity"] = "no pass"
+        verification_result["file_integrity_comment"] = "未检测到videos/images目录"
         return {"verification": verification_result}
 
     # 验证动作时间戳（帧率）
@@ -359,35 +448,50 @@ def validate_session(
     else:
         verification_result["action_frame_rate_comment"] = msg
     # 检查相机目录
-    camera_dirs = [d for d in img_session_dir.glob("*") if d.is_dir()]
+    camera_dirs = [d for d in media_dir.glob("*") if d.is_dir()]
     if not camera_dirs:
         verification_result["camera_frame_rate"] = "no pass"
         verification_result["camera_frame_rate_comment"] = (
-            f"未找到相机目录: {img_session_dir}"
+            f"未找到相机目录: {media_dir}"
         )
         return {"verification": verification_result}
 
     # 验证每个相机的数据
     for camera_dir in camera_dirs:
         camera_name = os.path.basename(camera_dir)
-        camera_dir = camera_dir / session_id
-        img_files = sorted(
-            camera_dir.glob("frame_*.png"), key=lambda x: int(x.stem.split("_")[-1])
-        )
-        if not img_files:
-            img_files = sorted(
-                camera_dir.glob("frame_*.jpg"), key=lambda x: int(x.stem.split("_")[-1])
+        camera_session_dir = camera_dir / session_id
+        # 查找媒体文件
+        media_files = []
+        if media_type == "video":
+            # 支持常见视频格式：mp4, avi, mov, mkv
+            video_extensions = [".mp4", ".avi", ".mov", ".mkv"]
+            for ext in video_extensions:
+                video_files = sorted(
+                    camera_dir.glob(f"*{ext}"),
+                    key=lambda x: int(x.stem.split("_")[-1]) if "_" in x.stem else 0
+                )
+                media_files.extend(video_files)
+        elif media_type == "image":
+            # 原有图像查找逻辑：优先png，后jpg
+            media_files = sorted(
+                camera_session_dir.glob("frame_*.png"),
+                key=lambda x: int(x.stem.split("_")[-1])
             )
+            if not media_files:
+                media_files = sorted(
+                    camera_session_dir.glob("frame_*.jpg"),
+                    key=lambda x: int(x.stem.split("_")[-1])
+                )
 
         # 验证帧数一致性
-        valid, msg = validate_frame_count(df, img_files)
+        valid, msg = validate_frame_count(df, media_files, media_type)
         if not valid:
             verification_result["file_integrity"] = "no pass"
             verification_result["file_integrity_comment"] = msg
 
         # 验证图像数据
-        valid, msg = validate_image_data(
-            img_files, camera_name, image_sample_interval, image_change_threshold
+        valid, msg = validate_media_data(
+            media_files, media_type, camera_name, image_sample_interval, image_change_threshold
         )
         if not valid:
             verification_result["camera_frame_rate"] = "no pass"
@@ -483,18 +587,29 @@ def file_size(path, n):
 
     return 0
 
+def has_valid_image_files(dir_path):
+    """
+    递归遍历多层级目录，判断是否存在有效图片文件
+    :param dir_path: 目标目录路径
+    :return: bool - 存在有效图片返回True，否则返回False
+    """
+    # 定义常见图片后缀名（可根据实际需求补充）
+    image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.webp')
+    
+    # 使用os.walk递归遍历所有子目录和文件
+    for root, dirs, files in os.walk(dir_path):
+        for file in files:
+            # 判断文件后缀是否为图片格式（忽略大小写）
+            if file.lower().endswith(image_extensions):
+                # 找到任意一个有效图片文件，立即返回True
+                return True
+    # 遍历完所有目录和文件，未找到有效图片，返回False
+    return False
+
 
 def get_data_size(fold_path, data):  # 文件大小单位(MB)
     try:
         size_bytes = 0
-
-        # directory_path = os.path.join(fold_path, get_today_date())
-        # print(directory_path)
-        # #directory_path = os.path.join(fold_path1, "2025701")
-        # if not os.path.exists(directory_path):
-        #     return 400
-
-        # task_path = os.path.join(directory_path,f"{str(data['task_name'])}_{str(data['task_id'])}")
 
         task_path = fold_path
         opdata_path = os.path.join(task_path, "meta", "op_dataid.jsonl")
@@ -516,12 +631,14 @@ def get_data_size(fold_path, data):  # 文件大小单位(MB)
                 continue
             if entry == "videos":
                 if "images" in entries_1:
-                    continue
+                    images_dir = os.path.join(task_path, "images")
+                    if has_valid_image_files(images_dir):
+                        # 仅当images目录有有效图片时，才跳过videos统计
+                        continue
                 data_path = os.path.join(task_path, entry, "chunk-000")
                 size_bytes += file_size(data_path, episode_index)
             if entry == "images":
                 data_path = os.path.join(task_path, entry)
-                print(data_path)
                 size_bytes += file_size(data_path, episode_index)
             if entry == "data":
                 data_path = os.path.join(task_path, entry, "chunk-000")
@@ -539,13 +656,6 @@ def get_data_size(fold_path, data):  # 文件大小单位(MB)
 
 def get_data_duration(fold_path, data):  # 文件时长单位(s)
     try:
-        # directory_path = os.path.join(fold_path, get_today_date())
-        # print(directory_path)
-        # #directory_path = os.path.join(fold_path1, "2025701")
-        # if not os.path.exists(directory_path):
-        #     return 30
-
-        # task_path = os.path.join(directory_path,f"{str(data['task_name'])}_{str(data['task_id'])}")
         task_path = fold_path
         info_path = os.path.join(task_path, "meta", "info.json")
         opdata_path = os.path.join(task_path, "meta", "op_dataid.jsonl")
@@ -680,6 +790,16 @@ def update_common_record_json(path, data):
         "task_name": str(data["task_name"]),
         "machine_id": str(data["machine_id"]),
     }
+    # 假设data变量已提前定义（包含所需的所有键值对）
+    # overwrite_data = {
+    #     "task_id": str(data["task_id"]),
+    #     "task_name": str(data["task_name"]),
+    #     "machine_id": str(data["machine_id"]),
+    #     "scene_type": str(data["scene_type"]),       # 场景标签
+    #     "task_description": str(data["task_description"]),  # 任务描述
+    #     "tele_type": str(data["tele_type"]),         # 遥操作类型
+    #     "task_instruction": str(data["task_instruction"])   # 任务步骤
+    # }
 
     # 以追加模式打开文件（如果不存在则创建）
     with open(opdata_path, "w", encoding="utf-8") as f:
@@ -726,7 +846,7 @@ def check_disk_space(min_gb=1):
 #     print(data_duration(fold_path,data))
 
 if __name__ == "__main__":
-    _dir = "/home/liuyou/Documents/DoRobot/dataset/20250918/dev/倒水_111_277/倒水_111_277_6274"
+    _dir = "/home/rm/DoRobot/dataset/20251213/dev/place the okra into the bowl_place the okra into the pink bowl_502/place_the_okra_into_the_bowl_502_63101_old"
     session_id = "episode_000000"
     print(
         validate_session(
