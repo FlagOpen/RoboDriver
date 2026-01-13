@@ -29,10 +29,8 @@ class AgilexAlohaAIODoraRobot(Robot):
         self.use_videos = self.config.use_videos
         self.microphones = self.config.microphones
 
-        self.right_leader_motors = config.right_leader_motors
-        self.left_leader_motors = config.left_leader_motors
-        self.right_follower_motors = config.right_follower_motors
-        self.left_follower_motors = config.left_follower_motors
+        self.leader_motors = config.leader_motors
+        self.follower_motors = config.follower_motors
         self.cameras = make_cameras_from_configs(self.config.cameras)
 
         self.connect_excluded_cameras = ["image_pika_pose"]
@@ -45,20 +43,12 @@ class AgilexAlohaAIODoraRobot(Robot):
         self.logs = {}
 
     @property
-    def _right_leader_motors_ft(self) -> dict[str, type]:
-        return {f"right_leader_{motor}.pos": float for motor in self.right_leader_motors}
+    def _leader_motors_ft(self) -> dict[str, type]:
+        return {f"leader_{motor}.pos": float for motor in self.leader_motors}
 
     @property
-    def _left_leader_motors_ft(self) -> dict[str, type]:
-        return {f"left_leader_{motor}.pos": float for motor in self.left_leader_motors}
-
-    @property
-    def _right_follower_motors_ft(self) -> dict[str, type]:
-        return {f"right_leader_{motor}.pos": float for motor in self.right_follower_motors}
-
-    @property
-    def _left_follower_motors_ft(self) -> dict[str, type]:
-        return {f"left_leader_{motor}.pos": float for motor in self.left_follower_motors}
+    def _follower_motors_ft(self) -> dict[str, type]:
+        return {f"follower_{motor}.pos": float for motor in self.follower_motors}
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
@@ -68,11 +58,11 @@ class AgilexAlohaAIODoraRobot(Robot):
 
     @cached_property
     def observation_features(self) -> dict[str, type | tuple]:
-        return {**self._right_follower_motors_ft, **self._left_follower_motors_ft, **self._cameras_ft}
+        return {**self._follower_motors_ft, **self._cameras_ft}
 
     @cached_property
     def action_features(self) -> dict[str, type]:
-        return {**self._right_leader_motors_ft, **self._left_leader_motors_ft}
+        return {**self._leader_motors_ft}
     
     @property
     def is_connected(self) -> bool:
@@ -240,24 +230,20 @@ class AgilexAlohaAIODoraRobot(Robot):
         obs_dict = {}
         
         # Add right arm positions
-        for i, motor in enumerate(self.right_follower_motors):
-            if "joint" in motor:
-                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
-            if "pose" in motor:
-                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-6]
-            if "gripper" in motor:
-                obs_dict[f"right_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i-6]
-                
-        
-        # Add left arm positions
-        for i, motor in enumerate(self.left_follower_motors):
-            if "joint" in motor:
-                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i]
-            if "pose" in motor:
-                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-6]
-            if "gripper" in motor:
-                obs_dict[f"left_follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-6]
-                
+        for i, motor in enumerate(self.follower_motors):
+            if "joint" in motor and "right" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
+            elif "gripper" in motor and "right" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
+            elif "pose" in motor and "right" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-7]
+
+            elif "joint" in motor and "left" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
+            elif "gripper" in motor and "left" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
+            elif "pose" in motor and "left" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-20]
         
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read state: {dt_ms:.1f} ms")
@@ -289,23 +275,16 @@ class AgilexAlohaAIODoraRobot(Robot):
 
 
         # Add right arm positions
-        for i, motor in enumerate(self.right_leader_motors):
-            if "joint" in motor:
-                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
-            if "pose" in motor:
-                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-6]
-            if "gripper" in motor:
-                act_dict[f"right_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i-6]
-                
-        
-        # Add left arm positions
-        for i, motor in enumerate(self.left_leader_motors):
-            if "joint" in motor:
-                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i]
-            if "pose" in motor:
-                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-6]
-            if "gripper" in motor:
-                act_dict[f"left_leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-6]
+        for i, motor in enumerate(self.leader_motors):
+            if "joint" in motor and "right" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
+            if "gripper" in motor and "right" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
+
+            if "joint" in motor and "left" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-7]
+            if "gripper" in motor and "left" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-7]
         
         # # Add right arm positions
         # for name, val in self.robot_dora_node.recv_leader_joint_right.items():
@@ -335,12 +314,23 @@ class AgilexAlohaAIODoraRobot(Robot):
         right_arm_action = []
         left_arm_action = []
         
-        for key, val in action.items():
-            if "right_leader" in key:
-                right_arm_action.append(val)
-            elif "left_leader" in key:
-                left_arm_action.append(val)
-        
+        # for key, val in action.items():
+        #     if "right" in key:
+        #         right_arm_action.append(val)
+        #     elif "left" in key:
+        #         left_arm_action.append(val)
+
+        for _i, motor in enumerate(self.follower_motors):  # follower从臂是被控制的
+            if "joint" in motor and "right" in motor:
+                right_arm_action.append(action[f"leader_{motor}.pos"]) # 控制信号来源是leader
+            if "gripper" in motor and "right" in motor:
+                right_arm_action.append(action[f"leader_{motor}.pos"])
+
+            if "joint" in motor and "left" in motor:
+                left_arm_action.append(action[f"leader_{motor}.pos"])
+            if "gripper" in motor and "left" in motor:
+                left_arm_action.append(action[f"leader_{motor}.pos"])
+
         # Send right arm action
         if right_arm_action:
             goal_joint_numpy = np.array(right_arm_action, dtype=np.float32)

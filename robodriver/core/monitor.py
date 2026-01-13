@@ -26,8 +26,8 @@ class Monitor:
             time.sleep(interval_seconds)
             try:
                 with self._lock:
-                    if self.daemon.robot.status is None:
-                        continue
+                    # if self.daemon.robot.status is None:
+                    #     continue
                     json_data = self.daemon.get_status()
                     # json_data = json.dumps(self._machine_info_dict, ensure_ascii=False)
 

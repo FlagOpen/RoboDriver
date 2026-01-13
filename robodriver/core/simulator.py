@@ -1,192 +1,111 @@
-import abc
-from typing import Any, Optional
+import mujoco
+import mujoco.viewer
+import logging_mp
 import numpy as np
-import genesis as gs
-import cv2
-from pathlib import Path
+import time
 
+from typing import Any
 from dataclasses import dataclass
 
-@dataclass
-class SimulatorArmConfig():
-    path: str | None = None
-    type: str = "mjcf"
-    unit: str = "rad"
-    pos: Optional[tuple] = None
-    
+
+logger = logging_mp.get_logger(__name__)
 
 
 @dataclass
 class SimulatorConfig():
-    arm_config: dict[str, SimulatorArmConfig] | None = None
-    urdf_path: str | None = None
-    mjcf_path: str | None = None
-    backend: str = "cpu"
-    unit: str = "deg"
+    xml_path: str | None = None
+    from_unit: str = "deg"
+    render_height: int = 1200
+    render_width: int = 1600
+    timestep: float = 0.01
     show_viewer: bool = False
+    log_data: bool = False
 
     def __post_init__(self):
-        if self.arm_config is not None:
-            for _, config in self.arm_config.items():
-                for attr in ["path", "type", "unit", "pos"]:
-                    if getattr(config, attr) is None:
-                        raise ValueError(
-                            f"Specifying '{attr}' is required for the arm to be used in sim"
-                        )
+        if self.from_unit != "deg" and self.from_unit != "rad":
+            raise ValueError(
+                f"from_unit only support \'deg\' or \'rad\' in sim"
+            )
     
-
 class Simulator:
-    def __init__(
-        self,
-        backend: str, 
-        show_viewer: bool,
-        arm_config: dict[str, SimulatorArmConfig] | None,
-        urdf_path: dict[str, str] | str | None,
-        mjcf_path: dict[str, str] | str | None
-    ):
-        self.arm = None
-        self.arms = None
-        self.units: dict[str, str] | None = None
+    def __init__(self, config: SimulatorConfig):
+        self.config = config
 
-        backend_mapping = {
-            "cpu": gs.cpu,
-            "gpu": gs.gpu,
-            "cuda": gs.cuda,
-            "vulkan": gs.vulkan,
-            "metal": gs.metal,
-            "opengl": gs.opengl,
-        }
+        self.model = mujoco.MjModel.from_xml_path(self.config.xml_path)
+        self.data = mujoco.MjData(self.model)
+        self.cam = mujoco.MjvCamera()
+        self.renderer = mujoco.Renderer(self.model, height=self.config.render_height, width=self.config.render_width)
+        self.viewer = mujoco.viewer.launch_passive(self.model, self.data) if self.config.show_viewer == True else None
 
-        if backend not in backend_mapping:
-            valid_backends = ", ".join(backend_mapping.keys())
-            raise ValueError(f"Invalid backend '{backend}'. Valid options are: {valid_backends}")
-    
-        gs.init(backend=backend_mapping[backend], logging_level="warn")
-
-        self.scene = gs.Scene(
-            vis_options = gs.options.VisOptions(
-                shadow = False,
-                lights = [
-                    {"type": "directional", "dir": (-1, -1, -1), "color": (1.0, 1.0, 1.0), "intensity": 1.5},
-                    {"type": "directional", "dir": (-1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 3.0},
-                    {"type": "directional", "dir": (1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 1.5}
-                ]
-            ),
-            show_viewer=show_viewer,
-        )
-
-        _plane = self.scene.add_entity(
-            gs.morphs.Plane(),
-        )
-
-        if arm_config is not None:
-            for name, config in arm_config.items():
-                if config.type == "mjcf":
-                    self.arms[name] = self.scene.add_entity(
-                        gs.morphs.MJCF(
-                            file = config.path,
-                            pos = config.pos,
-                        ),
-                    )
-                elif config.type == "urdf":
-                    self.arms[name] = self.scene.add_entity(
-                        gs.morphs.URDF(
-                            file = config.path,
-                            pos = config.pos,
-                        ),
-                    )
-                self.units[name] = config.unit
-
-        else:
-            if urdf_path is not None:
-                self.arm = self.scene.add_entity(
-                    gs.morphs.URDF(
-                        file = urdf_path,
-                        pos = (0, 0, 0),
-                        fixed = True,
-                    ),
-                )
-            elif mjcf_path is not None:
-                self.arm = self.scene.add_entity(
-                    gs.morphs.MJCF(
-                        file = mjcf_path,
-                    ),
-                )
-
-        self.cam = self.scene.add_camera(
-            res    = (1600, 1200),
-            pos    = (-0.5, -0.5, 0.5),
-            lookat = (0, 0, 0.1),
-            fov    = 60,
-            GUI    = False,
-        )
-
-        self.scene.build()
-
-        # self.arm.control_dofs_position(
-        #     np.zeros(self.arm.n_dofs),
-        # )
+        self.model.opt.timestep = config.timestep
+        mujoco.mjv_defaultCamera(self.cam)
+        
+        # Time tracking for simulation synchronization
+        self._last_update_time = None
+        self._max_steps_per_update = 10  # Limit steps to prevent freezing
 
     def update(self, action: dict[str, Any], prefix: str, suffix: str):
-        print("action:", action)
+        # Apply action to actuators
+        actuators_idx = [self.model.actuator(name.removeprefix(f"{prefix}").removesuffix(f"{suffix}")).id for name in action]
         
-        if self.arms is None:
-            goal_joint = [ val for _key, val in action.items()]
-
-            dofs_idx = [self.arm.get_joint(name.removeprefix(f"{prefix}").removesuffix(f"{suffix}")).dof_idx_local for name in action]
-            print("dofs_idx:", dofs_idx)
-
-            goal_joint_numpy = np.array(goal_joint, dtype=np.float32)
-            print("goal_joint_numpy:", goal_joint_numpy)
-
-
-            # 假设 goal_joint 是角度值，需要转换为弧度
-            goal_joint_degrees = np.array(goal_joint, dtype=np.float32)  # 角度值
-            print("原始角度值 (deg):", goal_joint_degrees)
-
-            # if 需要从角度转化弧度
-            # 转换为弧度
-            goal_joint_radians = goal_joint_degrees * (np.pi / 180.0)
-            print("转换为弧度 (rad):", goal_joint_radians)
-
-
-
-            self.arm.control_dofs_position(
-                goal_joint_radians,
-                dofs_idx,
-            )
+        goal_joint = list(action.values())
+        goal_joint_numpy = np.array(goal_joint, dtype=np.float32)
         
+        if self.config.from_unit == "deg":
+            goal_joint_radians = goal_joint_numpy * (np.pi / 180.0)
+        elif self.config.from_unit == "rad":
+            goal_joint_radians = goal_joint_numpy
+
+        if self.config.log_data == True:
+            logger.info(f"action: {action}"), 
+            logger.info(f"actuators_idx: {actuators_idx}")
+            logger.info(f"goal_joint_numpy: {goal_joint_numpy}")
+            logger.info(f"goal_joint_radians: {goal_joint_radians}")
+
+        for dof_id, joint_value in zip(actuators_idx, goal_joint_radians):
+            if dof_id >= 0:
+                self.data.ctrl[dof_id] = joint_value
+
+        # Time synchronization: execute multiple physics steps based on elapsed time
+        current_time = time.perf_counter()
+        
+        if self._last_update_time is None:
+            # First update, just do one step
+            steps_to_do = 1
+            self._last_update_time = current_time
         else:
-            for name, arm in self.arms.items():
-                goal_joint = [ val for _key, val in action.items()]
+            # Calculate elapsed time since last update
+            elapsed_time = current_time - self._last_update_time
+            self._last_update_time = current_time
+            
+            # Calculate how many physics steps we should have done
+            steps_to_do = int(elapsed_time / self.config.timestep)
+            
+            # Limit steps to prevent freezing if too much time has passed
+            if steps_to_do > self._max_steps_per_update:
+                logger.warning(
+                    f"Too many steps ({steps_to_do}) needed, limiting to {self._max_steps_per_update}. "
+                    f"Elapsed time: {elapsed_time:.3f}s, timestep: {self.config.timestep:.3f}s"
+                )
+                steps_to_do = self._max_steps_per_update
+            elif steps_to_do < 1:
+                # Not enough time has passed for even one step
+                steps_to_do = 1
 
-                dofs_idx = [self.arm.get_joint(name.removeprefix(f"{prefix}").removeprefix(f"{name}_").removesuffix(f"{suffix}")).dof_idx_local for name in action]
-                print("dofs_idx:", dofs_idx)
+        # Execute physics steps
+        for _ in range(steps_to_do):
+            mujoco.mj_step(self.model, self.data)
 
-                goal_joint_numpy = np.array(goal_joint, dtype=np.float32)
-                print("goal_joint_numpy:", goal_joint_numpy)
-
-                if self.units[name] == "rad":
-                    goal_joint_radians = np.array(goal_joint, dtype=np.float32)
-                    print("弧度值 (deg):", goal_joint_radians)
-
-                    self.arm.control_dofs_position(
-                        goal_joint_radians,
-                        dofs_idx,
-                    )
-
-                elif self.units[name] == "deg":
-                    goal_joint_degrees = np.array(goal_joint, dtype=np.float32)
-                    print("角度值 (deg):", goal_joint_degrees)
-                    goal_joint_radians = goal_joint_degrees * (np.pi / 180.0)
-                    print("弧度值 (rad):", goal_joint_radians)
-
-                    self.arm.control_dofs_position(
-                        goal_joint_radians,
-                        dofs_idx,
-                    )
-
-        self.scene.step()
-        rgb, _, _, _ = self.cam.render()
+        # Sync viewer and render
+        if self.viewer is not None:
+            self.viewer.sync()
+            
+        self.renderer.update_scene(self.data, self.cam)
+        rgb = self.renderer.render()
 
         return rgb
+    
+    def stop(self):
+        self.renderer.close()
+        if self.viewer is not None:
+            self.viewer.close()
