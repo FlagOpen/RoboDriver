@@ -30,6 +30,7 @@ dependencies = [
 
 [project.scripts]
 robodriver-run="robodriver.scripts.run:main"
+robodriver-visual="robodriver.scripts.visual:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
