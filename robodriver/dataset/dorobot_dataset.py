@@ -19,7 +19,7 @@ from huggingface_hub import HfApi, snapshot_download
 from huggingface_hub.constants import REPOCARD_NAME
 from huggingface_hub.errors import RevisionNotFoundError
 
-from robodriver.dataset.audio_writer import AsyncAudioWriter
+
 from robodriver.dataset.compute_stats import aggregate_stats, compute_episode_stats
 from robodriver.dataset.functions import check_version_compatibility, get_safe_version
 from robodriver.dataset.image_writer import AsyncImageWriter, write_image
@@ -1264,6 +1264,7 @@ class DoRobotDataset(torch.utils.data.Dataset):
     #     return self.root / fpath
 
     def start_audio_writer(self, microphones: dict[str, int]) -> None:
+        from robodriver.dataset.audio_writer import AsyncAudioWriter
         if isinstance(self.audio_writer, AsyncAudioWriter):
             logging.warning(
                 "You are starting a new AsyncAudioWriter that is replacing an already existing one in the dataset."
