@@ -40,38 +40,31 @@ class Simulator:
         mujoco.mjv_defaultCamera(self.cam)
 
     def update(self, action: dict[str, Any], prefix: str, suffix: str):
-        goal_joint = [ val for _key, val in action.items()]
-
         actuators_idx = [self.model.actuator(name.removeprefix(f"{prefix}").removesuffix(f"{suffix}")).id for name in action]
         
+        goal_joint = list(action.values())
         goal_joint_numpy = np.array(goal_joint, dtype=np.float32)
         
         if self.config.from_unit == "deg":
-            goal_joint_degrees = np.array(goal_joint, dtype=np.float32)  # 角度值
-            print("原始角度值 (deg):", goal_joint_degrees)
-
-            goal_joint_radians = goal_joint_degrees * (np.pi / 180.0)
-            print("转换为弧度 (rad):", goal_joint_radians)
-
+            goal_joint_radians = goal_joint_numpy * (np.pi / 180.0)
         elif self.config.from_unit == "rad":
-            goal_joint_radians = np.array(goal_joint, dtype=np.float32)  # 角度值
-            print("原始弧度值 (rad):", goal_joint_radians)
-
-        for j, dof_id in enumerate(actuators_idx):
-            if dof_id >= 0 and j < len(goal_joint_radians):
-                self.data.ctrl[dof_id] = goal_joint_radians[j]
-
-        mujoco.mj_step(self.model, self.data)
-
-        self.viewer.sync()
-
-        self.renderer.update_scene(self.data, self.cam)
-        rgb = self.renderer.render()
+            goal_joint_radians = goal_joint_numpy
 
         if self.config.log_data == True:
             logger.info(f"action: {action}"), 
             logger.info(f"actuators_idx: {actuators_idx}")
             logger.info(f"goal_joint_numpy: {goal_joint_numpy}")
+            logger.info(f"goal_joint_radians: {goal_joint_radians}")
+
+        for dof_id, joint_value in zip(actuators_idx, goal_joint_radians):
+            if dof_id >= 0:
+                self.data.ctrl[dof_id] = joint_value
+
+        mujoco.mj_step(self.model, self.data)
+
+        self.viewer.sync()
+        self.renderer.update_scene(self.data, self.cam)
+        rgb = self.renderer.render()
 
         return rgb
     
