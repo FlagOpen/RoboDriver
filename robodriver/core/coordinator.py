@@ -337,7 +337,7 @@ class Coordinator:
             # 发送响应
             response_data = {
                 "data": {
-                    "url": f"http://localhost:{RERUN_WEB_PORT}/?url=ws://localhost:{RERUN_WS_PORT}",
+                    "url": f"http://127.0.0.1:{RERUN_WEB_PORT}/?url=rerun%2Bhttp%3A%2F%2F127.0.0.1%3A{RERUN_WS_PORT}%2Fproxy",
                 },
             }
             await self.send_response("start_replay", "success", response_data)

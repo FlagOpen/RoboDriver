@@ -61,8 +61,6 @@ local$ rerun ws://localhost:9087
 
 """
 
-from __future__ import annotations
-
 import argparse
 import gc
 import logging

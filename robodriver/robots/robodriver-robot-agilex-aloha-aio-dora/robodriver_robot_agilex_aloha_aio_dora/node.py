@@ -46,20 +46,25 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
         self.thread = threading.Thread(target=self.dora_run, daemon=True)
         self.running = False
 
-        self.last_send_time = time.time()
+        # 使用字典记录不同事件类型的最后发送时间
+        self.last_send_times: Dict[str, float] = {}
 
     def dora_send(self, event_id, data):
         """线程安全的发送方法 - 只负责入队"""
         # logger.debug(f"{self} queue send event_id:{event_id}, value:{data}")
         try:
-            # 限制发送频率 (可选)
-            if time.time() - self.last_send_time < 0.005:  # 200Hz上限
+            # 限制发送频率 (可选) - 针对不同事件类型分别限制
+            current_time = time.time()
+            last_time = self.last_send_times.get(event_id, 0)
+            if current_time - last_time < 0.005:  # 200Hz上限
                 return
+            
             # 转换为列表确保类型安全
             data_list = [float(x) for x in data]
             self.send_queue.put_nowait((event_id, data_list))
 
-            self.last_send_time = time.time()
+            # 更新该事件类型的最后发送时间
+            self.last_send_times[event_id] = current_time
         except queue.Full:
             logger.warning(f"Send queue full! Dropping {event_id} event")
         except Exception as e:
