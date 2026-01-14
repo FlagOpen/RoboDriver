@@ -3,29 +3,36 @@
 [![README in English](https://img.shields.io/badge/English-d9d9d9)](./README_en.md)
 [![简体中文版自述文件](https://img.shields.io/badge/简体中文-d9d9d9)](./README.md)
 
-## 快速开始
 
-在开始前，请确保您已经完成 [RoboDriver文档/概览/安装与部署](https://flagopen.github.io/RoboDriver-Doc/docs/overview/installation/) 中的步骤。
+在开始前，请确保您已经完成 [RoboDriver文档/概览/安装与部署](https://flagopen.github.io/RoboDriver-Doc/docs/overview/installation/) 中的步骤或已完成RoboDriver仓库README中的 `快速入门` 。
 
 要启动使用 `Dora` 驱动的机器人，需要分别启动两套程序，分别是 `dora数据流` 和 `RoboDriver`。这两套程序默认运行在不同的环境中，为了使 `dora` 节点和其对应硬件的复杂依赖问题和 `RoboDriver` 本身解耦。当然，如果dora部分依赖足够简单，也可统一放到`RoboDriver`环境中。
 
-### 配置环境并启动 dora 数据流
+在首次部署Roboriver时，需要在机器上执行环境安装和硬件配置。
+
+## 环境安装
+
+### dora 数据流
 
 新建一个终端，且暂时不激活任何环境。
 
-检查您的系统中是否已经安装好 `dora-rs-cli`:
+检查您的系统中是否已经安装好 `dora-rs-cli-robodriver`:
 
-```
+```bash
 dora -V
 ```
 
 如果正常安装，您应该可以看到输出： 
 
-```
-dora-cli <版本号>
+```bash
+dora-cli 0.3.14
 ```
 
-如果没有，请参考 [RoboDriver文档/概览/安装与部署/推荐可选安装/dora](https://flagopen.github.io/RoboDriver-Doc/docs/overview/installation/#dora)
+如果没有，请参考 [RoboDriver文档/概览/安装与部署/推荐可选安装/dora](https://flagopen.github.io/RoboDriver-Doc/docs/overview/installation/#dora) 或直接安装：
+
+```bash
+pip install dora-rs-cli-robodriver
+```
 
 确保进入RoboDriver目录，如果已经进入就跳过：
 
@@ -37,13 +44,6 @@ cd RoboDriver/
 
 ```bash
 cd robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/
-```
-
-配置USB规则：
-
-```bash
-sudo bash ./scripts/install_udev_rules.sh
-sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 进入到 `dora/` 目录。
@@ -65,45 +65,39 @@ uv venv arm.venv
 dora build dataflow.yml --uv
 ```
 
-环境安装正确执行完成后，执行下一步 `硬件连接`。
+环境安装正确执行完成后，执行下一步环境安装。
 
-硬件连接需要先将所有硬件断开连接，再重新按顺序连接，从而获得正确的编号。
-
-1. 断开所有硬件USB连接。
-
-2. 连接三个 Orbbec 摄像头（顶部、右侧、左侧）：
-    - 确保摄像头已连接并通电
-    - 检查设备序列号与 dataflow.yml 中的配置匹配
-
-3. 连接 Piper 右臂 CAN 总线：
-    ```bash
-    sudo ip link set can_right up type can bitrate 1000000
-    ```
-
-4. 连接 Piper 左臂 CAN 总线：
-    ```bash
-    sudo ip link set can_left up type can bitrate 1000000
-    ```
-
-5. 检查 CAN 总线状态：
-    ```bash
-    ip -details link show can_right
-    ip -details link show can_left
-    ```
-
-启动 `dora` ：
-
-```
-dora up
-```
-
-启动 `dora` 数据流
+安装 `sb-pyorbbecsdk` :
 
 ```bash
-dora start dataflow.yml --uv
+git clone https://github.com/Ryu-Yang/sb-pyorbbecsdk.git
+cd sb-pyorbbecsdk
+uv venv -p 3.10
+source .venv/bin/activate
+uv pip install -r requirements.txt
+mkdir build
+cd build
+cmake -Dpybind11_DIR=`pybind11-config --cmakedir` ..
+make -j4
+make install
+deactivate
 ```
 
-### 配置环境并启动 RoboDriver
+根据硬件实际 `SN` 调整 `dataflow.yml` 文件:
+
+查看 `SN`
+
+```bash
+ls -al /dev/v4l/by-id
+```
+
+查看对应的摄像头来确定安装位置:
+
+```bash
+ffplay /dev/video0
+```
+
+### robodriver-robot-agilex-aloha-aio-dora
 
 新建一个终端，且暂时不激活任何环境。
 
@@ -131,10 +125,102 @@ cd robodriver/robots/robodriver-robot-agilex-aloha-aio-dora
 uv pip install -e .
 ```
 
-`RoboDriver` 部分启动命令如下:
+## 硬件配置
+
+新建终端并进入 `RoboDriver` 项目目录，如果已经进入就跳过：
 
 ```bash
-robodriver-run --robot.type=agilex_aloha_aio_dora
+cd RoboDriver/
+```
+
+进入到 `robodriver-robot-agilex-aloha-aio-dora/` 目录。
+
+```bash
+cd robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/
+```
+
+### 配置相机USB规则
+
+```bash
+sudo bash ./scripts/install_udev_rules.sh
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+### 机械臂CAN激活
+
+首先先将机械臂的CAN转USB接口从电脑拔出。然后先插入右臂的USB，然后运行。
+
+```bash
+sudo bash ./scripts/find_can_port.sh
+# 记住这里的编号
+```
+
+然后根据刚才的命令输出，修改 `./scripts/can_multi_activate.sh` 中第4行。
+
+```bash
+USB_PORTS["1-1:1.0"]="can_right:1000000"
+```
+
+然后插入左臂，再次按照上文操作。
+
+然后运行，`can_multi_activate.sh` 激活：
+
+```bash
+sudo bash can_multi_activate.sh
+```
+
+## 启动
+
+### dora 数据流
+
+新建终端并进入 `RoboDriver` 项目目录，如果已经进入就跳过：
+
+```bash
+cd RoboDriver/
+```
+
+不激活任何环境，如果激活了就退出：
+
+```bash
+deactivate # uv
+conda deactivate # conda
+```
+
+启动 `dora` ：
+
+```bash
+dora up
+```
+
+启动 `dora` 数据流
+
+```bash
+dora start robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/dora/dataflow.yml --uv
+```
+
+如果 `dora` 数据流在运行过程中出现了任何问题，或后续步骤不正常了，请关闭该程序后重新插拔硬件USB或重启后，再次运行上文的 `硬件配置` 后，再次尝试。
+
+### RoboDriver
+
+新建终端并进入 `RoboDriver` 项目目录，如果已经进入就跳过：
+
+```bash
+cd RoboDriver/
+```
+
+激活 `RoboDriver` 环境：
+
+```bash
+source .venv/bin/activate
+```
+
+运行：
+
+```bash
+robodriver-run \ 
+    --robot.type=agilex_aloha_aio_dora \ 
+    --sim.xml_path=descriptions/agilex_aloha/scene.xml \ 
+    --sim.from_unit=rad
 ```
 
 ## TODO

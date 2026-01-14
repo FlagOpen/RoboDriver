@@ -44,7 +44,34 @@ RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-D
 
 ## 快速入门
 
-请参考项目文档：[RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+详细请参考项目文档：[RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+
+快速安装：
+
+首先将 RoboDriver 项目代码clone下来，然后进入项目目录:
+
+```
+git clone https://github.com/FlagOpen/RoboDriver.git && cd RoboDriver
+```
+
+安装 `uv`，不要激活任何环境
+```
+pip install uv
+```
+
+安装项目:
+
+```
+uv pip install -e .
+```
+
+使用：
+```
+source .venv/bin/activate
+robodriver-run -h
+```
+
+要使用对应的机器人，请安装对应的机器人，并参考其文档完成部署和启动。路径：robodriver/robots/robodriver-robot-xxx-xxx-xxx/README.md
 
 ## 仿真示例
 
