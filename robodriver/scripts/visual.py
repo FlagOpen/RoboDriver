@@ -147,7 +147,7 @@ def visualize_dataset(
     # Manually call python garbage collector after `rr.init` to avoid hanging in a blocking flush
     # when iterating on a dataloader with `num_workers` > 0
     # TODO(rcadene): remove `gc.collect` when rerun version 0.16 is out, which includes a fix
-    gc.collect()
+    # gc.collect()
 
     try:
         if mode == "distant":
