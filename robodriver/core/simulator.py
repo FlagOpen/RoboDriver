@@ -45,6 +45,9 @@ class Simulator:
         self._max_steps_per_update = 10  # Limit steps to prevent freezing
 
     def update(self, action: dict[str, Any], prefix: str, suffix: str):
+        # Start timing the entire update function
+        update_start_time = time.perf_counter()
+        
         # Apply action to actuators
         actuators_idx = [self.model.actuator(name.removeprefix(f"{prefix}").removesuffix(f"{suffix}")).id for name in action]
         
@@ -92,16 +95,38 @@ class Simulator:
                 # Not enough time has passed for even one step
                 steps_to_do = 1
 
-        # Execute physics steps
+        # Execute physics steps with timing
+        mj_step_start_time = time.perf_counter()
         for _ in range(steps_to_do):
             mujoco.mj_step(self.model, self.data)
+        mj_step_end_time = time.perf_counter()
+        mj_step_duration = mj_step_end_time - mj_step_start_time
+        
+        if self.config.log_data == True:
+            logger.info(f"mj_step loop: {steps_to_do} steps took {mj_step_duration:.6f}s (avg {mj_step_duration/steps_to_do:.6f}s per step)")
 
-        # Sync viewer and render
+        # Sync viewer and render with timing
         if self.viewer is not None:
             self.viewer.sync()
             
+        update_scene_start_time = time.perf_counter()
         self.renderer.update_scene(self.data, self.cam)
+        update_scene_end_time = time.perf_counter()
+        update_scene_duration = update_scene_end_time - update_scene_start_time
+        
+        render_start_time = time.perf_counter()
         rgb = self.renderer.render()
+        render_end_time = time.perf_counter()
+        render_duration = render_end_time - render_start_time
+        
+        if self.config.log_data == True:
+            logger.info(f"update_scene took {update_scene_duration:.6f}s")
+            logger.info(f"render took {render_duration:.6f}s")
+        
+        update_end_time = time.perf_counter()
+        total_update_duration = update_end_time - update_start_time
+        if self.config.log_data == True:
+            logger.info(f"Total update function took {total_update_duration:.6f}s")
 
         return rgb
     
