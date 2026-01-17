@@ -3,6 +3,8 @@ import mujoco.viewer
 import logging_mp
 import numpy as np
 import time
+import threading
+import cv2
 
 from typing import Any
 from dataclasses import dataclass
@@ -19,6 +21,7 @@ class SimulatorConfig():
     render_width: int = 1600
     timestep: float = 0.01
     show_viewer: bool = False
+    show_local: bool = False
     log_data: bool = False
 
     def __post_init__(self):
@@ -26,6 +29,136 @@ class SimulatorConfig():
             raise ValueError(
                 f"from_unit only support \'deg\' or \'rad\' in sim"
             )
+
+class SimulationThread(threading.Thread):
+    def __init__(self, model, data, config, running_event, lock):
+        super().__init__()
+        self.model = model
+        self.data = data
+        self.config = config
+        self.running_event = running_event
+        self.lock = lock
+
+    def run(self):
+        while self.running_event.is_set():
+            with self.lock:
+                mujoco.mj_step(self.model, self.data)
+            time.sleep(self.model.opt.timestep)
+    
+    def stop(self):
+        """停止线程"""
+        self.running_event.clear()
+
+class ViewerRendererThread(threading.Thread):
+    """Viewer和Render线程类"""
+    
+    def __init__(self, model, data, config, running_event, lock):
+        """
+        初始化线程
+        
+        Args:
+            model: mujoco模型
+            data: mujoco数据
+            config: 配置参数
+            running_event: 运行事件 (threading.Event)
+            lock: 线程锁
+        """
+        super().__init__()
+        self.model = model
+        self.data = data
+        self.config = config
+        self.running_event = running_event
+        self.lock = lock
+        self.viewer = None
+        self.renderer = None
+        self.latest_image = None
+        self.image_lock = threading.Lock()
+        
+    def run(self):
+        """线程主函数"""
+        print("Viewer started in thread:", threading.current_thread().name)
+        print(f"show_viewer config: {self.config.show_viewer}")
+        
+        # 创建renderer
+        self.renderer = mujoco.Renderer(self.model, height=1200, width=1600)
+        
+        # 根据配置决定是否创建viewer
+        if self.config.show_viewer:
+            try:
+                print("Attempting to launch viewer...")
+                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                print("Viewer launched in passive mode")
+                if self.viewer is not None:
+                    print(f"Viewer is_running: {self.viewer.is_running()}")
+                else:
+                    print("Viewer is None after launch!")
+            except Exception as e:
+                print(f"Failed to launch viewer: {e}")
+                import traceback
+                traceback.print_exc()
+                self.viewer = None
+        
+        # 配置相机
+        cam = mujoco.MjvCamera()
+        mujoco.mjv_defaultCamera(cam)
+        
+        try:
+            iteration = 0
+            while self.running_event.is_set() and (self.viewer is None or self.viewer.is_running()):
+                iteration += 1
+                if iteration % 100 == 0:
+                    print(f"Viewer thread iteration {iteration}, viewer is None: {self.viewer is None}, is_running: {self.viewer.is_running() if self.viewer is not None else 'N/A'}")
+                
+                with self.lock:
+                    # 更新viewer显示
+                    if self.viewer is not None:
+                        self.viewer.sync()
+                    
+                    # 在同一线程中进行render操作
+                    self.renderer.update_scene(self.data, camera=cam)
+                    image = self.renderer.render()
+                    
+                    # 存储最新图像
+                    with self.image_lock:
+                        self.latest_image = image.copy() if image is not None else None
+                    
+                    # 显示渲染图像
+                    if image is not None and self.config.show_local == True:
+                        cv2.imshow('Render', image)
+                        cv2.waitKey(1)
+                
+                time.sleep(0.016)  # ~60Hz刷新率
+                
+        except KeyboardInterrupt:
+            print("Viewer thread interrupted")
+        except Exception as e:
+            print(f"Viewer thread error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            print("Viewer thread exiting, cleanup...")
+            self.cleanup()
+            
+    def cleanup(self):
+        """清理资源"""
+        print("Cleaning up viewer/renderer resources")
+        if self.viewer is not None:
+            self.viewer.close()
+        if self.renderer is not None:
+            # 注意：mujoco.Renderer没有close方法，可以设置为None
+            self.renderer = None
+        if  self.config.show_local == True:
+            cv2.destroyAllWindows()
+        
+    def stop(self):
+        """停止线程"""
+        self.running_event.clear()
+    
+    def get_latest_image(self):
+        """获取最新渲染图像"""
+        with self.image_lock:
+            return self.latest_image.copy() if self.latest_image is not None else None
+
     
 class Simulator:
     def __init__(self, config: SimulatorConfig):
@@ -33,22 +166,24 @@ class Simulator:
 
         self.model = mujoco.MjModel.from_xml_path(self.config.xml_path)
         self.data = mujoco.MjData(self.model)
-        self.cam = mujoco.MjvCamera()
-        self.renderer = mujoco.Renderer(self.model, height=self.config.render_height, width=self.config.render_width)
-        self.viewer = mujoco.viewer.launch_passive(self.model, self.data) if self.config.show_viewer == True else None
 
         self.model.opt.timestep = config.timestep
-        mujoco.mjv_defaultCamera(self.cam)
-        
-        # Time tracking for simulation synchronization
-        self._last_update_time = None
-        self._max_steps_per_update = 10  # Limit steps to prevent freezing
 
-    def update(self, action: dict[str, Any], prefix: str, suffix: str):
-        # Start timing the entire update function
-        update_start_time = time.perf_counter()
+        self.running_event = threading.Event()
+        self.lock = threading.Lock()
         
-        # Apply action to actuators
+        self.sim_thread = SimulationThread(self.model, self.data, self.config, self.running_event, self.lock)
+        self.view_thread = ViewerRendererThread(self.model, self.data, self.config, self.running_event, self.lock)
+        # self._last_update_time = None
+        # self._max_steps_per_update = 10  # Limit steps to prevent freezing
+
+    def start(self):
+        """启动模拟器线程"""
+        self.running_event.set()
+        self.sim_thread.start()
+        self.view_thread.start()
+
+    def send_action(self, action: dict[str, Any], prefix: str, suffix: str):
         actuators_idx = [self.model.actuator(name.removeprefix(f"{prefix}").removesuffix(f"{suffix}")).id for name in action]
         
         goal_joint = list(action.values())
@@ -67,70 +202,19 @@ class Simulator:
 
         for dof_id, joint_value in zip(actuators_idx, goal_joint_radians):
             if dof_id >= 0:
-                self.data.ctrl[dof_id] = joint_value
+                with self.lock:
+                    self.data.ctrl[dof_id] = joint_value
+    
+    def get_render_image(self):
+        """获取最新渲染图像"""
+        return self.view_thread.get_latest_image()
 
-        # Time synchronization: execute multiple physics steps based on elapsed time
-        current_time = time.perf_counter()
-        
-        if self._last_update_time is None:
-            # First update, just do one step
-            steps_to_do = 1
-            self._last_update_time = current_time
-        else:
-            # Calculate elapsed time since last update
-            elapsed_time = current_time - self._last_update_time
-            self._last_update_time = current_time
-            
-            # Calculate how many physics steps we should have done
-            steps_to_do = int(elapsed_time / self.config.timestep)
-            
-            # Limit steps to prevent freezing if too much time has passed
-            if steps_to_do > self._max_steps_per_update:
-                logger.warning(
-                    f"Too many steps ({steps_to_do}) needed, limiting to {self._max_steps_per_update}. "
-                    f"Elapsed time: {elapsed_time:.3f}s, timestep: {self.config.timestep:.3f}s"
-                )
-                steps_to_do = self._max_steps_per_update
-            elif steps_to_do < 1:
-                # Not enough time has passed for even one step
-                steps_to_do = 1
-
-        # Execute physics steps with timing
-        mj_step_start_time = time.perf_counter()
-        for _ in range(steps_to_do):
-            mujoco.mj_step(self.model, self.data)
-        mj_step_end_time = time.perf_counter()
-        mj_step_duration = mj_step_end_time - mj_step_start_time
-        
-        if self.config.log_data == True:
-            logger.info(f"mj_step loop: {steps_to_do} steps took {mj_step_duration:.6f}s (avg {mj_step_duration/steps_to_do:.6f}s per step)")
-
-        # Sync viewer and render with timing
-        if self.viewer is not None:
-            self.viewer.sync()
-            
-        update_scene_start_time = time.perf_counter()
-        self.renderer.update_scene(self.data, self.cam)
-        update_scene_end_time = time.perf_counter()
-        update_scene_duration = update_scene_end_time - update_scene_start_time
-        
-        render_start_time = time.perf_counter()
-        rgb = self.renderer.render()
-        render_end_time = time.perf_counter()
-        render_duration = render_end_time - render_start_time
-        
-        if self.config.log_data == True:
-            logger.info(f"update_scene took {update_scene_duration:.6f}s")
-            logger.info(f"render took {render_duration:.6f}s")
-        
-        update_end_time = time.perf_counter()
-        total_update_duration = update_end_time - update_start_time
-        if self.config.log_data == True:
-            logger.info(f"Total update function took {total_update_duration:.6f}s")
-
-        return rgb
     
     def stop(self):
-        self.renderer.close()
-        if self.viewer is not None:
-            self.viewer.close()
+        """停止模拟器线程"""
+        self.running_event.clear()
+        # 等待线程结束
+        if self.sim_thread.is_alive():
+            self.sim_thread.join(timeout=1.0)
+        if self.view_thread.is_alive():
+            self.view_thread.join(timeout=1.0)
