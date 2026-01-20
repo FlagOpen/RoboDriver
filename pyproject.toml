@@ -30,6 +30,7 @@ dependencies = [
 
 [project.scripts]
 robodriver-run="robodriver.scripts.run:main"
+robodriver-sim="robodriver.scripts.sim:main"
 robodriver-visual="robodriver.scripts.visual:main"
 
 [tool.setuptools.packages.find]
