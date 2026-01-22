@@ -24,7 +24,7 @@ OPTIMIZER_PARAM_GROUPS = "optimizer_param_groups.json"
 SCHEDULER_STATE = "scheduler_state.json"
 
 user_home = Path.home()
-ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "RoboDriver"))).expanduser().resolve()
+ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "DoRobot"))).expanduser().resolve()
 
 
 if "ROBODRIVER_HOME" not in os.environ:
