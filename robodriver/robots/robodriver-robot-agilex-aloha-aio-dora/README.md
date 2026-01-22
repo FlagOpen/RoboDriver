@@ -61,8 +61,16 @@ uv venv arm.venv
 
 通过 `dora` 自动安装依赖：
 
+如果是 Orbbec 相机：
+
 ```bash
 dora build dataflow.yml --uv
+```
+
+如果是 Realsense 相机：
+
+```bash
+dora build dataflow_realsense.yml --uv
 ```
 
 环境安装正确执行完成后，执行下一步环境安装。
@@ -194,8 +202,16 @@ dora up
 
 启动 `dora` 数据流
 
+如果是 Orbbec 相机：
+
 ```bash
 dora start robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/dora/dataflow.yml --uv
+```
+
+如果是 Realsense 相机：
+
+```bash
+dora start robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/dora/dataflow_realsense.yml --uv
 ```
 
 如果 `dora` 数据流在运行过程中出现了任何问题，或后续步骤不正常了，请关闭该程序后重新插拔硬件USB或重启后，再次运行上文的 `硬件配置` 后，再次尝试。
