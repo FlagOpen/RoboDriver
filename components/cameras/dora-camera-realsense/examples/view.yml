@@ -1,0 +1,15 @@
+nodes:
+  - id: camera
+    path: ../dora_camera_realsense/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+
+  - id: plot
+    path: opencv-plot
+    inputs:
+      image: 
+        source: camera/image
+        queue_size: 1

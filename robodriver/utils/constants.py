@@ -24,27 +24,26 @@ OPTIMIZER_PARAM_GROUPS = "optimizer_param_groups.json"
 SCHEDULER_STATE = "scheduler_state.json"
 
 user_home = Path.home()
-DOROBOT_HOME = Path(os.getenv("DOROBOT_HOME", str(user_home / "DoRobot"))).expanduser().resolve()
+ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "RoboDriver"))).expanduser().resolve()
 
 
-if "DOROBOT_HOME" not in os.environ:
+if "ROBODRIVER_HOME" not in os.environ:
     logging.info(
-        f"Environment variable 'DOROBOT_HOME' not set. Using default path: {DOROBOT_HOME}"
+        f"Environment variable 'ROBODRIVER_HOME' not set. Using default path: {ROBODRIVER_HOME}"
     )
 else:
-    logging.info(f"Environment variable 'DOROBOT_HOME' is set to: {DOROBOT_HOME}")
+    logging.info(f"Environment variable 'ROBODRIVER_HOME' is set to: {ROBODRIVER_HOME}")
 
-if not DOROBOT_HOME.exists():
-    try:
-        DOROBOT_HOME.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Directory ready: {DOROBOT_HOME}")
-    except PermissionError as e:
-        logging.error(f"Permission denied! Cannot create {DOROBOT_HOME}")
-        logging.error(f"Please check permissions for: {user_home}")
-        logging.error(f"Or set DOROBOT_HOME environment variable to a writable location")
-        raise
-    except Exception as e:
-        logging.error(f"Failed to create directory: {e}")
-        raise
+try:
+    ROBODRIVER_HOME.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Directory ready: {ROBODRIVER_HOME}")
+except PermissionError as e:
+    logging.error(f"Permission denied! Cannot create {ROBODRIVER_HOME}")
+    logging.error(f"Please check permissions for: {user_home}")
+    logging.error(f"Or set ROBODRIVER_HOME environment variable to a writable location")
+    raise
+except Exception as e:
+    logging.error(f"Failed to create directory: {e}")
+    raise
 
-DOROBOT_DATASET = DOROBOT_HOME / "dataset"
+DOROBOT_DATASET = ROBODRIVER_HOME / "dataset"
