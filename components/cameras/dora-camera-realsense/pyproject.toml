@@ -1,21 +1,34 @@
+[build-system]
+requires = ["uv>=0.1.0", "setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "dora-arm-realsense"
-version = "0.1.0"
+name = "dora-camera-realsense"
+version = "0.0.1"
 description = ""
 authors = [
+    {name = "Xiang Yang",email = "ryu-yang@qq.com"},
     {name = "Runtian Xu",email = "xuruntian03@163.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.9,<3.11"  
 dependencies = [
-    "dora-rs-cli (>=0.3.11,<0.4.0)",
+    "dora-rs (>=0.3.11,<0.4.0)",
     "opencv-python",
     "pyrealsense2",
+    "numpy"
 ]
 
-[tool.setuptools]
-packages = []
+[project.optional-dependencies]
+view = [
+    "dora-rs-cli",
+    "opencv-plot",
+]
 
-[build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+[project.scripts]
+dora-camera-realsense = "dora_camera_realsense.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dora_camera_realsense"]
+exclude = []
