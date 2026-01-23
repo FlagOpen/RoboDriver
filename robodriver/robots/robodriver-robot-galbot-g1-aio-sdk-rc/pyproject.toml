@@ -20,6 +20,7 @@ dependencies = [
     "numpy",
     "opencv-python",
     "websockets",
+    "protobuf==4.21",
 ]
 
 [tool.setuptools.packages.find]

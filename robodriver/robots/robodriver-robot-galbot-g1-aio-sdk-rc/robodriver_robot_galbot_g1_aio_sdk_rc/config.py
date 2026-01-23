@@ -17,7 +17,37 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
 
     leader_motors: Dict[str, Dict[str, Motor]] = field(
         default_factory = lambda norm_mode_body=norm_mode_body: {
+            "right_arm_joint1": Motor(1, "galbot-motor", norm_mode_body),
+            "right_arm_joint2": Motor(2, "galbot-motor", norm_mode_body),
+            "right_arm_joint3": Motor(3, "galbot-motor", norm_mode_body),
+            "right_arm_joint4": Motor(4, "galbot-motor", norm_mode_body),
+            "right_arm_joint5": Motor(5, "galbot-motor", norm_mode_body),
+            "right_arm_joint6": Motor(6, "galbot-motor", norm_mode_body),
+            "right_arm_joint7": Motor(7, "galbot-motor", norm_mode_body),
+            "right_arm_gripper": Motor(8, "galbot-gripper", MotorNormMode.RANGE_0_100),
 
+            "left_arm_joint1": Motor(9, "galbot-motor", norm_mode_body),
+            "left_arm_joint2": Motor(10, "galbot-motor", norm_mode_body),
+            "left_arm_joint3": Motor(11, "galbot-motor", norm_mode_body),
+            "left_arm_joint4": Motor(12, "galbot-motor", norm_mode_body),
+            "left_arm_joint5": Motor(13, "galbot-motor", norm_mode_body),
+            "left_arm_joint6": Motor(14, "galbot-motor", norm_mode_body),
+            "left_arm_joint7": Motor(15, "galbot-motor", norm_mode_body),
+            "left_arm_gripper": Motor(16, "galbot-gripper", MotorNormMode.RANGE_0_100),
+
+            "leg_joint1": Motor(17, "galbot-motor", norm_mode_body),
+            "leg_joint2": Motor(18, "galbot-motor", norm_mode_body),
+            "leg_joint3": Motor(19, "galbot-motor", norm_mode_body),
+            "leg_joint4": Motor(20, "galbot-motor", norm_mode_body),
+            "leg_joint5": Motor(21, "galbot-motor", norm_mode_body),
+
+            "head_joint1": Motor(22, "galbot-motor", norm_mode_body),
+            "head_joint2": Motor(23, "galbot-motor", norm_mode_body),
+
+            "chassis_pos1": Motor(24, "galbot-motor", norm_mode_body),
+            "chassis_pos2": Motor(25, "galbot-motor", norm_mode_body),
+            "chassis_pos3": Motor(26, "galbot-motor", norm_mode_body),
+            "chassis_pos4": Motor(27, "galbot-motor", norm_mode_body),
         }
     )
 
@@ -50,30 +80,34 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
             "head_joint1": Motor(22, "galbot-motor", norm_mode_body),
             "head_joint2": Motor(23, "galbot-motor", norm_mode_body),
             
+            "chassis_pos1": Motor(24, "galbot-motor", norm_mode_body),
+            "chassis_pos2": Motor(25, "galbot-motor", norm_mode_body),
+            "chassis_pos3": Motor(26, "galbot-motor", norm_mode_body),
+            "chassis_pos4": Motor(27, "galbot-motor", norm_mode_body),
         }
     )
 
     cameras: Dict[str, CameraConfig] = field(
         default_factory=lambda: {
-            "/front_head_camera/right_color/image_raw": OpenCVCameraConfig(
+            "image_head_right": OpenCVCameraConfig(
                 index_or_path=1,
                 fps=30,
                 width=640,
                 height=480,
             ),
-            "/front_head_camera/left_color/image_raw": OpenCVCameraConfig(
+            "image_head_left": OpenCVCameraConfig(
                 index_or_path=2,
                 fps=30,
                 width=640,
                 height=480,
             ),
-            "/right_arm_camera/color/image_raw": OpenCVCameraConfig(
+            "image_arm_right": OpenCVCameraConfig(
                 index_or_path=3,
                 fps=30,
                 width=640,
                 height=480,
             ),
-            "/left_arm_camera/color/image_raw": OpenCVCameraConfig(
+            "image_arm_left": OpenCVCameraConfig(
                 index_or_path=4,
                 fps=30,
                 width=640,

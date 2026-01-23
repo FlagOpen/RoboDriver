@@ -33,7 +33,7 @@ class GalbotG1AIOSDKRCRobot(Robot):
 
         self.connect_excluded_cameras = ["image_pika_pose"]
 
-        self.robot_node = GalbotG1AIOSDKRCRobotNode()
+        self.robot_node = GalbotG1AIOSDKRCRobotNode("127.0.0.1")
         self.robot_node.start()
 
         self.connected = False
@@ -228,19 +228,21 @@ class GalbotG1AIOSDKRCRobot(Robot):
 
         for i, motor in enumerate(self.follower_motors):
             if "arm" in motor and "right" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_right[i]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_right[i-1]
             elif "gripper" in motor and "right" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_gripper_right[0]
 
             elif "arm" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_left[i-8]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_left[i-9]
             elif "gripper" in motor and "left" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_gripper_left[0]
 
             elif "leg" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_leg[i-16]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_leg[i-17]
             elif "head" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_head[i-21]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_head[i-22]
+            elif "chassis" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_chassis[i-24]
             
 
         dt_ms = (time.perf_counter() - start) * 1e3
@@ -267,19 +269,22 @@ class GalbotG1AIOSDKRCRobot(Robot):
 
         for i, motor in enumerate(self.follower_motors):
             if "arm" in motor and "right" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_right[i]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_arm_right[i-1]
             elif "gripper" in motor and "right" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_gripper_right[0]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_gripper_right[0]
 
             elif "arm" in motor and "left" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_arm_left[i-8]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_arm_left[i-9]
             elif "gripper" in motor and "left" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_gripper_left[0]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_gripper_left[0]
 
             elif "leg" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_leg[i-16]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_leg[i-17]
             elif "head" in motor:
-                act_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_head[i-21]
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_head[i-22]
+
+            elif "chassis" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_chassis[i-24]
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f} ms")

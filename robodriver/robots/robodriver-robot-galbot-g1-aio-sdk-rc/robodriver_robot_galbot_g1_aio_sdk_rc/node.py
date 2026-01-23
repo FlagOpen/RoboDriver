@@ -16,7 +16,8 @@ import sys
 
 os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(current_dir, 'galbot'))
+# sys.path.append(os.path.join(current_dir, 'galbot'))
+sys.path.insert(0, current_dir)
 
 from galbot.core_proto import time_pb2, header_pb2
 from galbot.spatial_proto import twist_pb2, pose_pb2
@@ -210,7 +211,14 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
                     image = cv2.resize(image, (640, 480))
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     with self.image_lock:
-                        self.recv_images[topic] = image
+                        if "right" in topic and "head" in topic:
+                            self.recv_images["image_head_right"] = image
+                        elif "left" in topic and "head" in topic:
+                            self.recv_images["image_head_left"] = image
+                        elif "right" in topic and "arm" in topic:
+                            self.recv_images["image_arm_right"] = image
+                        elif "left" in topic and "arm" in topic:
+                            self.recv_images["image_arm_left"] = image
 
             # 处理传感器数据
             elif "singorix/wbcs/sensor" in topic:
@@ -239,16 +247,15 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
         """解析 SingoriXSensor 消息，提取并存储 arm 和 gripper 数据"""
         if not sensor_msg.joint_sensor_map:
             return
+        
+        # logger.info(f"{sensor_msg.joint_sensor_map}")
 
         with self.state_lock:
             for group_name, joint_sensor in sensor_msg.joint_sensor_map.items():
-                n = len(joint_sensor.name)
-                if n == 0:
+                if not joint_sensor.name:
                     continue
 
-                joint_data = [n]
-                for i in range(n):
-                    joint_data[i] =  joint_sensor.position[i]
+                joint_data = list(joint_sensor.position)
 
                 if group_name == "right_arm":
                     self.recv_follower_arm_right = joint_data
@@ -262,6 +269,10 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
                     self.recv_follower_leg = joint_data
                 elif group_name == "head":
                     self.recv_follower_head = joint_data
+                elif group_name == "chassis":
+                    self.recv_follower_chassis = joint_data
+
+                # logger.info(f"Group: {group_name}, Data: {joint_data}")
 
     def shutdown(self):
         """关闭连接"""
