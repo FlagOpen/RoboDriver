@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver-robot-galbot-g1-aio-sdk-rc"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    {name = "Xiang Yang", email = "yangxiang@baai.ac.cn"},
+    {name = "Lei Zhang", email = "a1255796679@163.com"}
+]
+keywords = ["robotics", "lerobot", "galbot_aio_ros2"]
+
+
+dependencies = [
+    "logging_mp",
+    "numpy",
+    "opencv-python",
+    "websockets",
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_robot_galbot_g1_aio_sdk_rc",
+    "lerobot_robot_galbot_g1_aio_sdk_rc"
+]
