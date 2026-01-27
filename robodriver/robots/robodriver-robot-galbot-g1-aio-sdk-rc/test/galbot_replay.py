@@ -119,8 +119,14 @@ class FourOmniWheelKinematics:
     """
     四轮万向轮底盘运动学
     用于从四个轮子的速度计算机器人本体的运动速度
-    """
     
+    轮子顺序固定为：
+        0: 左前 (Front-Left, FL)
+        1: 右前 (Front-Right, FR)
+        2: 右后 (Rear-Right, RR)
+        3: 左后 (Rear-Left, RL)
+    """
+
     def __init__(self, layout_type='x45', L=0.2, W=0.2):
         """
         初始化运动学参数
@@ -129,146 +135,149 @@ class FourOmniWheelKinematics:
             layout_type: 布局类型
                 - 'x45': X型45°布局（最常见）
                 - 'plus': +型布局（前后左右）
-                - 'custom': 自定义布局
+                - 'custom': 自定义布局（需后续手动设置 wheel_directions）
             L: 底盘长度的一半（前后方向，单位：米）
             W: 底盘宽度的一半（左右方向，单位：米）
         """
-        self.L = L  # 前后方向半长
-        self.W = W  # 左右方向半宽
-        
+        self.L = L  # 前后方向半长（从中心到前/后轮轴）
+        self.W = W  # 左右方向半宽（从中心到左/右轮轴）
+
         # 轮子位置（机器人坐标系：X向前，Y向左）
-        # 轮子编号：1-右前，2-左前，3-左后，4-右后
+        # 顺序：[左前, 右前, 右后, 左后]
         self.wheel_positions = np.array([
-            [L, -W],   # 轮子1: 右前
-            [L, W],    # 轮子2: 左前
-            [-L, W],   # 轮子3: 左后
-            [-L, -W]   # 轮子4: 右后
+            [ L,  W],   # 0: 左前 (FL)
+            [ L, -W],   # 1: 右前 (FR)
+            [-L, -W],   # 2: 右后 (RR)
+            [-L,  W]    # 3: 左后 (RL)
         ])
-        
-        # 根据布局类型设置轮子滚动方向
+
+        # 根据布局类型设置轮子滚动方向（单位向量，指向自由滚动方向）
         if layout_type == 'x45':
-            # X型45°布局：轮子滚动方向与底盘轴线成45°
-            # 轮子方向单位向量（指向轮子自由滚动方向）
+            s = np.sqrt(2) / 2
             self.wheel_directions = np.array([
-                [np.sqrt(2)/2, -np.sqrt(2)/2],   # 右前: 45°方向
-                [np.sqrt(2)/2, np.sqrt(2)/2],    # 左前: 135°方向
-                [-np.sqrt(2)/2, np.sqrt(2)/2],   # 左后: 225°方向
-                [-np.sqrt(2)/2, -np.sqrt(2)/2]   # 右后: 315°方向
+                [-s,  s],   # 左前:（X负，Y正）
+                [ s,  s],   # 右前:（X正，Y正）
+                [ s, -s],   # 右后:（X正，Y负）
+                [-s, -s]    # 左后:（X负，Y负）
             ])
-            
         elif layout_type == 'plus':
-            # +型布局：每个轮子正对前后左右方向
             self.wheel_directions = np.array([
-                [0, -1],   # 右前: 向左滚动
-                [1, 0],    # 左前: 向前滚动
-                [0, 1],    # 左后: 向右滚动
-                [-1, 0]    # 右后: 向后滚动
+                [1, 0],     # 左前: 向前滚动（+X）
+                [0, -1],    # 右前: 向左滚动（-Y）
+                [-1, 0],    # 右后: 向后滚动（-X）
+                [0, 1]      # 左后: 向右滚动（+Y）
             ])
-            
         elif layout_type == 'custom':
-            # 自定义布局 - 需要后续设置
-            self.wheel_directions = None
-            
+            self.wheel_directions = None  # 需外部设置
         else:
             raise ValueError(f"未知的布局类型: {layout_type}")
-        
-        # 计算运动学矩阵J和它的伪逆
+
+        # 计算运动学雅可比矩阵 J 和其伪逆
         self.J = self._calculate_jacobian()
-        self.J_pinv = np.linalg.pinv(self.J)  # 伪逆
-        
+        self.J_pinv = np.linalg.pinv(self.J)
+
     def _calculate_jacobian(self):
-        """
-        计算运动学雅可比矩阵J
-        v_wheel = J * [vx, vy, omega]^T
-        """
+        """计算运动学雅可比矩阵 J，满足 v_wheel = J @ [vx, vy, omega]^T"""
+        if self.wheel_directions is None:
+            # 对于 custom 布局，暂时用零向量（用户应自行设置后重建）
+            directions = np.zeros((4, 2))
+        else:
+            directions = self.wheel_directions
+
         J = np.zeros((4, 3))
-        
         for i in range(4):
-            # 轮子位置
             rx, ry = self.wheel_positions[i]
-            # 轮子方向
-            dx, dy = self.wheel_directions[i]
-            
-            # 前三列对应vx, vy, omega
-            J[i, 0] = dx  # vx系数
-            J[i, 1] = dy  # vy系数
-            J[i, 2] = dy * rx - dx * ry  # omega系数
-            
+            dx, dy = directions[i]
+            J[i, 0] = dx                    # vx 分量
+            J[i, 1] = dy                    # vy 分量
+            J[i, 2] = dy * rx - dx * ry     # omega 分量（绕Z轴）
         return J
-    
+
     def wheels_to_chassis(self, wheel_speeds):
         """
-        从四个轮子的速度计算底盘运动速度
+        正运动学：由轮速计算底盘速度
         
         Args:
-            wheel_speeds: 四个轮子的速度数组 [v1, v2, v3, v4]
-                          v1: 右前轮，v2: 左前轮，v3: 左后轮，v4: 右后轮
-                          正值表示沿着轮子滚动方向运动
-                          
+            wheel_speeds: [v_fl, v_fr, v_rr, v_rl]
+                v_fl: 左前轮速度
+                v_fr: 右前轮速度
+                v_rr: 右后轮速度
+                v_rl: 左后轮速度
+                （正值表示沿 wheel_directions 定义的方向运动）
+        
         Returns:
-            chassis_velocity: [vx, vy, omega]
-                vx: 机器人前进速度 (m/s)
-                vy: 机器人横向速度 (m/s)
-                omega: 机器人旋转角速度 (rad/s)，逆时针为正
+            [vx, vy, omega]: 机器人在本体坐标系下的速度
+                vx: 前进速度 (m/s)
+                vy: 横向速度 (m/s)，向左为正
+                omega: 角速度 (rad/s)，逆时针为正
         """
-        wheel_speeds = np.array(wheel_speeds).flatten()
-        
-        if len(wheel_speeds) != 4:
-            raise ValueError("轮子速度数组必须是4个元素")
-        
-        # 使用伪逆计算底盘速度
-        chassis_velocity = self.J_pinv @ wheel_speeds
-        
-        return chassis_velocity
-    
+        wheel_speeds = np.asarray(wheel_speeds).flatten()
+        if wheel_speeds.size != 4:
+            raise ValueError("wheel_speeds 必须包含4个元素：[左前, 右前, 右后, 左后]")
+        return self.J_pinv @ wheel_speeds
+
     def chassis_to_wheels(self, vx, vy, omega):
         """
-        从底盘速度计算四个轮子应有的速度（逆运动学）
+        逆运动学：由底盘速度计算所需轮速
         
         Args:
-            vx: 机器人前进速度 (m/s)
-            vy: 机器人横向速度 (m/s)
-            omega: 机器人旋转角速度 (rad/s)
-            
+            vx: 前进速度 (m/s)
+            vy: 横向速度 (m/s)
+            omega: 角速度 (rad/s)
+        
         Returns:
-            wheel_speeds: 四个轮子应有的速度 [v1, v2, v3, v4]
+            [v_fl, v_fr, v_rr, v_rl]: 四个轮子的目标速度
         """
-        chassis_velocity = np.array([vx, vy, omega])
-        wheel_speeds = self.J @ chassis_velocity
+        chassis_vel = np.array([vx, vy, omega])
+        return self.J @ chassis_vel
+
+    def set_custom_directions(self, directions):
+        """
+        为 'custom' 布局设置轮子方向（必须按 [FL, FR, RR, RL] 顺序）
         
-        return wheel_speeds
-    
+        Args:
+            directions: shape (4, 2) 的数组，每行为 [dx, dy] 单位向量
+        """
+        directions = np.asarray(directions)
+        if directions.shape != (4, 2):
+            raise ValueError("directions 必须是 (4, 2) 形状的数组")
+        self.wheel_directions = directions
+        self.J = self._calculate_jacobian()
+        self.J_pinv = np.linalg.pinv(self.J)
+
     def get_condition_number(self):
-        """
-        获取运动学矩阵的条件数
-        条件数越小，数值稳定性越好
-        """
-        cond = np.linalg.cond(self.J)
-        return cond
-    
+        """返回运动学矩阵 J 的条件数（越小越好）"""
+        return np.linalg.cond(self.J)
+
     def print_configuration(self):
-        """打印当前配置信息"""
-        print("四轮万向轮运动学配置:")
-        print(f"底盘尺寸: L={self.L:.3f}m, W={self.W:.3f}m")
-        print("\n轮子位置 (机器人坐标系，X向前，Y向左):")
+        """打印当前运动学配置"""
+        print("四轮万向轮运动学配置")
+        print(f"布局类型: {self.layout_type if hasattr(self, 'layout_type') else 'custom'}")
+        print(f"底盘尺寸: L={self.L:.3f} m, W={self.W:.3f} m")
+        print("\n轮子顺序: [0]左前(FL), [1]右前(FR), [2]右后(RR), [3]左后(RL)")
+        print("\n轮子位置 (X向前, Y向左):")
+        names = ["左前", "右前", "右后", "左后"]
         for i in range(4):
-            print(f"  轮子{i+1}: ({self.wheel_positions[i, 0]:.3f}, {self.wheel_positions[i, 1]:.3f}) m")
-        
-        print("\n轮子滚动方向 (单位向量):")
-        for i in range(4):
-            print(f"  轮子{i+1}: [{self.wheel_directions[i, 0]:.3f}, {self.wheel_directions[i, 1]:.3f}]")
-        
+            x, y = self.wheel_positions[i]
+            print(f"  [{i}] {names[i]}: ({x:+.3f}, {y:+.3f}) m")
+
+        if self.wheel_directions is not None:
+            print("\n轮子滚动方向 (单位向量):")
+            for i in range(4):
+                dx, dy = self.wheel_directions[i]
+                print(f"  [{i}] {names[i]}: [{dx:+.3f}, {dy:+.3f}]")
+        else:
+            print("\n轮子滚动方向: 未设置 (custom 模式)")
+
         print("\n运动学矩阵 J (4x3):")
         print(self.J)
-        
         print(f"\n条件数: {self.get_condition_number():.3f}")
-        
-        # 验证可逆性
-        JtJ = self.J.T @ self.J
-        det = np.linalg.det(JtJ)
-        print(f"J^T*J的行列式: {det:.6f}")
-        if abs(det) < 1e-10:
-            print("警告: J^T*J接近奇异，运动学可能不稳定")
+
+        # 检查数值稳定性
+        det_val = np.linalg.det(self.J.T @ self.J)
+        print(f"JᵀJ 行列式: {det_val:.6e}")
+        if abs(det_val) < 1e-10:
+            print("⚠️ 警告: JᵀJ 接近奇异，运动学可能不稳定！")
 
 
 class ChassisController:
@@ -389,108 +398,260 @@ class ChassisController:
             logger.warning(f"发送底盘速度命令时出错: {e}")
 
 
+# def replay_parquet(
+#     parquet_path: str,
+#     gripper_scale: float = 100.0,
+#     chassis_control: bool = False,
+# ) -> None:
+#     """
+#     从 parquet 文件回放机器人动作
+    
+#     Args:
+#         parquet_path: parquet 文件路径
+#         gripper_scale: 夹爪缩放比例
+#         chassis_control: 是否控制底盘速度
+#     """
+#     logger.info(f"开始回放文件: {parquet_path}")
+#     logger.info(f"gripper_scale={gripper_scale}, chassis_control={chassis_control}")
+    
+#     # 初始化机器人
+#     robot = GalbotRobot.get_instance()
+#     robot.init()
+#     time.sleep(1.0)
+#     logger.info("机器人初始化完成")
+    
+#     # 读取数据
+#     df = pd.read_parquet(parquet_path)
+#     logger.info(f"读取到 {len(df)} 条记录")
+    
+#     # 创建运动学对象（用于底盘速度计算）
+#     chassis_controller = None
+#     if chassis_control:
+#         kin = FourOmniWheelKinematics(layout_type='x45', L=0.4, W=0.4)
+#         kin.print_configuration()
+        
+#         # 收集底盘速度数据
+#         velocity_data = []
+    
+#     # 构建轨迹
+#     traj = Trajectory()
+#     traj.joint_groups = ["leg", "head", "left_arm", "right_arm", "left_gripper", "right_gripper"]
+#     traj.joint_names = []
+    
+#     points = []
+    
+#     for i, row in df.iterrows():
+#         try:
+#             # 转换动作数据
+#             action = to_list(row["action"])
+#             parts = split_action_31(action)
+            
+#             # 计算时间戳
+#             timestamp = float(row["timestamp"])
+            
+#             # 生成轨迹点
+#             trajectory_point = generate_trajectory_point(parts, timestamp, gripper_scale)
+#             points.append(trajectory_point)
+            
+#             # 收集底盘速度数据（如果启用）
+#             if chassis_control:
+#                 # 计算底盘速度
+#                 chassis_vel = kin.wheels_to_chassis(parts["chassis_vel"])
+#                 velocity_data.append((timestamp, chassis_vel.tolist() if hasattr(chassis_vel, 'tolist') else chassis_vel))
+                
+#                 if i % 10 == 0:
+#                     logger.debug(f"时间 {timestamp:.3f}s: 底盘速度 vx={chassis_vel[0]:.3f}, "
+#                                f"vy={chassis_vel[1]:.3f}, omega={chassis_vel[2]:.3f}")
+            
+#             if i % 10 == 0:
+#                 logger.info(f"已处理 {i+1}/{len(df)} 条记录")
+                
+#         except Exception as e:
+#             logger.error(f"处理第 {i} 条记录时出错: {e}")
+#             continue
+    
+#     # 设置轨迹点
+#     traj.points = points
+#     logger.info(f"轨迹构建完成，共 {len(traj.points)} 个点")
+    
+#     # 创建底盘控制器（如果启用）
+#     if chassis_control and velocity_data:
+#         chassis_controller = ChassisController(robot, velocity_data)
+    
+#     # 执行轨迹
+#     logger.info("开始执行关节轨迹...")
+#     try:
+#         # 如果启用了底盘控制，先启动底盘控制器
+#         if chassis_controller:
+#             trajectory_start_time = time.time()
+#             chassis_controller.start(trajectory_start_time)
+            
+#         # 执行关节轨迹（阻塞调用）
+#         robot.execute_joint_trajectory(traj, False)
+#         logger.info("关节轨迹执行完成")
+        
+#     except Exception as e:
+#         logger.error(f"执行关节轨迹时出错: {e}")
+        
+#     finally:
+#         # 无论成功与否，都停止底盘控制器
+#         if chassis_controller:
+#             chassis_controller.stop()
+    
+#     logger.info("[replay] 回放完成")
+
+
 def replay_parquet(
     parquet_path: str,
     gripper_scale: float = 100.0,
     chassis_control: bool = False,
 ) -> None:
-    """
-    从 parquet 文件回放机器人动作
-    
-    Args:
-        parquet_path: parquet 文件路径
-        gripper_scale: 夹爪缩放比例
-        chassis_control: 是否控制底盘速度
-    """
     logger.info(f"开始回放文件: {parquet_path}")
-    logger.info(f"gripper_scale={gripper_scale}, chassis_control={chassis_control}")
     
     # 初始化机器人
     robot = GalbotRobot.get_instance()
     robot.init()
-    time.sleep(1.0)
+    time.sleep(1.5)  # 增加初始化等待时间
     logger.info("机器人初始化完成")
     
     # 读取数据
     df = pd.read_parquet(parquet_path)
     logger.info(f"读取到 {len(df)} 条记录")
     
-    # 创建运动学对象（用于底盘速度计算）
-    chassis_controller = None
+    # 初始化运动学（仅当需要底盘控制时）
+    kin = None
     if chassis_control:
-        kin = FourOmniWheelKinematics(layout_type='x45', L=0.4, W=0.4)
+        kin = FourOmniWheelKinematics(layout_type='x45', L=0.2, W=0.2)
         kin.print_configuration()
-        
-        # 收集底盘速度数据
-        velocity_data = []
     
-    # 构建轨迹
+    # 构建轨迹点 + 底盘速度数据（同步存储）
     traj = Trajectory()
     traj.joint_groups = ["leg", "head", "left_arm", "right_arm", "left_gripper", "right_gripper"]
-    traj.joint_names = []
+    traj.points = []
     
-    points = []
+    chassis_velocities = []  # 同步存储底盘速度 [timestamp, vx, vy, omega]
     
     for i, row in df.iterrows():
         try:
-            # 转换动作数据
             action = to_list(row["action"])
             parts = split_action_31(action)
-            
-            # 计算时间戳
             timestamp = float(row["timestamp"])
             
             # 生成轨迹点
-            trajectory_point = generate_trajectory_point(parts, timestamp, gripper_scale)
-            points.append(trajectory_point)
+            traj.points.append(generate_trajectory_point(parts, timestamp, gripper_scale))
             
-            # 收集底盘速度数据（如果启用）
-            if chassis_control:
-                # 计算底盘速度
-                chassis_vel = kin.wheels_to_chassis(parts["chassis_vel"])
-                velocity_data.append((timestamp, chassis_vel.tolist() if hasattr(chassis_vel, 'tolist') else chassis_vel))
+            # 计算并验证底盘速度
+            if chassis_control and kin:
+                wheel_speeds = parts["chassis_vel"]
+                chassis_vel = kin.wheels_to_chassis(wheel_speeds)
                 
-                if i % 100 == 0:
-                    logger.debug(f"时间 {timestamp:.3f}s: 底盘速度 vx={chassis_vel[0]:.3f}, "
-                               f"vy={chassis_vel[1]:.3f}, omega={chassis_vel[2]:.3f}")
+                # 严格验证速度有效性
+                if np.any(np.isnan(chassis_vel)) or np.any(np.isinf(chassis_vel)):
+                    logger.warning(f"时间 {timestamp:.3f}s: 检测到无效底盘速度 {chassis_vel}，使用零速度替代")
+                    chassis_vel = np.zeros(3)
+                
+                # 限制速度范围（防止过大值）
+                max_speed = 2.0  # m/s
+                max_omega = 3.0  # rad/s
+                chassis_vel = np.clip(chassis_vel, [-max_speed, -max_speed, -max_omega], 
+                                     [max_speed, max_speed, max_omega])
+                
+                chassis_velocities.append((timestamp, chassis_vel.tolist()))
             
-            if i % 100 == 0:
+            if i % 20 == 0:
                 logger.info(f"已处理 {i+1}/{len(df)} 条记录")
                 
         except Exception as e:
-            logger.error(f"处理第 {i} 条记录时出错: {e}")
+            logger.error(f"处理第 {i} 条记录时出错: {e}", exc_info=True)
             continue
     
-    # 设置轨迹点
-    traj.points = points
     logger.info(f"轨迹构建完成，共 {len(traj.points)} 个点")
     
-    # 创建底盘控制器（如果启用）
-    if chassis_control and velocity_data:
-        chassis_controller = ChassisController(robot, velocity_data)
+    # ===== 单线程同步执行方案（关键改进）=====
+    logger.info("开始同步执行关节轨迹和底盘控制...")
     
-    # 执行轨迹
-    logger.info("开始执行关节轨迹...")
     try:
-        # 如果启用了底盘控制，先启动底盘控制器
-        if chassis_controller:
-            trajectory_start_time = time.time()
-            chassis_controller.start(trajectory_start_time)
+        # 先发送零速度确保安全
+        if chassis_control and chassis_velocities:
+            _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+            time.sleep(0.1)
+        
+        # 使用 monotonic 时间确保时间单调递增
+        start_time = time.monotonic()
+        chassis_idx = 0
+        # total_points = len(traj.points)
+        
+        # 执行轨迹（非阻塞模式）+ 同步底盘控制
+        robot.execute_joint_trajectory(traj, is_blocking=False)
+        
+        # 主循环：同步发送底盘速度
+        while chassis_idx < len(chassis_velocities):
+            current_time = time.monotonic() - start_time
+            target_time, velocity = chassis_velocities[chassis_idx]
             
-        # 执行关节轨迹（阻塞调用）
-        robot.execute_joint_trajectory(traj, False)
+            # 当到达目标时间点时发送速度
+            if current_time >= target_time:
+                _safe_set_base_velocity(robot, velocity)
+                chassis_idx += 1
+            
+            time.sleep(0.005)  # 5ms 控制周期
+        
         logger.info("关节轨迹执行完成")
         
     except Exception as e:
-        logger.error(f"执行关节轨迹时出错: {e}")
-        
+        logger.error(f"执行过程中出错: {e}", exc_info=True)
+        # 尝试安全停止
+        try:
+            if chassis_control:
+                _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+        except:
+            pass
+    
     finally:
-        # 无论成功与否，都停止底盘控制器
-        if chassis_controller:
-            chassis_controller.stop()
+        # 确保底盘停止
+        if chassis_control:
+            _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+            time.sleep(0.2)
     
     logger.info("[replay] 回放完成")
 
+
+def _safe_set_base_velocity(robot: GalbotRobot, velocity: List[float]):
+    """安全发送底盘速度命令（带参数验证）"""
+    # 验证输入
+    if not isinstance(velocity, (list, tuple)) or len(velocity) != 3:
+        logger.warning(f"无效速度向量（长度错误）: {velocity}")
+        return False
+    
+    # 检查 NaN/Inf
+    if any(np.isnan(v) or np.isinf(v) for v in velocity):
+        logger.warning(f"速度包含无效值: {velocity}")
+        return False
+    
+    # 限制合理范围
+    velocity = [
+        np.clip(velocity[0], -2.0, 2.0),
+        np.clip(velocity[1], -2.0, 2.0),
+        np.clip(velocity[2], -3.0, 3.0)
+    ]
+    
+    try:
+        linear = [velocity[0], velocity[1], 0.0]
+        angular = [0.0, 0.0, velocity[2]]
+        
+        # 再次验证计算结果
+        if any(np.isnan(v) or np.isinf(v) for v in linear + angular):
+            logger.warning(f"计算出的速度命令包含无效值: {linear}, {angular}")
+            return False
+        
+        status = robot.set_base_velocity(linear, angular)
+        if status != ControlStatus.SUCCESS:
+            logger.debug(f"设置底盘速度警告，状态: {status}")
+        return status == ControlStatus.SUCCESS
+        
+    except Exception as e:
+        logger.warning(f"发送底盘速度时异常: {e}")
+        return False
 
 def main() -> None:
     """主函数"""
