@@ -527,7 +527,8 @@ def replay_parquet(
     # 构建轨迹点 + 底盘速度数据（同步存储）
     traj = Trajectory()
     traj.joint_groups = ["leg", "head", "left_arm", "right_arm", "left_gripper", "right_gripper"]
-    traj.points = []
+    # traj.points = []
+    point_list=[]
     
     chassis_velocities = []  # 同步存储底盘速度 [timestamp, vx, vy, omega]
     
@@ -538,7 +539,7 @@ def replay_parquet(
             timestamp = float(row["timestamp"])
             
             # 生成轨迹点
-            traj.points.append(generate_trajectory_point(parts, timestamp, gripper_scale))
+            point_list.append(generate_trajectory_point(parts, timestamp, gripper_scale))
             
             # 计算并验证底盘速度
             if chassis_control and kin:
@@ -564,6 +565,8 @@ def replay_parquet(
         except Exception as e:
             logger.error(f"处理第 {i} 条记录时出错: {e}", exc_info=True)
             continue
+
+    traj.points = point_list
     
     logger.info(f"轨迹构建完成，共 {len(traj.points)} 个点")
     
