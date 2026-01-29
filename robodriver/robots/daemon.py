@@ -58,7 +58,7 @@ def log_control_info(
 
 
 class Daemon:
-    def __init__(self, fps: int | None = None):
+    def __init__(self, config: RobotConfig, fps: int | None = None):
         self.fps = fps
 
         self.running = True
@@ -69,7 +69,14 @@ class Daemon:
         self.observation: Union[Any, Dict[str, Any]] = None
         self.status: Optional[str] = None
 
-        self.robot = None
+        try:
+            self.robot = make_robot_from_config(config)
+        except Exception as e:
+            logger.critical(f"Failed to create robot: {e}")
+            raise
+
+        logger.info("Make robot success")
+        logger.info(f"robot.type: {self.robot.robot_type}")
 
     @property
     def cameras_info(self):
@@ -81,16 +88,7 @@ class Daemon:
                 cameras[name] = camera.index_or_path
         return cameras
 
-    def start(self, config: RobotConfig):
-        try:
-            self.robot = make_robot_from_config(config)
-        except Exception as e:
-            logger.critical(f"Failed to create robot: {e}")
-            raise
-
-        logger.info("Make robot success")
-        logger.info(f"robot.type: {self.robot.robot_type}")
-
+    def start(self):
         if not self.robot.is_connected:
             self.robot.connect()
         logger.info("Connect robot success")

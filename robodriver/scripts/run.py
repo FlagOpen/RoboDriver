@@ -60,8 +60,7 @@ async def async_main(cfg: ControlPipelineConfig):
     if teleop is not None:
         teleop.connect()
 
-    daemon = Daemon(fps=DEFAULT_FPS)
-    daemon.start(cfg.robot)
+    daemon = Daemon(cfg.robot, fps=DEFAULT_FPS)
 
     monitor = Monitor(daemon)
     monitor.start()
@@ -80,6 +79,8 @@ async def async_main(cfg: ControlPipelineConfig):
         ros2_manager.add_node(teleop.get_node())
     if "ros2" in cfg.robot.type or "ros2" in cfg.teleop.type:
         ros2_manager.start()
+    
+    daemon.start()
         
     try:
         while True:
