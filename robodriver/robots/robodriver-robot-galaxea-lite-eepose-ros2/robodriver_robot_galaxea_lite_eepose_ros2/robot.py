@@ -39,7 +39,7 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
         self.status = GalaxeaLiteEEposeROS2RobotStatus()
 
         self.robot_ros2_node = GalaxeaLiteEEposeROS2RobotNode()  # 创建节点实例
-        self.robot_ros2_node.start()
+        # self.robot_ros2_node.start()
 
         self.connected = False
         self.logs = {}
@@ -294,7 +294,7 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
             )
         
         if hasattr(self, "robot_ros2_node"):
-            self.robot_ros2_node.stop()
+            self.robot_ros2_node.destroy()
 
         self.connected = False
 

@@ -30,7 +30,7 @@ class AutoTaskTeleoperator(Teleoperator):
 
 
         self.teleoperator_node = AutoTaskTeleoperatorNode()
-        self.teleoperator_node.start()
+        # self.teleoperator_node.start()
 
         self.connected = False
         self.logs = {}
@@ -100,7 +100,7 @@ class AutoTaskTeleoperator(Teleoperator):
             )
 
         if hasattr(self, "teleoperator_node"):
-            self.teleoperator_node.stop()
+            self.teleoperator_node.destroy()
 
         self.connected = False
         logger.info(f"{self} is not connected.")
