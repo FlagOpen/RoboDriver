@@ -94,18 +94,6 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
                 lambda: [name for name in self.cameras if name not in self.robot_ros2_node.recv_images],
                 "等待摄像头图像超时",
             ),
-            (
-                lambda: all(
-                    any(name in key for key in self.robot_ros2_node.recv_follower)
-                    for name in self.follower_motors
-                ),
-                lambda: [
-                    name
-                    for name in self.follower_motors
-                    if not any(name in key for key in self.robot_ros2_node.recv_follower)
-                ],
-                "等待从臂关节角度超时",
-            ),
         ]
 
         # 跟踪每个条件是否已完成
@@ -142,12 +130,6 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
                             if name not in missing
                         ]
 
-                    elif i == 1:
-                        received = [
-                            name
-                            for name in self.follower_motors
-                            if name not in missing
-                        ]
 
                     msg = (
                         f"{base_msg}: 未收到 [{', '.join(missing)}]; "
@@ -177,13 +159,6 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
             ]
             success_messages.append(f"摄像头: {', '.join(cam_received)}")
 
-        if conditions[1][0]():
-            follower_received = [
-                name
-                for name in self.follower_motors
-                if any(name in key for key in self.robot_ros2_node.recv_follower)
-            ]
-            success_messages.append(f"从臂数据: {', '.join(follower_received)}")
 
 
         log_message = "\n[连接成功] 所有设备已就绪:\n"
@@ -230,7 +205,7 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
         #     for follower_name, follower in self.robot_ros2_node.recv_follower.items():
                 # if follower_name == comp_name:
 
-        for i, motor in enumerate(self.follower_motors):
+        for i, motor in enumerate(self.motors):
             obs_dict[f"follower_{motor}.pos"] = float(self.robot_ros2_node.recv_follower[i])
 
         dt_ms = (time.perf_counter() - start) * 1e3
