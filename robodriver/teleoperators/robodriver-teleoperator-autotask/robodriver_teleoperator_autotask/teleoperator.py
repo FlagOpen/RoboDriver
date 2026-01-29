@@ -29,16 +29,9 @@ class AutoTaskTeleoperator(Teleoperator):
 
         self.actuators = config.actuators # 大道至简。所有的action，不管是左右手臂，还是头部等等，能动的都算做actuators。
 
-        if not rclpy.ok():
-                rclpy.init()
 
         self.teleoperator_node = AutoTaskTeleoperatorNode()
-        self.ros_spin_thread = threading.Thread(
-            target=ros_spin_thread, 
-            args=(self.teleoperator_node,), 
-            daemon=True
-        )
-        self.ros_spin_thread.start()
+        self.teleoperator_node.start()
 
         self.connected = False
         self.logs = {}
@@ -108,11 +101,8 @@ class AutoTaskTeleoperator(Teleoperator):
             )
 
         if hasattr(self, "teleoperator_node"):
-            self.teleoperator_node.destroy()
-        if rclpy.ok():
-            rclpy.shutdown()
-
-
+            self.teleoperator_node.stop()
+            
         self.connected = False
         logger.info(f"{self} is not connected.")
 

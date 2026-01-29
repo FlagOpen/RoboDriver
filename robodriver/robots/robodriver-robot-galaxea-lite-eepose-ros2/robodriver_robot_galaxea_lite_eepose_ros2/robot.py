@@ -38,15 +38,9 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
         self.connect_excluded_cameras = ["image_pika_pose"]
 
         self.status = GalaxeaLiteEEposeROS2RobotStatus()
-        if not rclpy.ok():
-            rclpy.init()
+
         self.robot_ros2_node = GalaxeaLiteEEposeROS2RobotNode()  # 创建节点实例
-        self.ros_spin_thread = threading.Thread(
-            target=ros_spin_thread, 
-            args=(self.robot_ros2_node,), 
-            daemon=True
-        )
-        self.ros_spin_thread.start()
+        self.robot_ros2_node.start()
 
         self.connected = False
         self.logs = {}
@@ -299,10 +293,9 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
             raise DeviceNotConnectedError(
                 "robot is not connected. You need to run `robot.connect()` before disconnecting."
             )
-        if hasattr(self, "ros_node"):
-            self.robot_ros2_node.destroy()
-        if rclpy.ok():
-            rclpy.shutdown()
+        
+        if hasattr(self, "robot_ros2_node"):
+            self.robot_ros2_node.stop()
 
         self.connected = False
 

@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 
 import rclpy
-from rclpy.node import Node as ROS2Node
+from rclpy.node import Node
 from sensor_msgs.msg import JointState, CompressedImage
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from geometry_msgs.msg import PoseStamped
@@ -19,31 +19,16 @@ CONNECT_TIMEOUT_FRAME = 10
 logger = logging_mp.get_logger(__name__)
 
 
-class GalaxeaLiteEEposeROS2RobotNode(ROS2Node):
+class GalaxeaLiteEEposeROS2RobotNode(Node):
     def __init__(self):
-        super().__init__('ros2_recv_pub_driver')
-        self.stop_spin = False  # 初始化停止标志
+        super().__init__('galaxea_lite_ros2_node')
+
         self.qos = QoSProfile(
             durability=DurabilityPolicy.VOLATILE,
             reliability=ReliabilityPolicy.RELIABLE,
             history=HistoryPolicy.KEEP_LAST,
             depth=10
         )
-
-        self.qos_best_effort = QoSProfile(
-            durability=DurabilityPolicy.VOLATILE,
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
-        
-        # 统一QoS配置（修复原问题）
-        # self.publisher_left_arm = self.create_publisher(
-        #     JointState, "/motion_target/target_joint_state_arm_left", self.qos
-        # )
-        # self.publisher_right_arm = self.create_publisher(
-        #     JointState, "/motion_target/target_joint_state_arm_right", self.qos
-        # )
 
         self.publisher_left_arm_eepose = self.create_publisher(
             PoseStamped, '/motion_target/target_pose_arm_left', self.qos
@@ -62,7 +47,7 @@ class GalaxeaLiteEEposeROS2RobotNode(ROS2Node):
         )
      
         self.last_follow_send_time_ns = 0
-        self.min_interval_ns = 1e9 / 30  # 30Hz
+        self.min_interval_ns = 1e9 / 30
 
         self._init_message_follow_filters()
         self._init_image_message_filters()
@@ -174,14 +159,6 @@ class GalaxeaLiteEEposeROS2RobotNode(ROS2Node):
             right_arm_eepose = [normalize_precision(v) for v in array[7:14]]
             left_gripper = [normalize_precision(v) for v in array[14:15]]
             right_gripper = [normalize_precision(v) for v in array[15:16]]
-    
-            # msg = JointState()
-            # msg.position = left_arm
-            # self.publisher_left_arm.publish(msg)
-
-            # msg = JointState()
-            # msg.position = right_arm
-            # self.publisher_right_arm.publish(msg)
 
             msg = PoseStamped()
             msg.pose.position.x = left_arm_eepose[0]
@@ -211,51 +188,42 @@ class GalaxeaLiteEEposeROS2RobotNode(ROS2Node):
             msg.position = right_gripper
             self.publisher_right_gripper.publish(msg)
 
-            # msg = JointState()
-            # msg.position = torso  
-            # self.publisher_state_torso.publish(msg)
-
         except Exception as e:
             self.get_logger().error(f"Error during replay at frame: {e}")
             raise
 
-    def destroy(self):
-        self.stop_spin = True
+    # ======================
+    # spin 线程控制
+    # ======================
+
+    def start(self):
+        """启动 ROS2 spin 线程"""
+        if self.running:
+            return
+
+        self.running = True
+        self.spin_thread = threading.Thread(target=self._spin_loop, daemon=True)
+        self.spin_thread.start()
+
+        logger.info("[ROS2] Node started (spin thread running)")
+
+    def _spin_loop(self):
+        """独立线程执行 ROS2 spin"""
+        try:
+            rclpy.spin(self)
+        except Exception as e:
+            logger.error(f"[ROS2] Spin error: {e}")
+
+    def stop(self):
+        """停止 ROS2"""
+        if not self.running:
+            return
+
+        self.running = False
         super().destroy_node()
+        rclpy.shutdown()
 
-    def _add_debug_subscribers(self):
-        self.create_subscription(
-            JointState,
-            '/motion_target/target_joint_state_arm_right',
-            lambda msg: self.get_logger().info(f"独立订阅-左臂关节: position={msg.position}"),
-            self.qos_best_effort
-        )
-        self.create_subscription(
-            PoseStamped,
-            '/motion_target/target_pose_arm_right',
-            lambda msg: self.get_logger().info(f"独立订阅-左臂位姿: x={msg.pose.position.x}, y={msg.pose.position.y}"),
-            self.qos_best_effort
-        )
-        self.create_subscription(
-            JointState,
-            '/motion_target/target_position_gripper_right',
-            lambda msg: self.get_logger().info(f"独立订阅-左夹爪: position={msg.position}"),
-            self.qos_best_effort
-        )
-        self.create_subscription(
-            PoseStamped,
-            '/motion_target/target_pose_torso',
-            lambda msg: self.get_logger().info(f"独立订阅-躯干pose: x={msg.pose.position.x}"),
-            self.qos_best_effort
-        )
-        self.create_subscription(
-            JointState,
-            '/motion_target/target_joint_state_torso',
-            lambda msg: self.get_logger().info(f"独立订阅-躯干joint: position={msg.position}"),
-            self.qos_best_effort
-        )
+        if getattr(self, "spin_thread", None):
+            self.spin_thread.join(timeout=1.0)
 
-# 保留ros_spin_thread函数（供外部调用）
-def ros_spin_thread(node):
-    while rclpy.ok() and not getattr(node, "stop_spin", False):
-        rclpy.spin()
+        logger.info("[ROS2] Node stopped.")

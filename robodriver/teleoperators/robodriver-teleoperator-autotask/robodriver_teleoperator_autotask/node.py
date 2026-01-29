@@ -21,7 +21,6 @@ class AutoTaskTeleoperatorNode(ROS2Node):
     def __init__(self):
         super().__init__('autotask_ros2_recv')
 
-        self.stop_spin = False
         self.qos_best_effort = QoSProfile(
             durability=DurabilityPolicy.VOLATILE,
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -36,10 +35,6 @@ class AutoTaskTeleoperatorNode(ROS2Node):
         
         self.recv_data: list[float] = []
         self.lock = threading.Lock()
-
-        # self.thread = threading.Thread(target=self.dora_recv, daemon=True, args=(1,))
-        # self.running = False
-
 
 
     def _init_message_main_filters(self):
@@ -81,11 +76,37 @@ class AutoTaskTeleoperatorNode(ROS2Node):
         except Exception as e:
             self.get_logger().error(f"Pose callback error: {e}")
 
-    def destroy(self):
-        self.stop_spin = True
-        super().destroy_node()
+    # ======================
+    # spin 线程控制
+    # ======================
 
+    def start(self):
+        """启动 ROS2 spin 线程"""
+        if self.running:
+            return
 
-def ros_spin_thread(node):
-    while rclpy.ok() and not getattr(node, "stop_spin", False):
-        rclpy.spin_once(node, timeout_sec=0.01)
+        self.running = True
+        self.spin_thread = threading.Thread(target=self._spin_loop, daemon=True)
+        self.spin_thread.start()
+
+        logger.info("[ROS2] Node started (spin thread running)")
+
+    def _spin_loop(self):
+        """独立线程执行 ROS2 spin"""
+        try:
+            rclpy.spin(self)
+        except Exception as e:
+            logger.error(f"[ROS2] Spin error: {e}")
+
+    def stop(self):
+        """停止 ROS2"""
+        if not self.running:
+            return
+
+        self.running = False
+        rclpy.shutdown()
+
+        if getattr(self, "spin_thread", None):
+            self.spin_thread.join(timeout=1.0)
+
+        logger.info("[ROS2] Node stopped.")
