@@ -8,7 +8,7 @@ logger = logging_mp.get_logger(__name__)
 
 
 class ROS2_Thread():
-    def init(self):
+    def __init__(self):
         rclpy.init()
         self.spin_thread = threading.Thread(target=self._spin_loop, daemon=True)
         self.running = False
