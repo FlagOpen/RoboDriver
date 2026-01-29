@@ -58,6 +58,8 @@ class GalaxeaLiteEEposeROS2RobotNode(Node):
         self.recv_follower_status: list[int] = {}
 
         self.lock = threading.Lock()
+        self.running = False
+        
 
     def _init_message_follow_filters(self):
         sub_arm_left = Subscriber(self, JointState, '/hdas/feedback_arm_left')

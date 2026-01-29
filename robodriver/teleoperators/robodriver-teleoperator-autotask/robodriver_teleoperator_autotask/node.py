@@ -35,6 +35,7 @@ class AutoTaskTeleoperatorNode(ROS2Node):
         
         self.recv_data: list[float] = []
         self.lock = threading.Lock()
+        self.running = False
 
 
     def _init_message_main_filters(self):
