@@ -57,8 +57,6 @@ async def async_main(cfg: ControlPipelineConfig):
         sim.start()
 
     observation_sim = None
-    if teleop is not None:
-        teleop.connect()
 
     daemon = Daemon(cfg.robot, fps=DEFAULT_FPS)
 
@@ -81,6 +79,8 @@ async def async_main(cfg: ControlPipelineConfig):
         ros2_manager.start()
     
     daemon.start()
+    if teleop is not None:
+        teleop.connect()
         
     try:
         while True:
