@@ -21,13 +21,6 @@ class AutoTaskTeleoperatorNode(ROS2Node):
     def __init__(self):
         super().__init__('autotask_ros2_recv')
 
-        self.qos_best_effort = QoSProfile(
-            durability=DurabilityPolicy.VOLATILE,
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
-
         self.last_main_send_time_ns = 0
         self.min_interval_ns = 1e9 / 30
 
@@ -39,15 +32,15 @@ class AutoTaskTeleoperatorNode(ROS2Node):
 
 
     def _init_message_main_filters(self):
-        sub_pose_left = Subscriber(self, PoseStamped, '/autotask_motion_target/target_pose_arm_left', qos_profile=self.qos_best_effort)
-        sub_pose_right = Subscriber(self, PoseStamped, '/autotask_motion_target/target_pose_arm_right', qos_profile=self.qos_best_effort)
-        sub_gripper_left = Subscriber(self, JointState, '/autotask_motion_target/target_position_gripper_left', qos_profile=self.qos_best_effort)
-        sub_gripper_right = Subscriber(self, JointState, '/autotask_motion_target/target_position_gripper_right', qos_profile=self.qos_best_effort)
+        sub_pose_left = Subscriber(self, PoseStamped, '/autotask_motion_target/target_pose_arm_left')
+        sub_pose_right = Subscriber(self, PoseStamped, '/autotask_motion_target/target_pose_arm_right')
+        sub_gripper_left = Subscriber(self, JointState, '/autotask_motion_target/target_position_gripper_left')
+        sub_gripper_right = Subscriber(self, JointState, '/autotask_motion_target/target_position_gripper_right')
 
         self.pose_sync = ApproximateTimeSynchronizer(
             [sub_pose_left, sub_pose_right, sub_gripper_left, sub_gripper_right],
             queue_size=50,
-            slop=0.01
+            slop=0.1
         )
         self.pose_sync.registerCallback(self.synchronized_main_callback)
  
