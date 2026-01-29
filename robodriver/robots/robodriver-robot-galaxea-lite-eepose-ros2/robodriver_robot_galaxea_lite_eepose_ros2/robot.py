@@ -87,6 +87,11 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
                 lambda: [name for name in self.cameras if name not in self.robot_ros2_node.recv_images],
                 "等待摄像头图像超时",
             ),
+            (
+                lambda: len(self.robot_ros2_node.recv_follower) > 0,
+                lambda: [] if len(self.robot_ros2_node.recv_follower) > 0 else ["recv_follower"],
+                "等待从臂关节角度超时",
+            ),
         ]
 
         # 跟踪每个条件是否已完成
@@ -118,16 +123,17 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
 
                     if i == 0:
                         received = [
-                            name
-                            for name in self.cameras
-                            if name not in missing
+                            name for name in self.cameras if name not in missing
                         ]
 
+                        msg = (
+                            f"{base_msg}: 未收到 [{', '.join(missing)}]; "
+                            f"已收到 [{', '.join(received)}]"
+                        )
+                    else:
+                        received_count = len(self.robot_ros2_node.recv_follower)
+                        msg = f"{base_msg}: 未收到数据; 已收到 {received_count} 个数据点"
 
-                    msg = (
-                        f"{base_msg}: 未收到 [{', '.join(missing)}]; "
-                        f"已收到 [{', '.join(received)}]"
-                    )
                     failed_messages.append(msg)
 
                 if not failed_messages:
@@ -152,6 +158,8 @@ class GalaxeaLiteEEposeROS2Robot(Robot):
             ]
             success_messages.append(f"摄像头: {', '.join(cam_received)}")
 
+        if conditions[1][0]():
+            success_messages.append(f"从臂关节角度: 已接收 ({len(self.robot_ros2_node.recv_follower)}个数据点)")
 
 
         log_message = "\n[连接成功] 所有设备已就绪:\n"

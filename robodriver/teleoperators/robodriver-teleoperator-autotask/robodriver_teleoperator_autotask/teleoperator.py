@@ -48,8 +48,71 @@ class AutoTaskTeleoperator(Teleoperator):
         return self.connected
     
     def connect(self):
+        timeout = 20
+        start_time = time.perf_counter()
+
         if self.connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
+
+        conditions = [
+            (
+
+                lambda: len(self.teleoperator_node.recv_data) > 0,
+                lambda: [] if len(self.teleoperator_node.recv_data) > 0 else ["teleoperator_node.recv_data"],
+                "等待主臂关节角度超时"
+            ),
+        ]
+        completed = [False] * len(conditions)
+
+        while True:
+            for i in range(len(conditions)):
+                if not completed[i]:
+                    condition_func = conditions[i][0]
+                    if condition_func():
+                        completed[i] = True
+
+            if all(completed):
+                break
+
+            if time.perf_counter() - start_time > timeout:
+                failed_messages = []
+                for i in range(len(completed)):
+                    if not completed[i]:
+                        condition_func, get_missing, base_msg = conditions[i]
+                        missing = get_missing()
+
+                        # 重新检查条件是否满足（可能刚好在最后一次检查后满足）
+                        if condition_func():
+                            completed[i] = True
+                            continue
+
+                        # 如果没有 missing，也视为满足
+                        if not missing:
+                            completed[i] = True
+                            continue
+
+  
+                        received_count = len(self.teleoperator_node.recv_data)
+                        msg = f"{base_msg}: 未收到数据; 已收到 {received_count} 个数据点"
+
+                        failed_messages.append(msg)
+
+                if not failed_messages:
+                    break
+
+                raise TimeoutError(f"连接超时，未满足的条件: {'; '.join(failed_messages)}")
+
+            time.sleep(0.01)
+
+        success_messages = []
+
+        if conditions[0][0]():
+            success_messages.append(f"关节角度: 已接收 ({len(self.teleoperator_node.recv_data)}个数据点)")
+
+        log_message = "\n[连接成功] 所有设备已就绪:\n"
+        log_message += "\n".join(f"  - {msg}" for msg in success_messages)
+        log_message += f"\n  总耗时: {time.perf_counter() - start_time:.2f} 秒\n"
+        logger.info(log_message)
 
         self.connected = True
 
