@@ -13,7 +13,7 @@ import rclpy
 
 from .config import  GalaxeaLiteEEposeROS2RobotConfig
 from .status import GalaxeaLiteEEposeROS2RobotStatus
-from .node import GalaxeaLiteEEposeROS2RobotNode, ros_spin_thread
+from .node import GalaxeaLiteEEposeROS2RobotNode
 
 
 logger = logging_mp.get_logger(__name__)

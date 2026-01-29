@@ -12,7 +12,7 @@ from lerobot.teleoperators.teleoperator import Teleoperator
 import rclpy
 
 from .config import AutoTaskTeleoperatorConfig
-from .node import  AutoTaskTeleoperatorNode, ros_spin_thread
+from .node import  AutoTaskTeleoperatorNode
 
 
 logger = logging_mp.get_logger(__name__)
@@ -102,7 +102,7 @@ class AutoTaskTeleoperator(Teleoperator):
 
         if hasattr(self, "teleoperator_node"):
             self.teleoperator_node.stop()
-            
+
         self.connected = False
         logger.info(f"{self} is not connected.")
 
