@@ -1,6 +1,10 @@
 import threading
-import rclpy
+
 from typing import List, Optional
+
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import Executor, MultiThreadedExecutor
 
 import logging_mp
 
@@ -11,8 +15,8 @@ class ROS2_NodeManager():
     def __init__(self):
         """初始化ROS2节点管理器"""
         self._lock = threading.Lock()
-        self._nodes: List[rclpy.node.Node] = []
-        self._executor: Optional[rclpy.executors.Executor] = None
+        self._nodes: List[Node] = []
+        self._executor: Optional[Executor] = None
         self._spin_thread: Optional[threading.Thread] = None
         self.running = False
         self._initialized = False
@@ -22,11 +26,11 @@ class ROS2_NodeManager():
         with self._lock:
             if not self._initialized:
                 rclpy.init()
-                self._executor = rclpy.executors.MultiThreadedExecutor()
+                self._executor = MultiThreadedExecutor()
                 self._initialized = True
                 logger.info("[ROS2] ROS2 initialized")
 
-    def add_node(self, node: rclpy.node.Node):
+    def add_node(self, node: Node):
         """添加节点到管理器
         
         Args:
@@ -41,7 +45,7 @@ class ROS2_NodeManager():
                     self._executor.add_node(node)
                 logger.info(f"[ROS2] Node '{node.get_name()}' added")
 
-    def remove_node(self, node: rclpy.node.Node):
+    def remove_node(self, node: Node):
         """从管理器移除节点
         
         Args:
@@ -55,7 +59,7 @@ class ROS2_NodeManager():
                 node.destroy_node()
                 logger.info(f"[ROS2] Node '{node.get_name()}' removed")
 
-    def create_node(self, node_name: str, **kwargs) -> rclpy.node.Node:
+    def create_node(self, node_name: str, **kwargs) -> Node:
         """创建并添加一个新节点
         
         Args:
@@ -128,7 +132,7 @@ class ROS2_NodeManager():
 
         logger.info("[ROS2] Node manager stopped")
 
-    def get_nodes(self) -> List[rclpy.node.Node]:
+    def get_nodes(self) -> List[Node]:
         """获取所有节点列表"""
         with self._lock:
             return self._nodes.copy()
