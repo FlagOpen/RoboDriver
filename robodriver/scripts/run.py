@@ -47,6 +47,8 @@ async def async_main(cfg: ControlPipelineConfig):
     if "ros2" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         from robodriver.core.ros2thread import ROS2_NodeManager
         ros2_manager = ROS2_NodeManager()
+    else:
+        ros2_manager = None
 
     # robot = make_robot_from_config(cfg.robot)
     teleop = (
