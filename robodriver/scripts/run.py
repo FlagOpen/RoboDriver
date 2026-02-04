@@ -12,7 +12,7 @@ from robodriver.core.coordinator import Coordinator
 from robodriver.core.monitor import Monitor
 from robodriver.core.simulator import SimulatorConfig
 from robodriver.core.simulator import Simulator
-from robodriver.core.ros2thread import ROS2_NodeManager
+
 from robodriver.robots.daemon import Daemon
 
 # from operating_platform.robot.robots.configs import RobotConfig
@@ -44,8 +44,11 @@ class ControlPipelineConfig:
 async def async_main(cfg: ControlPipelineConfig):
     logger.info(pformat(asdict(cfg)))
 
-    if "ros2" in cfg.robot.type or "ros2" in cfg.teleop.type:
+    if "ros2" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
+        from robodriver.core.ros2thread import ROS2_NodeManager
         ros2_manager = ROS2_NodeManager()
+    else:
+        ros2_manager = None
 
     # robot = make_robot_from_config(cfg.robot)
     teleop = (
@@ -73,9 +76,9 @@ async def async_main(cfg: ControlPipelineConfig):
 
     if "ros2" in cfg.robot.type:
         ros2_manager.add_node(daemon.robot.get_node())
-    if "ros2" in cfg.teleop.type:
+    if (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         ros2_manager.add_node(teleop.get_node())
-    if "ros2" in cfg.robot.type or "ros2" in cfg.teleop.type:
+    if "ros2" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         ros2_manager.start()
     
     daemon.start()
