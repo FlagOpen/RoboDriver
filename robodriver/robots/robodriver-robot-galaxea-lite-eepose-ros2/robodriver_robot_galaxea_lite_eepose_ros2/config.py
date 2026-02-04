@@ -11,7 +11,7 @@ from lerobot.motors import Motor, MotorNormMode
 class Actuator:
     id: int
 
-@RobotConfig.register_subclass("galaxea-lite-eepose-ros2")
+@RobotConfig.register_subclass("galaxea_lite_eepose_ros2")
 @dataclass
 class GalaxeaLiteEEposeROS2RobotConfig(RobotConfig):
     use_degrees = True
