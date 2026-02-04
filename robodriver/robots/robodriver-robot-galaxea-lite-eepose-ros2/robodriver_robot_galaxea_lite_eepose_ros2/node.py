@@ -166,20 +166,20 @@ class GalaxeaLiteEEposeROS2RobotNode(Node):
             msg.pose.position.x = left_arm_eepose[0]
             msg.pose.position.y = left_arm_eepose[1]
             msg.pose.position.z = left_arm_eepose[2]
-            msg.pose.orientation.x = left_arm_eepose[3]
-            msg.pose.orientation.y = left_arm_eepose[4]
-            msg.pose.orientation.z = left_arm_eepose[5]
-            msg.pose.orientation.w = left_arm_eepose[6]
+            msg.pose.orientation.w = left_arm_eepose[3]
+            msg.pose.orientation.x = left_arm_eepose[4]
+            msg.pose.orientation.y = left_arm_eepose[5]
+            msg.pose.orientation.z = left_arm_eepose[6]
             self.publisher_left_arm_eepose.publish(msg)
 
             msg = PoseStamped()
             msg.pose.position.x = right_arm_eepose[0]
             msg.pose.position.y = right_arm_eepose[1]
             msg.pose.position.z = right_arm_eepose[2]
-            msg.pose.orientation.x = right_arm_eepose[3]
-            msg.pose.orientation.y = right_arm_eepose[4]
-            msg.pose.orientation.z = right_arm_eepose[5]
-            msg.pose.orientation.w = right_arm_eepose[6]
+            msg.pose.orientation.w = right_arm_eepose[3]
+            msg.pose.orientation.x = right_arm_eepose[4]
+            msg.pose.orientation.y = right_arm_eepose[5]
+            msg.pose.orientation.z = right_arm_eepose[6]
             self.publisher_right_arm_eepose.publish(msg)
 
             msg = JointState()

@@ -56,12 +56,12 @@ class AutoTaskTeleoperatorNode(ROS2Node):
 
             left_pos = np.array([
                 pose_left.pose.position.x, pose_left.pose.position.y, pose_left.pose.position.z,
-                pose_left.pose.orientation.x, pose_left.pose.orientation.y, pose_left.pose.orientation.z, pose_left.pose.orientation.w
+                pose_left.pose.orientation.w, pose_left.pose.orientation.x, pose_left.pose.orientation.y, pose_left.pose.orientation.z
             ], dtype=np.float32)
 
             right_pos = np.array([
                 pose_right.pose.position.x, pose_right.pose.position.y, pose_right.pose.position.z,
-                pose_right.pose.orientation.x, pose_right.pose.orientation.y, pose_right.pose.orientation.z, pose_right.pose.orientation.w
+                pose_right.pose.orientation.w, pose_right.pose.orientation.x, pose_right.pose.orientation.y, pose_right.pose.orientation.z
             ], dtype=np.float32)
 
             merged_data = np.concatenate([left_pos, right_pos, gripper_left_pose, gripper_right_pose])
