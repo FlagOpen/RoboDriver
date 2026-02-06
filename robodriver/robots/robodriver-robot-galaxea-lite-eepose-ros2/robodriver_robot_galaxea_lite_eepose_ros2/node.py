@@ -62,6 +62,8 @@ class GalaxeaLiteEEposeROS2RobotNode(Node):
         
 
     def _init_message_follow_filters(self):
+        sub_eepose_left = Subscriber(self, PoseStamped, '/relaxed_ik/motion_control/pose_ee_arm_left')
+        sub_eepose_right = Subscriber(self, PoseStamped, '/relaxed_ik/motion_control/pose_ee_arm_right')
         sub_arm_left = Subscriber(self, JointState, '/hdas/feedback_arm_left')
         sub_arm_right = Subscriber(self, JointState, '/hdas/feedback_arm_right')
         sub_gripper_left = Subscriber(self, JointState, '/hdas/feedback_gripper_left')
@@ -69,30 +71,46 @@ class GalaxeaLiteEEposeROS2RobotNode(Node):
         sub_torso = Subscriber(self, JointState, '/hdas/feedback_torso')
         
         self.sync = ApproximateTimeSynchronizer(
-            [sub_arm_left, sub_arm_right, sub_gripper_left, sub_gripper_right, sub_torso],
+            [sub_eepose_left, sub_eepose_right, sub_arm_left, sub_arm_right, sub_gripper_left, sub_gripper_right, sub_torso],
             queue_size=10,
             slop=0.1
         )
         self.sync.registerCallback(self.synchronized_follow_callback)
  
-    def synchronized_follow_callback(self, arm_left, arm_right, gripper_left, gripper_right, torso):
+    def synchronized_follow_callback(self, eepose_left, eepose_right, arm_left, arm_right, gripper_left, gripper_right, torso):
         try:
             current_time_ns = time.time_ns()
             if (current_time_ns - self.last_follow_send_time_ns) < self.min_interval_ns:
                 return
             self.last_follow_send_time_ns = current_time_ns
  
-            left_pos = np.array(arm_left.position, dtype=np.float32)
-            right_pos = np.array(arm_right.position, dtype=np.float32)
-            left_arm_data = left_pos
-            right_arm_data = right_pos
+            left_arm_data = np.array(arm_left.position, dtype=np.float32)
+            right_arm_data = np.array(arm_right.position, dtype=np.float32)
  
             gripper_left_pos = np.array(gripper_left.position, dtype=np.float32)
             gripper_right_pos = np.array(gripper_right.position, dtype=np.float32)
             torso_pos = np.array(torso.position, dtype=np.float32)
             torso_pos = torso_pos[:-1]
+
+            left_eepose = np.zeros(7)
+            left_eepose[0] = eepose_left.pose.position.x
+            left_eepose[1] = eepose_left.pose.position.y
+            left_eepose[2] = eepose_left.pose.position.z
+            left_eepose[3] = eepose_left.pose.orientation.w
+            left_eepose[4] = eepose_left.pose.orientation.x
+            left_eepose[5] = eepose_left.pose.orientation.y
+            left_eepose[6] = eepose_left.pose.orientation.z
+
+            right_eepose = np.zeros(7)
+            right_eepose[0] = eepose_right.pose.position.x
+            right_eepose[1] = eepose_right.pose.position.y
+            right_eepose[2] = eepose_right.pose.position.z
+            right_eepose[3] = eepose_right.pose.orientation.w
+            right_eepose[4] = eepose_right.pose.orientation.x
+            right_eepose[5] = eepose_right.pose.orientation.y
+            right_eepose[6] = eepose_right.pose.orientation.z
            
-            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos, torso_pos])
+            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos, torso_pos, left_eepose, right_eepose])
             with self.lock:
                 self.recv_follower = merged_data
                 self.recv_follower_status = [CONNECT_TIMEOUT_FRAME, CONNECT_TIMEOUT_FRAME, CONNECT_TIMEOUT_FRAME, CONNECT_TIMEOUT_FRAME, CONNECT_TIMEOUT_FRAME]

@@ -38,6 +38,20 @@ class GalaxeaLiteEEposeROS2RobotConfig(RobotConfig):
             "torso_joint_1":Motor(15, "sts3215", norm_mode_body),
             "torso_joint_2":Motor(16, "sts3215", norm_mode_body),
             "torso_joint_3":Motor(17, "sts3215", norm_mode_body),
+            "left_arm_pos_x_m": Motor(18, "sts3215", norm_mode_body),
+            "left_arm_pos_y_m": Motor(19, "sts3215", norm_mode_body),
+            "left_arm_pos_z_m": Motor(20, "sts3215", norm_mode_body),
+            "left_arm_quat_w": Motor(21, "sts3215", norm_mode_body),
+            "left_arm_quat_x": Motor(22, "sts3215", norm_mode_body),
+            "left_arm_quat_y": Motor(23, "sts3215", norm_mode_body),
+            "left_arm_quat_z": Motor(24, "sts3215", norm_mode_body),
+            "right_arm_pos_x_m": Motor(25, "sts3215", norm_mode_body),
+            "right_arm_pos_y_m": Motor(26, "sts3215", norm_mode_body),
+            "right_arm_pos_z_m": Motor(27, "sts3215", norm_mode_body),
+            "right_arm_quat_w": Motor(28, "sts3215", norm_mode_body),
+            "right_arm_quat_x": Motor(29, "sts3215", norm_mode_body),
+            "right_arm_quat_y": Motor(30, "sts3215", norm_mode_body),
+            "right_arm_quat_z": Motor(31, "sts3215", norm_mode_body),
         }
     )
 
