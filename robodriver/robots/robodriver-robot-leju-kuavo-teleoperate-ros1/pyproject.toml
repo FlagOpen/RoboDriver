@@ -16,6 +16,7 @@ dependencies = [
 
     "logging_mp",
     "opencv-python",
+    "kuavo-humanoid-sdk“
 ]
 
 [tool.setuptools.packages.find]

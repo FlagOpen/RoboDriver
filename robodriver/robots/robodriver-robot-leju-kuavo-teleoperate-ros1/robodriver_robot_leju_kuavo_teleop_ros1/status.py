@@ -83,8 +83,8 @@ class LEJUKuavoRos1RobotStatus(RobotStatus):
                     name="image_top",
                     chinese_name="头部摄像头",
                     type="纯双目视觉相机",
-                    width=1280,
-                    height=720,
+                    width=640,
+                    height=360,
                     is_connect=False
                 ),
                 CameraInfo(

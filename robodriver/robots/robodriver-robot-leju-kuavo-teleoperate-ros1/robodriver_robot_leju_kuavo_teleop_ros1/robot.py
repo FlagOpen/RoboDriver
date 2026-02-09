@@ -9,23 +9,24 @@ from lerobot.robots.robot import Robot
 from lerobot.utils.errors import DeviceNotConnectedError, DeviceAlreadyConnectedError
 from functools import cached_property
 
-import rospy  
+import rospy  # 替换rclpy为rospy
 
-
-from .config import LEJUKuavoRos1Config  
-from .status import LEJUKuavoRos1RobotStatus  
-from .node import LEJUKuavoRos1RobotNode, ros_spin_thread  
+# 导入ROS1版本的配置、状态和节点（与你提供的ROS1节点文件对应）
+from .config import LEJUKuavoRos1Config  # 改为ROS1配置类
+from .status import LEJUKuavoRos1RobotStatus  # 改为ROS1状态类（需确保status.py已适配ROS1）
+from .node import LEJUKuavoRos1Node, ros_spin_thread  # 导入ROS1节点和spin函数
 
 
 logger = logging_mp.get_logger(__name__)
 
 
-class LEJUKuavoRos1Robot(Robot):  
-    config_class = LEJUKuavoRos1Config  
-    name = "leju-kuavo-teleop-ros1"  
+class LEJUKuavoRos1Robot(Robot):  # 类名改为ROS1标识
+    config_class = LEJUKuavoRos1Config  # 关联ROS1配置类
+    name = "leju-kuavo-teleop-ros1"  # 名称改为ROS1版本标识
 
     def __init__(self, config: LEJUKuavoRos1Config):
         super().__init__(config)
+        #init
         self.config = config
         self.robot_type = self.config.type
         self.use_videos = self.config.use_videos
@@ -39,16 +40,22 @@ class LEJUKuavoRos1Robot(Robot):
         self.status = LEJUKuavoRos1RobotStatus()
         if not rospy.core.is_initialized():
             rospy.init_node('ros1_recv_pub_driver', anonymous=True)
+            logger.info(f"✅ 初始化ROS节点：{rospy.get_name()}")
         else:
             logger.info(f"✅ 复用已存在的ROS节点：{rospy.get_name()}")
         
-        self.robot_ros1_node = LEJUKuavoRos1RobotNode()  
+        logger.info(f"✅ ROS节点状态：is_shutdown={rospy.is_shutdown()}")
+        
+        self.robot_ros1_node = LEJUKuavoRos1Node()  # 创建ROS1节点实例（替换ROS2节点）
+        logger.info("✅ ROS1节点实例创建成功")
+        
         self.ros_spin_thread = threading.Thread(
             target=ros_spin_thread, 
-            args=(self.robot_ros1_node,),  
+            args=(self.robot_ros1_node,),  # 传入ROS1节点实例
             daemon=True
         )
         self.ros_spin_thread.start()
+        logger.info("✅ ROS spin线程启动成功")
 
         self.connected = False
         self.logs = {}
@@ -88,30 +95,24 @@ class LEJUKuavoRos1Robot(Robot):
         if self.connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
+        # 定义所有需要等待的条件及其错误信息（替换ROS2节点为ROS1节点）
         conditions = [
-            (
-                lambda: all(
-                    name in self.robot_ros1_node.recv_images
-                    for name in self.cameras
-                    if name not in self.connect_excluded_cameras
-                ),
-                lambda: [name for name in self.cameras if name not in self.robot_ros1_node.recv_images],
-                "等待摄像头图像超时",
-            ),
-
-            (
-                lambda: all(
-                    any(name in key for key in self.robot_ros1_node.recv_follower)
-                    for name in self.follower_motors
-                ),
-                lambda: [
-                    name
-                    for name in self.follower_motors
-                    if not any(name in key for key in self.robot_ros1_node.recv_follower)
-                ],
-                "等待从臂关节角度超时",
-            ),
-        ]
+    (
+        # 摄像头：只要 recv_images 非空（且排除项外至少有一个）
+        lambda: len([
+            name for name in self.cameras.keys()
+            if name not in self.connect_excluded_cameras
+        ]) == 0 or len(self.robot_ros1_node.recv_images) > 0,
+        lambda: [] if len(self.robot_ros1_node.recv_images) > 0 else list(self.cameras.keys()),
+        "等待摄像头图像超时",
+    ),
+    (
+        # 从臂：只要 recv_follower 字典非空就算成功
+        lambda: len(self.robot_ros1_node.recv_follower) > 0,
+        lambda: [] if len(self.robot_ros1_node.recv_follower) == 0 else [],
+        "等待从臂关节角度超时",
+    ),
+        ]      
 
         # 跟踪每个条件是否已完成
         completed = [False] * len(conditions)
@@ -233,7 +234,7 @@ class LEJUKuavoRos1Robot(Robot):
 
         start = time.perf_counter()
         obs_dict: dict[str, Any] = {}
-
+        # 读取从臂数据（替换ROS2节点为ROS1节点）
         for comp_name, joints in self.follower_motors.items():
             for follower_name, follower in self.robot_ros1_node.recv_follower.items():
                 if follower_name == comp_name:
@@ -243,7 +244,7 @@ class LEJUKuavoRos1Robot(Robot):
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read follower state: {dt_ms:.1f} ms")
 
-
+        # 读取摄像头图像（替换ROS2节点为ROS1节点）
         for cam_key, _cam in self.cameras.items():
             start = time.perf_counter()
             for name, val in self.robot_ros1_node.recv_images.items():
@@ -255,21 +256,56 @@ class LEJUKuavoRos1Robot(Robot):
 
         return obs_dict
     
+    def get_action(self) -> dict[str, Any]:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        start = time.perf_counter()
+        act_dict: dict[str, Any] = {}
+         # 读取从臂关节位置
+        for comp_name, joints in self.follower_motors.items():
+            for follower_name, follower in self.robot_ros1_node.recv_follower.items():
+                if follower_name == comp_name:
+                    joint_keys = list(joints.keys())
+                    # 防御长度不匹配，避免索引越界
+                    num_joints = min(len(joint_keys), len(follower))
+                    for i in range(num_joints):
+                        joint_name = joint_keys[i]
+                        act_dict[f"follower_{joint_name}.pos"] = float(follower[i])
+
+        dt_ms = (time.perf_counter() - start) * 1e3
+        logger.debug(f"{self} read follower state: {dt_ms:.1f} ms")
+
+        # 读取相机图像
+        for cam_key, _cam in self.cameras.items():
+            start = time.perf_counter()
+            for name, val in self.robot_ros1_node.recv_images.items():
+                if cam_key == name or cam_key in name:
+                    act_dict[cam_key] = val
+                    break
+            dt_ms = (time.perf_counter() - start) * 1e3
+            logger.debug(f"{self} read {cam_key}: {dt_ms:.1f} ms")
+
+        return act_dict
+        
+   
+    
 
     def send_action(self, action: dict[str, Any]):
+        """The provided action is expected to be a vector."""
         if not self.is_connected:
             raise DeviceNotConnectedError(
-                "LEJUKuavoRos1Robot is not connected. You need to run `robot.connect()`."
+                "LEJUKuavo is not connected. You need to run `robot.connect()`."
             )
         goal_joint = [val for key, val in action.items()]
         # goal_joint_numpy = np.array([t.item() for t in goal_joint], dtype=np.float32)
         goal_joint_numpy = np.array([t for t in goal_joint], dtype=np.float32)
-        goal_joint_numpy = goal_joint_numpy[:14]
+        goal_joint_numpy = goal_joint_numpy[:16]
         try:
-            if goal_joint_numpy.shape != (14,):
-                raise ValueError(f"Action vector must be 14-dimensional, got {goal_joint_numpy.shape[0]}")
+            if goal_joint_numpy.shape != (16,):
+                raise ValueError(f"Action vector must be 16-dimensional, got {goal_joint_numpy.shape[0]}")
             
-
+            # 调用ROS1节点的ros_replay方法发布动作（替换ROS2节点）
             self.robot_ros1_node.ros_replay(goal_joint_numpy)
             
         except Exception as e:
@@ -277,7 +313,7 @@ class LEJUKuavoRos1Robot(Robot):
             raise
 
     def update_status(self) -> str:
-
+        # 更新摄像头状态（替换ROS2节点为ROS1节点）
         for i in range(self.status.specifications.camera.number):
             match_name = self.status.specifications.camera.information[i].name
             for name in self.robot_ros1_node.recv_images_status:
@@ -287,6 +323,7 @@ class LEJUKuavoRos1Robot(Robot):
                     )
 
 
+        # 更新从臂状态（替换ROS2节点为ROS1节点）
         for i in range(self.status.specifications.arm.number):
             match_name = self.status.specifications.arm.information[i].name
             for name in self.robot_ros1_node.recv_follower_status:
@@ -300,12 +337,12 @@ class LEJUKuavoRos1Robot(Robot):
     def disconnect(self):
         if not self.is_connected:
             raise DeviceNotConnectedError(
-                "LEJUKuavoRos1Robot is not connected. You need to run `robot.connect()` before disconnecting."
+                "LEJUKuavo is not connected. You need to run `robot.connect()` before disconnecting."
             )
-
+        # 销毁ROS1节点（替换ROS2节点的destroy）
         if hasattr(self, "robot_ros1_node"):
             self.robot_ros1_node.destroy()
-
+        # 关闭ROS1（替换rclpy.shutdown()）
         if rospy.core.is_initialized():
             rospy.signal_shutdown("Robot disconnected, shutting down ROS1 node")
 
