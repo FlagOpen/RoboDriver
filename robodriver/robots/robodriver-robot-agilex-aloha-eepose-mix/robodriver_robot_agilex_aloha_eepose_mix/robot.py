@@ -208,14 +208,14 @@ class AgilexAlohaEEposeMixRobot(Robot):
             cam_received = [
                 name
                 for name in self.cameras
-                if name in self.robot_dora_node.recv_images and name not in self.connect_excluded_cameras
+                if name in self.robot_dora_node.recv_images and name not in self.connect_excluded_cameras_dora
             ]
             success_messages.append(f"摄像头dora: {', '.join(cam_received)}")
         if conditions[1][0]():
             cam_received = [
                 name
                 for name in self.cameras
-                if name in self.robot_ros2_node.recv_images and name not in self.connect_excluded_cameras
+                if name in self.robot_ros2_node.recv_images and name not in self.connect_excluded_cameras_ros2
             ]
             success_messages.append(f"摄像头ros2: {', '.join(cam_received)}")
 
