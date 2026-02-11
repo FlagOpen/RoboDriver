@@ -7,15 +7,17 @@ import pyarrow as pa
 import time
 from typing import Any, Dict
 
-from rclpy.node import Node
+from rclpy.node import Node as ROSNode
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+
+from dora import Node as DoraNode
 
 logger = logging_mp.get_logger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
 
 
-class AgilexAlohaHeadImageROS2RobotNode(Node):
+class AgilexAlohaHeadImageROS2RobotNode(ROSNode):
     def __init__(self):
         super().__init__('robodriver_agilex_aloha_head_image_ros2_node')
 
@@ -50,7 +52,7 @@ class DoraRobotNode(RobotNode):
 
 class AgilexAlohaEEposeDoraRobotNode(DoraRobotNode):
     def __init__(self):
-        self.node = Node("agilex_aloha_eepose_dora")
+        self.node = DoraNode("agilex_aloha_eepose_dora")
         
         # Update dictionaries to match Agilex Aloha hardware
         self.send_queue = queue.Queue(maxsize=100)

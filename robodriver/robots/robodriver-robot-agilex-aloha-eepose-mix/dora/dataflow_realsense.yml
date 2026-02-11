@@ -67,7 +67,7 @@ nodes:
       CAN_BUS: can_left
       TEACH_MODE: True
 
-  - id: agilex_aloha_aio_dora
+  - id: agilex_aloha_eepose_dora
     path: dynamic
     inputs: 
       image_top: camera_top/image
