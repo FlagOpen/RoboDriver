@@ -19,7 +19,7 @@ from .node import AgilexAlohaEEposeDoraRobotNode
 logger = logging_mp.get_logger(__name__)
 
 
-def euler_xyz_to_quaternion(array, roll, pitch, yaw):
+def euler_xyz_to_quaternion(array):
     """
     将欧拉角（XYZ顺序，即绕X、Y、Z轴旋转）转换为四元数
     
