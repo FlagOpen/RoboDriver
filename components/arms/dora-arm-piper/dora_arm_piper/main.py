@@ -83,12 +83,12 @@ def main():
                 position = event["value"].to_numpy()
                 piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
                 piper.EndPoseCtrl(
-                    position[0] * 1000 * 1000,
-                    position[1] * 1000 * 1000,
-                    position[2] * 1000 * 1000,
-                    position[3] * 1000 / (2 * np.pi) * 360,
-                    position[4] * 1000 / (2 * np.pi) * 360,
-                    position[5] * 1000 / (2 * np.pi) * 360,
+                    round(position[0] * 1000 * 1000),
+                    round(position[1] * 1000 * 1000),
+                    round(position[2] * 1000 * 1000),
+                    round(position[3] * 1000 / (2 * np.pi) * 360),
+                    round(position[4] * 1000 / (2 * np.pi) * 360),
+                    round(position[5] * 1000 / (2 * np.pi) * 360),
                 )
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
             
