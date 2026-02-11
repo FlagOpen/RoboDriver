@@ -1,7 +1,7 @@
 import threading
 import time
 from typing import Any, Tuple
-
+import math
 import logging_mp
 import numpy as np
 import torch
@@ -18,6 +18,34 @@ from .node import AgilexAlohaEEposeDoraRobotNode
 
 logger = logging_mp.get_logger(__name__)
 
+
+def euler_xyz_to_quaternion(array, roll, pitch, yaw):
+    """
+    将欧拉角（XYZ顺序，即绕X、Y、Z轴旋转）转换为四元数
+    
+    参数:
+        roll: 绕X轴旋转角度（弧度）
+        pitch: 绕Y轴旋转角度（弧度）
+        yaw: 绕Z轴旋转角度（弧度）
+    
+    返回:
+        (w, x, y, z): 四元数，w为实部，x,y,z为虚部
+    """
+    # 计算半角
+    cy = math.cos(array[2] * 0.5)
+    sy = math.sin(array[2] * 0.5)
+    cp = math.cos(array[1] * 0.5)
+    sp = math.sin(array[1] * 0.5)
+    cr = math.cos(array[0] * 0.5)
+    sr = math.sin(array[0] * 0.5)
+    
+    # 计算四元数
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+    
+    return (w, x, y, z)
 
 class AgilexAlohaEEposeMixRobot(Robot):
     config_class = AgilexAlohaEEposeMixRobotConfig
@@ -237,22 +265,29 @@ class AgilexAlohaEEposeMixRobot(Robot):
         # Read arm position
         start = time.perf_counter()
         obs_dict = {}
-        
+        conv_recv_follower_endpose_left = np.zeros(7)
+        conv_recv_follower_endpose_left[:3] = self.robot_dora_node.recv_follower_endpose_left[:3]
+        conv_recv_follower_endpose_left[3:] = euler_xyz_to_quaternion(self.robot_dora_node.recv_follower_endpose_left[3:])
+        conv_recv_follower_endpose_right = np.zeros(7)
+        conv_recv_follower_endpose_right[:3] = self.robot_dora_node.recv_follower_endpose_right[:3]
+        conv_recv_follower_endpose_right[3:] = euler_xyz_to_quaternion(self.robot_dora_node.recv_follower_endpose_right[3:])
+
         # Add right arm positions
         for i, motor in enumerate(self.motors):
             if "joint" in motor and "right" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
             elif "gripper" in motor and "right" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
-            elif "pose" in motor and "right" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-7]
 
             elif "joint" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-7]
             elif "gripper" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
-            elif "pose" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-20]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-7]
+
+            elif "arm" in motor and "left" in motor and ("quat" in motor or "pos" in motor):
+                obs_dict[f"follower_{motor}.pos"] = conv_recv_follower_endpose_left[i-14]
+            elif "arm" in motor and "right" in motor and ("quat" in motor or "pos" in motor):
+                obs_dict[f"follower_{motor}.pos"] = conv_recv_follower_endpose_right[i-21]
         
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read state: {dt_ms:.1f} ms")
@@ -315,10 +350,18 @@ class AgilexAlohaEEposeMixRobot(Robot):
             if len(goal_numpy) == 7:
                 # 提取位置和四元数
                 position = goal_numpy[:3]  # x, y, z
-                quaternion = goal_numpy[3:]  # qx, qy, qz, qw
+                quaternion_wxyz = goal_numpy[3:]  # qw, qx, qy, qz
+                
+                # 重新排列四元数为 qx, qy, qz, qw
+                quaternion_xyzw = np.array([
+                    quaternion_wxyz[1],  # qx
+                    quaternion_wxyz[2],  # qy
+                    quaternion_wxyz[3],  # qz
+                    quaternion_wxyz[0]   # qw
+                ])
                 
                 # 将四元数转换为欧拉角 (弧度)
-                rotation = Rotation.from_quat(quaternion)
+                rotation = Rotation.from_quat(quaternion_xyzw)
                 euler_angles = rotation.as_euler('xyz', degrees=False)  # 使用 'xyz' 旋转顺序
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
@@ -336,10 +379,18 @@ class AgilexAlohaEEposeMixRobot(Robot):
             if len(goal_numpy) == 7:
                 # 提取位置和四元数
                 position = goal_numpy[:3]  # x, y, z
-                quaternion = goal_numpy[3:]  # qx, qy, qz, qw
+                quaternion_wxyz = goal_numpy[3:]  # qw, qx, qy, qz
+                
+                # 重新排列四元数为 qx, qy, qz, qw
+                quaternion_xyzw = np.array([
+                    quaternion_wxyz[1],  # qx
+                    quaternion_wxyz[2],  # qy
+                    quaternion_wxyz[3],  # qz
+                    quaternion_wxyz[0]   # qw
+                ])
                 
                 # 将四元数转换为欧拉角 (弧度)
-                rotation = Rotation.from_quat(quaternion)
+                rotation = Rotation.from_quat(quaternion_xyzw)
                 euler_angles = rotation.as_euler('xyz', degrees=False)
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
