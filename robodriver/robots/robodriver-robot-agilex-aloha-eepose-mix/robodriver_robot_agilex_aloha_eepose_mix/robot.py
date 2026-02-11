@@ -414,7 +414,9 @@ class AgilexAlohaEEposeMixRobot(Robot):
             goal_numpy = goal_numpy / 100
             self.robot_dora_node.dora_send(f"action_gripper_left", goal_numpy)
 
-    
+    def get_node(self):
+        return self.robot_ros2_node
+
     def disconnect(self):
         if not self.is_connected:
             raise DeviceNotConnectedError(
