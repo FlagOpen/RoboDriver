@@ -8,8 +8,8 @@ import time
 from typing import Any, Dict
 
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage
-
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
 logger = logging_mp.get_logger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
@@ -19,29 +19,17 @@ class AgilexAlohaHeadImageROS2RobotNode(Node):
     def __init__(self):
         super().__init__('robodriver_agilex_aloha_head_image_ros2_node')
 
-        self.sub_camera_top = self.create_subscription(CompressedImage, '/camera_head/image_raw_color/compressed', self.images_recv)
+        self.sub_camera_top = self.create_subscription(Image, '/camera/camera_head/color/image_raw', self.images_recv, 10)
+        self.bridge = CvBridge()
 
         self.recv_images: Dict[str, float] = {}
 
         self.lock = threading.Lock()
         self.running = False
 
-    def images_recv(self, msg, width, height, encoding="jpeg"):
+    def images_recv(self, msg):
         try:
-            img_array = np.frombuffer(msg.data, dtype=np.uint8)
-            if encoding == "bgr8":
-                channels = 3
-                frame = img_array.reshape((height, width, channels)).copy()
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            elif encoding == "rgb8":
-                channels = 3
-                frame = img_array.reshape((height, width, channels))
-            elif encoding in ["jpeg", "jpg", "jpe", "bmp", "webp", "png"]:
-                channels = 3
-                frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            elif encoding == "depth16":
-                frame = np.frombuffer(msg.data, dtype=np.uint16).reshape(height, width,1)
+            frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
             
             if frame is not None:
                 with self.lock:
