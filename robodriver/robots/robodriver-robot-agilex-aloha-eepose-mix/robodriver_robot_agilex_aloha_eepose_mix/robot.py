@@ -19,27 +19,33 @@ from .node import AgilexAlohaEEposeDoraRobotNode
 logger = logging_mp.get_logger(__name__)
 
 
-def euler_xyz_to_quaternion(array):
+def euler_zyx_to_quaternion(array):
     """
-    将欧拉角（XYZ顺序，即绕X、Y、Z轴旋转）转换为四元数
+    将欧拉角（ZYX顺序，即绕Z、Y、X轴旋转）转换为四元数
     
     参数:
-        roll: 绕X轴旋转角度（弧度）
-        pitch: 绕Y轴旋转角度（弧度）
-        yaw: 绕Z轴旋转角度（弧度）
+        array: [roll_x, pitch_y, yaw_z] 欧拉角数组（弧度）
+               roll_x: 绕X轴旋转角度
+               pitch_y: 绕Y轴旋转角度
+               yaw_z: 绕Z轴旋转角度
     
     返回:
         (w, x, y, z): 四元数，w为实部，x,y,z为虚部
     """
-    # 计算半角
-    cy = math.cos(array[2] * 0.5)
-    sy = math.sin(array[2] * 0.5)
-    cp = math.cos(array[1] * 0.5)
-    sp = math.sin(array[1] * 0.5)
-    cr = math.cos(array[0] * 0.5)
-    sr = math.sin(array[0] * 0.5)
+    roll_x = array[0]   # 绕X轴旋转
+    pitch_y = array[1]  # 绕Y轴旋转  
+    yaw_z = array[2]    # 绕Z轴旋转
     
-    # 计算四元数
+    # 计算半角
+    cy = math.cos(yaw_z * 0.5)
+    sy = math.sin(yaw_z * 0.5)
+    cp = math.cos(pitch_y * 0.5)
+    sp = math.sin(pitch_y * 0.5)
+    cr = math.cos(roll_x * 0.5)
+    sr = math.sin(roll_x * 0.5)
+    
+    # ZYX顺序的四元数计算
+    # 对应旋转顺序：先Z轴(yaw)，再Y轴(pitch)，最后X轴(roll)
     w = cr * cp * cy + sr * sp * sy
     x = sr * cp * cy - cr * sp * sy
     y = cr * sp * cy + sr * cp * sy
@@ -267,10 +273,10 @@ class AgilexAlohaEEposeMixRobot(Robot):
         obs_dict = {}
         conv_recv_follower_endpose_left = np.zeros(7)
         conv_recv_follower_endpose_left[:3] = self.robot_dora_node.recv_follower_endpose_left[:3]
-        conv_recv_follower_endpose_left[3:] = euler_xyz_to_quaternion(self.robot_dora_node.recv_follower_endpose_left[3:])
+        conv_recv_follower_endpose_left[3:] = euler_zyx_to_quaternion(self.robot_dora_node.recv_follower_endpose_left[3:])
         conv_recv_follower_endpose_right = np.zeros(7)
         conv_recv_follower_endpose_right[:3] = self.robot_dora_node.recv_follower_endpose_right[:3]
-        conv_recv_follower_endpose_right[3:] = euler_xyz_to_quaternion(self.robot_dora_node.recv_follower_endpose_right[3:])
+        conv_recv_follower_endpose_right[3:] = euler_zyx_to_quaternion(self.robot_dora_node.recv_follower_endpose_right[3:])
 
         # Add right arm positions
         for i, motor in enumerate(self.motors):
@@ -362,7 +368,7 @@ class AgilexAlohaEEposeMixRobot(Robot):
                 
                 # 将四元数转换为欧拉角 (弧度)
                 rotation = Rotation.from_quat(quaternion_xyzw)
-                euler_angles = rotation.as_euler('xyz', degrees=False)  # 使用 'xyz' 旋转顺序
+                euler_angles = rotation.as_euler('zyx', degrees=False)  # 使用 'zyx' 旋转顺序
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
                 transformed_goal = np.concatenate([position, euler_angles], dtype=np.float32)
@@ -391,7 +397,7 @@ class AgilexAlohaEEposeMixRobot(Robot):
                 
                 # 将四元数转换为欧拉角 (弧度)
                 rotation = Rotation.from_quat(quaternion_xyzw)
-                euler_angles = rotation.as_euler('xyz', degrees=False)
+                euler_angles = rotation.as_euler('zyx', degrees=False)
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
                 transformed_goal = np.concatenate([position, euler_angles], dtype=np.float32)
