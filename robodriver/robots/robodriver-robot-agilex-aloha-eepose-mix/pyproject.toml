@@ -15,7 +15,7 @@ keywords = ["robotics", "lerobot", "agilex", "aloha"]
 dependencies = [
     "logging_mp",
     "opencv-python",
-    "dora<=0.4.0"
+    "dora-rs==0.3.13"
 ]
 
 [tool.setuptools.packages.find]
