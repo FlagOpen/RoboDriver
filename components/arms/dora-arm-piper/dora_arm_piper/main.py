@@ -7,9 +7,50 @@ import numpy as np
 import pyarrow as pa
 from dora import Node
 from piper_sdk import C_PiperInterface
+from scipy.spatial.transform import Rotation as R
 
 
 TEACH_MODE = os.getenv("TEACH_MODE", "False") in ["True", "true"]
+CAN_BUS = os.getenv("CAN_BUS", "can0")
+
+# 坐标系变换矩阵，A为原本末端位姿坐标系，B为调整为X向前后的坐标系
+R_A_TO_B = np.array([
+    [0, 0, -1],
+    [0, 1, 0],
+    [1, 0, 0]
+])
+R_B_TO_A = R_A_TO_B.T
+
+def convert_pose(pose, direction='A_to_B', input_order='ZYX', output_order='ZYX', degrees=False):
+    """
+    在坐标系A和B之间转换姿态
+    
+    参数:
+    pose: 输入的姿态（旋转对象或欧拉角）, [x, y, z]
+    direction: 转换方向，'A_to_B' 或 'B_to_A'
+    input_order: 输入姿态的欧拉角顺序
+    output_order: 输出姿态的欧拉角顺序
+    degrees: 角度是否为度数
+    
+    返回:
+    转换后的姿态
+    """
+    # 选择变换矩阵
+    transform = R_A_TO_B if direction == 'A_to_B' else R_B_TO_A
+    
+    # 转换为旋转对象
+    if isinstance(pose, (list, tuple, np.ndarray)):
+        if len(pose) != 3:
+            raise ValueError("pose应为3个欧拉角")
+        rot = R.from_euler(input_order, pose, degrees=degrees)
+    else:
+        rot = pose
+    
+    # 应用变换并转换结果
+    result_rot = R.from_matrix(transform @ rot.as_matrix())
+    
+    # 返回所需格式
+    return result_rot if not output_order else result_rot.as_euler(output_order, degrees=degrees)
 
 
 def enable_fun(piper: C_PiperInterface):
@@ -17,7 +58,6 @@ def enable_fun(piper: C_PiperInterface):
     enable_flag = all(piper.GetArmEnableStatus())
     
     timeout = 0.05  # 超时时间（秒）
-    interval = 0.01  # 每次轮询间隔（秒）
     
     start_time = time.time()
     while not enable_flag:
@@ -35,15 +75,13 @@ def enable_fun(piper: C_PiperInterface):
 def main():
     """TODO: Add docstring."""
     elapsed_time = time.time()
-    can_bus = os.getenv("CAN_BUS", "")
-    piper = C_PiperInterface(can_bus)
+    piper = C_PiperInterface(CAN_BUS)
     piper.ConnectPort()
 
     if not TEACH_MODE:
         enable_fun(piper)
-    # piper.GripperCtrl(0, 3000, 0x01, 0)
 
-    factor = 57324.840764  # 1000*180/3.14
+    factor = 57295.779578552  # 1000*180/3.14159265
     node = Node()
 
     for event in node:
@@ -81,14 +119,21 @@ def main():
                     continue
 
                 position = event["value"].to_numpy()
-                piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+
+                ori_rot = [
+                    position[3] / np.pi * 180,
+                    position[4] / np.pi * 180,
+                    position[5] / np.pi * 180
+                ]
+                cvt_rot = convert_pose(ori_rot, 'B_to_A', 'ZYX', 'ZYX', degrees=True)
+                piper.MotionCtrl_2(0x01, 0x00, 100, 0x00)
                 piper.EndPoseCtrl(
                     round(position[0] * 1000 * 1000),
                     round(position[1] * 1000 * 1000),
                     round(position[2] * 1000 * 1000),
-                    round(position[3] * 1000 / (2 * np.pi) * 360),
-                    round(position[4] * 1000 / (2 * np.pi) * 360),
-                    round(position[5] * 1000 / (2 * np.pi) * 360),
+                    round(cvt_rot[0] * 1000),
+                    round(cvt_rot[1] * 1000),
+                    round(cvt_rot[2] * 1000),
                 )
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
             
@@ -122,13 +167,20 @@ def main():
                 node.send_output("follower_jointstate", pa.array(joint_value, type=pa.float32()))
 
                 position = piper.GetArmEndPoseMsgs()
+                ori_rot = [
+                    position.end_pose.RX_axis * 0.001,
+                    position.end_pose.RY_axis * 0.001,
+                    position.end_pose.RZ_axis * 0.001
+                ]
+                cvt_rot = convert_pose(ori_rot, 'A_to_B', 'ZYX', 'ZYX', degrees=True)
+
                 position_value = []
                 position_value += [position.end_pose.X_axis * 0.001 * 0.001]
                 position_value += [position.end_pose.Y_axis * 0.001 * 0.001]
                 position_value += [position.end_pose.Z_axis * 0.001 * 0.001]
-                position_value += [position.end_pose.RX_axis * 0.001 / 360 * 2 * np.pi]
-                position_value += [position.end_pose.RY_axis * 0.001 / 360 * 2 * np.pi]
-                position_value += [position.end_pose.RZ_axis * 0.001 / 360 * 2 * np.pi]
+                position_value += [cvt_rot[0] / 180 * np.pi]
+                position_value += [cvt_rot[1] / 180 * np.pi]
+                position_value += [cvt_rot[2] / 180 * np.pi]
 
                 node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
 

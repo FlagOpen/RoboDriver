@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dora-arm-piper"
-version = "0.0.5"
+version = "0.0.6"
 description = ""
 authors = [
     {name = "Xiang Yang",email = "ryu-yang@qq.com"}
@@ -15,6 +15,7 @@ dependencies = [
     "dora-rs (>=0.3.11,<0.4.0)",
     "piper_sdk >= 0.0.8",
     "numpy>=1.24.4",
+    "scipy",
 ]
 
 [project.optional-dependencies]
