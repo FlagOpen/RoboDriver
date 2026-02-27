@@ -86,14 +86,15 @@ def main():
 
     for event in node:
         if event["type"] == "INPUT":
-            if "action" in event["id"]:
-                enable_fun(piper)
+            # if "action" in event["id"]:
+            #     enable_fun(piper)
             if event["id"] == "action_joint":
                 # Do not push to many commands to fast. Limiting it to 50Hz
                 if time.time() - elapsed_time > 0.02:
                     elapsed_time = time.time()
                 else:
                     continue
+                enable_fun(piper)
 
                 position = event["value"].to_numpy()
 
@@ -117,6 +118,7 @@ def main():
                     elapsed_time = time.time()
                 else:
                     continue
+                enable_fun(piper)
 
                 position = event["value"].to_numpy()
 
@@ -136,16 +138,21 @@ def main():
                     round(cvt_rot[2] * 1000),
                 )
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
+                if len(position) > 6 and not np.isnan(position[6]):
+                    piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 3000, 0x01, 0)
+            
             
             elif event["id"] == "action_gripper":
                 # Do not push to many commands to fast. Limiting it to 50Hz
-                if time.time() - elapsed_time > 0.02:
-                    elapsed_time = time.time()
-                else:
-                    continue
+                # if time.time() - elapsed_time > 0.02:
+                #     elapsed_time = time.time()
+                # else:
+                #     continue
 
                 position = event["value"].to_numpy()
-                piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+                # piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+
+                # print(f"piper {CAN_BUS} recv position[0]: {position[0]}")
                 piper.GripperCtrl(int(abs(position[0] * 1000 * 100)), 3000, 0x01, 0)
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
 
