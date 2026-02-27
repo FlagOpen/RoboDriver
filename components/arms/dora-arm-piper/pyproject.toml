@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dora-arm-piper"
-version = "0.0.8"
+version = "0.0.9"
 description = ""
 authors = [
     {name = "Xiang Yang",email = "ryu-yang@qq.com"}

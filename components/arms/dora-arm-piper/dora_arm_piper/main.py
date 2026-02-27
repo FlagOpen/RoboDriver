@@ -137,20 +137,20 @@ def print_arm_status(piper: C_PiperInterface):
     if hasattr(arm_status, 'err_status') and arm_status.err_status:
         err = arm_status.err_status
         print(f"  关节角度超限位:")
-        print(f"    关节1: {'是' if err.get('joint_1_angle_limit', False) else '否'}")
-        print(f"    关节2: {'是' if err.get('joint_2_angle_limit', False) else '否'}")
-        print(f"    关节3: {'是' if err.get('joint_3_angle_limit', False) else '否'}")
-        print(f"    关节4: {'是' if err.get('joint_4_angle_limit', False) else '否'}")
-        print(f"    关节5: {'是' if err.get('joint_5_angle_limit', False) else '否'}")
-        print(f"    关节6: {'是' if err.get('joint_6_angle_limit', False) else '否'}")
+        print(f"    关节1: {'是' if err.joint_1_angle_limit else '否'}")
+        print(f"    关节2: {'是' if err.joint_2_angle_limit else '否'}")
+        print(f"    关节3: {'是' if err.joint_3_angle_limit else '否'}")
+        print(f"    关节4: {'是' if err.joint_4_angle_limit else '否'}")
+        print(f"    关节5: {'是' if err.joint_5_angle_limit else '否'}")
+        print(f"    关节6: {'是' if err.joint_6_angle_limit else '否'}")
         
         print(f"\n  关节通信异常:")
-        print(f"    关节1: {'是' if err.get('communication_status_joint_1', False) else '否'}")
-        print(f"    关节2: {'是' if err.get('communication_status_joint_2', False) else '否'}")
-        print(f"    关节3: {'是' if err.get('communication_status_joint_3', False) else '否'}")
-        print(f"    关节4: {'是' if err.get('communication_status_joint_4', False) else '否'}")
-        print(f"    关节5: {'是' if err.get('communication_status_joint_5', False) else '否'}")
-        print(f"    关节6: {'是' if err.get('communication_status_joint_6', False) else '否'}")
+        print(f"    关节1: {'是' if err.communication_status_joint_1 else '否'}")
+        print(f"    关节2: {'是' if err.communication_status_joint_2 else '否'}")
+        print(f"    关节3: {'是' if err.communication_status_joint_3 else '否'}")
+        print(f"    关节4: {'是' if err.communication_status_joint_4 else '否'}")
+        print(f"    关节5: {'是' if err.communication_status_joint_5 else '否'}")
+        print(f"    关节6: {'是' if err.communication_status_joint_6 else '否'}")
     else:
         print("  无故障状态信息")
     
