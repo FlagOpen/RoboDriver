@@ -80,7 +80,7 @@ def print_arm_status(piper: C_PiperInterface):
     Print the current arm status information including ctrl_mode, arm_status, 
     mode_feed, motion_status, and err_status.
     """
-    arm_status = piper.GetArmStatus()
+    arm_status = piper.GetArmStatus().arm_status
     
     # Define lookup dictionaries for better readability
     ctrl_mode_map = {
