@@ -283,12 +283,12 @@ class AgilexAlohaEEposeMixRobot(Robot):
             if "joint" in motor and "right" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
             elif "gripper" in motor and "right" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i] * 100.0
 
             elif "joint" in motor and "left" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-7]
             elif "gripper" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-7]
+                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-7] * 100.0
 
             elif "arm" in motor and "left" in motor and ("quat" in motor or "pos" in motor):
                 obs_dict[f"follower_{motor}.pos"] = conv_recv_follower_endpose_left[i-14]
@@ -368,11 +368,12 @@ class AgilexAlohaEEposeMixRobot(Robot):
                 
                 # 将四元数转换为欧拉角 (弧度)
                 rotation = Rotation.from_quat(quaternion_xyzw)
-                euler_angles = rotation.as_euler('zyx', degrees=False)  # 使用 'zyx' 旋转顺序
+                euler_angles = rotation.as_euler('xyz', degrees=False)  # 使用 'zyx' 内旋旋转顺序， 外旋'xyz'
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
-                transformed_goal = np.concatenate([position, euler_angles], dtype=np.float32)
-                
+                transformed_goal = np.concatenate([position, euler_angles, np.array([right_gripper_action[0]/100])], dtype=np.float32)
+
+                # logger.info(f"action_endpose_right: {transformed_goal}")
                 self.robot_dora_node.dora_send(f"action_endpose_right", transformed_goal)
             else:
                 print(f"Warning: Unexpected array length {len(goal_numpy)}. Expected 7.")
@@ -397,28 +398,31 @@ class AgilexAlohaEEposeMixRobot(Robot):
                 
                 # 将四元数转换为欧拉角 (弧度)
                 rotation = Rotation.from_quat(quaternion_xyzw)
-                euler_angles = rotation.as_euler('zyx', degrees=False)
+                euler_angles = rotation.as_euler('xyz', degrees=False)
                 
                 # 组合成新的数组 [x, y, z, rx, ry, rz]
-                transformed_goal = np.concatenate([position, euler_angles], dtype=np.float32)
+                transformed_goal = np.concatenate([position, euler_angles, np.array([left_gripper_action[0]/100])], dtype=np.float32)
                 
+                # logger.info(f"action_endpose_left: {transformed_goal}")
                 self.robot_dora_node.dora_send(f"action_endpose_left", transformed_goal)
             else:
                 print(f"Warning: Unexpected array length {len(goal_numpy)}. Expected 7.")
                 self.robot_dora_node.dora_send(f"action_endpose_left", goal_numpy)
 
 
-        # Send right arm action
-        if right_gripper_action:
-            goal_numpy = np.array(right_gripper_action, dtype=np.float32)
-            goal_numpy = goal_numpy / 100
-            self.robot_dora_node.dora_send(f"action_gripper_right", goal_numpy)
+        # # Send right arm action
+        # if right_gripper_action:
+        #     goal_numpy = np.array(right_gripper_action, dtype=np.float32)
+        #     goal_numpy = goal_numpy / 100
+        #     self.robot_dora_node.dora_send(f"action_gripper_right", goal_numpy)
+        #     logger.info(f"action_gripper_right: {goal_numpy}")
         
-        # Send left arm action
-        if left_gripper_action:
-            goal_numpy = np.array(left_gripper_action, dtype=np.float32)
-            goal_numpy = goal_numpy / 100
-            self.robot_dora_node.dora_send(f"action_gripper_left", goal_numpy)
+        # # Send left arm action
+        # if left_gripper_action:
+        #     goal_numpy = np.array(left_gripper_action, dtype=np.float32)
+        #     goal_numpy = goal_numpy / 100
+        #     self.robot_dora_node.dora_send(f"action_gripper_left", goal_numpy)
+        #     logger.info(f"action_gripper_left: {goal_numpy}")
 
     def get_node(self):
         return self.robot_ros2_node
