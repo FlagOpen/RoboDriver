@@ -51,6 +51,7 @@ nodes:
       VIRTUAL_ENV: arm.venv
       CAN_BUS: can_right
       TEACH_MODE: True
+      LOG_STATUS: True
 
   - id: piper_left
     build: pip install dora-arm-piper
@@ -68,6 +69,7 @@ nodes:
       VIRTUAL_ENV: arm.venv
       CAN_BUS: can_left
       TEACH_MODE: True
+      LOG_STATUS: True
 
   - id: agilex_aloha_eepose_dora
     path: dynamic

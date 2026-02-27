@@ -12,6 +12,8 @@ from scipy.spatial.transform import Rotation as R
 
 TEACH_MODE = os.getenv("TEACH_MODE", "False") in ["True", "true"]
 CAN_BUS = os.getenv("CAN_BUS", "can0")
+LOG_STATUS = os.getenv("LOG_STATUS", "False") in ["True", "true"]
+
 
 # 坐标系变换矩阵，A为原本末端位姿坐标系，B为调整为X向前后的坐标系
 R_A_TO_B = np.array([
@@ -20,6 +22,7 @@ R_A_TO_B = np.array([
     [1, 0, 0]
 ])
 R_B_TO_A = R_A_TO_B.T
+
 
 def convert_pose(pose, direction='A_to_B', input_order='ZYX', output_order='ZYX', degrees=False):
     """
@@ -70,6 +73,91 @@ def enable_fun(piper: C_PiperInterface):
         if elapsed_time > timeout:
             print("Piper机械臂自动使能超时....")
             break
+
+
+def print_arm_status(piper: C_PiperInterface):
+    """
+    Print the current arm status information including ctrl_mode, arm_status, 
+    mode_feed, motion_status, and err_status.
+    """
+    arm_status = piper.GetArmStatus()
+    
+    # Define lookup dictionaries for better readability
+    ctrl_mode_map = {
+        0x00: "待机模式",
+        0x01: "CAN指令控制模式", 
+        0x02: "示教模式"
+    }
+    
+    arm_status_map = {
+        0x00: "正常",
+        0x01: "急停",
+        0x02: "无解",
+        0x03: "奇异点",
+        0x04: "目标角度超过限",
+        0x05: "关节通信异常",
+        0x06: "关节抱闸未打开",
+        0x07: "机械臂发生碰撞",
+        0x08: "拖动示教时超速",
+        0x09: "关节状态异常",
+        0x0A: "其它异常",
+        0x0B: "示教记录",
+        0x0C: "示教执行",
+        0x0D: "示教暂停",
+        0x0E: "主控NTC过温",
+        0x0F: "释放电阻NTC过温"
+    }
+    
+    mode_feed_map = {
+        0x00: "MOVE P",
+        0x01: "MOVE J",
+        0x02: "MOVE L",
+        0x03: "MOVE C",
+        0x04: "MOVE M",
+        0x05: "MOVE_CPV"
+    }
+    
+    motion_status_map = {
+        0x00: "到达指定点位",
+        0x01: "未到达指定点位"
+    }
+    
+    print("=" * 50)
+    print("机械臂状态信息:")
+    print("=" * 50)
+    
+    # Print basic status information
+    print(f"控制模式 (ctrl_mode): {ctrl_mode_map.get(arm_status.ctrl_mode, f'未知({arm_status.ctrl_mode})')}")
+    print(f"机械臂状态 (arm_status): {arm_status_map.get(arm_status.arm_status, f'未知({arm_status.arm_status})')}")
+    print(f"模式反馈 (mode_feed): {mode_feed_map.get(arm_status.mode_feed, f'未知({arm_status.mode_feed})')}")
+    print(f"运动状态 (motion_status): {motion_status_map.get(arm_status.motion_status, f'未知({arm_status.motion_status})')}")
+    
+    # Print error status details
+    print("\n故障状态 (err_status):")
+    if hasattr(arm_status, 'err_status') and arm_status.err_status:
+        err = arm_status.err_status
+        print(f"  关节角度超限位:")
+        print(f"    关节1: {'是' if err.get('joint_1_angle_limit', False) else '否'}")
+        print(f"    关节2: {'是' if err.get('joint_2_angle_limit', False) else '否'}")
+        print(f"    关节3: {'是' if err.get('joint_3_angle_limit', False) else '否'}")
+        print(f"    关节4: {'是' if err.get('joint_4_angle_limit', False) else '否'}")
+        print(f"    关节5: {'是' if err.get('joint_5_angle_limit', False) else '否'}")
+        print(f"    关节6: {'是' if err.get('joint_6_angle_limit', False) else '否'}")
+        
+        print(f"\n  关节通信异常:")
+        print(f"    关节1: {'是' if err.get('communication_status_joint_1', False) else '否'}")
+        print(f"    关节2: {'是' if err.get('communication_status_joint_2', False) else '否'}")
+        print(f"    关节3: {'是' if err.get('communication_status_joint_3', False) else '否'}")
+        print(f"    关节4: {'是' if err.get('communication_status_joint_4', False) else '否'}")
+        print(f"    关节5: {'是' if err.get('communication_status_joint_5', False) else '否'}")
+        print(f"    关节6: {'是' if err.get('communication_status_joint_6', False) else '否'}")
+    else:
+        print("  无故障状态信息")
+    
+    # Print additional useful information
+    print(f"\n时间戳: {arm_status.time_stamp if hasattr(arm_status, 'time_stamp') else 'N/A'}")
+    print(f"频率: {arm_status.Hz if hasattr(arm_status, 'Hz') else 'N/A'} Hz")
+    print("=" * 50)
 
 
 def main():
@@ -206,6 +294,9 @@ def main():
                 joint_value += [gripper.gripper_ctrl.grippers_angle / 1000 / 100]
 
                 node.send_output("leader_jointstate", pa.array(joint_value, type=pa.float32()))
+
+                if LOG_STATUS:
+                    print_arm_status(piper)
 
         elif event["type"] == "STOP":
             break
