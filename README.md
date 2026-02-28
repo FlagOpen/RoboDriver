@@ -99,6 +99,7 @@ RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |
 |------------|------|--------------|------------------------|
 | Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) |  [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
+| 乐聚kuavoPro4 | 乐聚人型机器人，双臂7DOF+灵巧手，2*RealSense相机| [robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1](./robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1) |  [<img src="https://avatars.githubusercontent.com/dirk656" width="50" height="50">](https://github.com/dirk656) |
 
 ### 🔌 ROS2 接入
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |

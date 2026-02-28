@@ -202,7 +202,7 @@ roslaunch dynamic_biped load_robot_head.launch use_obrecc:=true enable_wrist_cam
 
 ### 3. 启动 RoboDriver
 ```bash
-python -m robodriver.scripts.run  --robot.type=leju-kuavo-teleoperate-ros1 
+python -m robodriver.scripts.run  --robot.type=leju-kuavo-teleop-ros1 
 ```
 ### 4.启动VR头显
 按照乐聚官网快速开始页面说明启动VR头显，进入VR控制软件按照操作控制机器人

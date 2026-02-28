@@ -316,6 +316,10 @@ class LEJUKuavoRos1Node:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
                 if frame is not None:
+                    # 修正 top 相机画面方向（当前倒置）
+                    if event_id == "image_top":
+                        frame = cv2.rotate(frame, cv2.ROTATE_180)
+
                     # 打印图像处理结果
                     #rospy.loginfo(f"Successfully decoded image {event_id}: shape={frame.shape}, dtype={frame.dtype}")
                     
