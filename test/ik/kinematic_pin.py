@@ -239,6 +239,8 @@ class Arm_IK:
         rpy = pin.rpy.matrixToRpy(frame.rotation)
         rpy = convert_pose(rpy, direction='A_to_B')
         rpy_new = [-rpy[1], rpy[0], rpy[2]]
+        rpy_new[1] -= np.pi/2
+        rpy_new[2] -= np.pi/2
 
         return np.concatenate([frame.translation, rpy_new])
 
@@ -257,6 +259,8 @@ class Arm_IK:
             Joint angles solution or None if no solution found
         """
         # Convert from standard coordinate system to Pinocchio coordinate system
+        pitch += np.pi/2
+        yaw += np.pi/2
 
         rpy = convert_pose([pitch, -roll, yaw], direction='B_to_A')
         rot_orig = R.from_euler('xyz', rpy)

@@ -116,7 +116,7 @@ def run_mujoco_test(ik_solver, initial_q, urdf_joint_names):
 
 def interactive_ik_control():
     """主控制函数"""
-    URDF_PATH = "urdf/piper_left.urdf"
+    URDF_PATH = "urdf/piper.urdf"
     JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
     
     print("--- 🤖 Interactive IK + MuJoCo Control ---")
