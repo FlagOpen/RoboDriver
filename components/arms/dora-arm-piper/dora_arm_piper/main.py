@@ -24,11 +24,18 @@ if EEPOSE_MODE:
 
 # 坐标系变换矩阵，A为原本末端位姿坐标系，B为调整为X向前后的坐标系
 R_A_TO_B = np.array([
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+])
+R_B_TO_A = R_A_TO_B.T
+
+R_C_TO_D = np.array([
     [0, 0, -1],
     [0, 1, 0],
     [1, 0, 0]
 ])
-R_B_TO_A = R_A_TO_B.T
+R_D_TO_C = R_C_TO_D.T
 
 
 def convert_pose(pose, direction='A_to_B', input_order='ZYX', output_order='ZYX', degrees=False):
@@ -62,6 +69,36 @@ def convert_pose(pose, direction='A_to_B', input_order='ZYX', output_order='ZYX'
     # 返回所需格式
     return result_rot if not output_order else result_rot.as_euler(output_order, degrees=degrees)
 
+def convert_pose_2(pose, direction='C_to_D', input_order='ZYX', output_order='ZYX', degrees=False):
+    """
+    在坐标系A和B之间转换姿态
+    
+    参数:
+    pose: 输入的姿态（旋转对象或欧拉角）, [x, y, z]
+    direction: 转换方向，'A_to_B' 或 'B_to_A'
+    input_order: 输入姿态的欧拉角顺序
+    output_order: 输出姿态的欧拉角顺序
+    degrees: 角度是否为度数
+    
+    返回:
+    转换后的姿态
+    """
+    # 选择变换矩阵
+    transform = R_C_TO_D if direction == 'C_to_D' else R_D_TO_C
+    
+    # 转换为旋转对象
+    if isinstance(pose, (list, tuple, np.ndarray)):
+        if len(pose) != 3:
+            raise ValueError("pose应为3个欧拉角")
+        rot = R.from_euler(input_order, pose, degrees=degrees)
+    else:
+        rot = pose
+    
+    # 应用变换并转换结果
+    result_rot = R.from_matrix(transform @ rot.as_matrix())
+    
+    # 返回所需格式
+    return result_rot if not output_order else result_rot.as_euler(output_order, degrees=degrees)
 
 def enable_fun(piper: C_PiperInterface):
     """使能机械臂并检测使能状态,尝试0.05s,如果使能超时则退出程序."""
@@ -508,7 +545,7 @@ def main():
                     position.end_pose.RY_axis * 0.001,
                     position.end_pose.RZ_axis * 0.001
                 ]
-                cvt_rot = convert_pose(ori_rot, 'A_to_B', 'ZYX', 'ZYX', degrees=True)
+                cvt_rot = convert_pose_2(ori_rot, 'C_to_D', 'ZYX', 'ZYX', degrees=True)
 
                 position_value = []
                 position_value += [position.end_pose.X_axis * 0.001 * 0.001]
