@@ -503,6 +503,8 @@ def main():
                 joint_4 = round(joints[4] * factor)
                 joint_5 = round(joints[5] * factor)
 
+                piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+                piper.JointCtrl(joint_0, joint_1, joint_2, joint_3, joint_4, joint_5)
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
                 if len(position) > 6 and not np.isnan(position[6]):
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 3000, 0x01, 0)
