@@ -439,6 +439,39 @@ class Arm_IK:
             return None
 
 
+def send_smooth_joint_move(piper, current_joints, target_joints, steps=10):
+    """
+    平滑地将关节从当前位置移动到目标位置
+    
+    Args:
+        piper: 机器人控制对象
+        current_joints: 当前关节角度列表 [j0, j1, j2, j3, j4, j5]
+        target_joints: 目标关节角度列表 [j0, j1, j2, j3, j4, j5]
+        steps: 插值步数，默认10步
+    """
+    
+    # 生成插值轨迹
+    for step in range(1, steps + 1):
+        # 计算插值系数 (0.1, 0.2, 0.3, ..., 1.0)
+        alpha = step / steps
+        
+        # 对每个关节进行线性插值
+        interpolated_joints = []
+        for i in range(6):
+            # 线性插值公式: current + (target - current) * alpha
+            joint_value = current_joints[i] + (target_joints[i] - current_joints[i]) * alpha
+            joint_value = round(joint_value)  # 四舍五入取整
+            interpolated_joints.append(joint_value)
+        
+        # 发送插值后的关节角度
+        piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+        piper.JointCtrl(interpolated_joints[0], interpolated_joints[1],
+                       interpolated_joints[2], interpolated_joints[3],
+                       interpolated_joints[4], interpolated_joints[5])
+        
+        # 适当延时，控制运动速度
+        time.sleep(0.005)  # 10ms延时，可以根据需要调整
+
 def main():
     """TODO: Add docstring."""
     elapsed_time = time.time()
@@ -452,6 +485,8 @@ def main():
 
     factor = 57295.779578552  # 1000*180/3.14159265
     node = Node()
+
+    last_joints = [0, 0, 0, 0, 0, 0]
 
     for event in node:
         if event["type"] == "INPUT":
@@ -500,16 +535,19 @@ def main():
                     position[5],
                 )
 
-                joint_0 = round(joints[0] * factor)
-                joint_1 = round(joints[1] * factor)
-                joint_2 = round(joints[2] * factor)
-                joint_3 = round(joints[3] * factor)
-                joint_4 = round(joints[4] * factor)
-                joint_5 = round(joints[5] * factor)
+                joints[0] = round(joints[0] * factor)
+                joints[1] = round(joints[1] * factor)
+                joints[2] = round(joints[2] * factor)
+                joints[3] = round(joints[3] * factor)
+                joints[4] = round(joints[4] * factor)
+                joints[5] = round(joints[5] * factor)
 
-                piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
-                piper.JointCtrl(joint_0, joint_1, joint_2, joint_3, joint_4, joint_5)
-                # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
+                send_smooth_joint_move(piper, last_joints, joints, steps=10)
+                last_joints = joints
+
+                # piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+                # piper.JointCtrl(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5])
+
                 if len(position) > 6 and not np.isnan(position[6]):
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 3000, 0x01, 0)
             
