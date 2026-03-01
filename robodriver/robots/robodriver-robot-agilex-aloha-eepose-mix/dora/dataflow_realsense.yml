@@ -36,7 +36,17 @@ nodes:
       DEVICE_SERIAL: CC1635300FK
 
   - id: piper_right
-    build: pip install dora-arm-piper
+    build: |
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/base_link.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link1.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link2.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link3.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link4.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link5.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link6.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link7.STL
+      wget -nc -P urdf/ https://raw.githubusercontent.com/agilexrobotics/Piper_ros/4f22c61f96b8fb3ef3f937b99b63edb697caadf0/src/piper_description/meshes/link8.STL
+      pip install dora-arm-piper
     path: dora-arm-piper
     inputs:
       tick: dora/timer/millis/20
@@ -52,6 +62,8 @@ nodes:
       CAN_BUS: can_right
       TEACH_MODE: True
       LOG_STATUS: True
+      EEPOSE_MODE: True
+      URDF_PATH: urdf/piper.urdf
 
   - id: piper_left
     build: pip install dora-arm-piper
@@ -70,6 +82,8 @@ nodes:
       CAN_BUS: can_left
       TEACH_MODE: True
       LOG_STATUS: True
+      EEPOSE_MODE: True
+      URDF_PATH: urdf/piper.urdf
 
   - id: agilex_aloha_eepose_dora
     path: dynamic
