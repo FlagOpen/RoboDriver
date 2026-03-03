@@ -518,7 +518,7 @@ def main():
 
             elif event["id"] == "action_endpose":
                 # Do not push to many commands to fast. Limiting it to 50Hz
-                if time.time() - elapsed_time > 0.02 and EEPOSE_MODE:
+                if time.time() - elapsed_time > 0.005 and EEPOSE_MODE:
                     elapsed_time = time.time()
                 else:
                     continue
@@ -542,11 +542,11 @@ def main():
                 joints[4] = round(joints[4] * factor)
                 joints[5] = round(joints[5] * factor)
 
-                send_smooth_joint_move(piper, last_joints, joints, steps=10)
-                last_joints = joints
+                # send_smooth_joint_move(piper, last_joints, joints, steps=10)
+                # last_joints = joints
 
-                # piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
-                # piper.JointCtrl(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5])
+                piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
+                piper.JointCtrl(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5])
 
                 if len(position) > 6 and not np.isnan(position[6]):
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 3000, 0x01, 0)
@@ -583,23 +583,25 @@ def main():
 
                 node.send_output("follower_jointstate", pa.array(joint_value, type=pa.float32()))
 
-                position = piper.GetArmEndPoseMsgs()
-                ori_rot = [
-                    position.end_pose.RX_axis * 0.001,
-                    position.end_pose.RY_axis * 0.001,
-                    position.end_pose.RZ_axis * 0.001
-                ]
-                cvt_rot = convert_pose_2(ori_rot, 'C_to_D', 'ZYX', 'ZYX', degrees=True)
+                # position = piper.GetArmEndPoseMsgs()
+                # ori_rot = [
+                #     position.end_pose.RX_axis * 0.001,
+                #     position.end_pose.RY_axis * 0.001,
+                #     position.end_pose.RZ_axis * 0.001
+                # ]
+                # cvt_rot = convert_pose_2(ori_rot, 'C_to_D', 'ZYX', 'ZYX', degrees=True)
 
-                position_value = []
-                position_value += [position.end_pose.X_axis * 0.001 * 0.001]
-                position_value += [position.end_pose.Y_axis * 0.001 * 0.001]
-                position_value += [position.end_pose.Z_axis * 0.001 * 0.001]
-                position_value += [cvt_rot[0] / 180 * np.pi]
-                position_value += [cvt_rot[1] / 180 * np.pi]
-                position_value += [cvt_rot[2] / 180 * np.pi]
+                # position_value = []
+                # position_value += [position.end_pose.X_axis * 0.001 * 0.001]
+                # position_value += [position.end_pose.Y_axis * 0.001 * 0.001]
+                # position_value += [position.end_pose.Z_axis * 0.001 * 0.001]
+                # position_value += [cvt_rot[0] / 180 * np.pi]
+                # position_value += [cvt_rot[1] / 180 * np.pi]
+                # position_value += [cvt_rot[2] / 180 * np.pi]
+                if EEPOSE_MODE:
+                    position_value = arm_ik.get_fk(joint_value[:6])
 
-                node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
+                    node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
 
                 # Master Arm
                 joint = piper.GetArmJointCtrl()
