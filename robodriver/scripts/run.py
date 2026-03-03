@@ -44,7 +44,7 @@ class ControlPipelineConfig:
 async def async_main(cfg: ControlPipelineConfig):
     logger.info(pformat(asdict(cfg)))
 
-    if "ros2" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
+    if "ros2" in cfg.robot.type or "mix" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         from robodriver.core.ros2thread import ROS2_NodeManager
         ros2_manager = ROS2_NodeManager()
     else:
@@ -74,11 +74,11 @@ async def async_main(cfg: ControlPipelineConfig):
         coordinator.stream_info_add("image_sim", 21)
     await coordinator.update_stream_info_to_server()
 
-    if "ros2" in cfg.robot.type:
+    if "ros2" in cfg.robot.type or "mix" in cfg.robot.type:
         ros2_manager.add_node(daemon.robot.get_node())
     if (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         ros2_manager.add_node(teleop.get_node())
-    if "ros2" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
+    if "ros2" in cfg.robot.type or "mix" in cfg.robot.type or (cfg.teleop is not None and "ros2" in cfg.teleop.type):
         ros2_manager.start()
     
     daemon.start()
