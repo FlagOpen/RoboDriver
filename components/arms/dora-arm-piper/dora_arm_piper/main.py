@@ -534,19 +534,21 @@ def main():
                     position[4],
                     position[5],
                 )
+                if joints is None:
+                    continue
 
-                joints[0] = round(joints[0] * factor)
-                joints[1] = round(joints[1] * factor)
-                joints[2] = round(joints[2] * factor)
-                joints[3] = round(joints[3] * factor)
-                joints[4] = round(joints[4] * factor)
-                joints[5] = round(joints[5] * factor)
+                joints_0 = round(joints[0] * factor)
+                joints_1 = round(joints[1] * factor)
+                joints_2 = round(joints[2] * factor)
+                joints_3 = round(joints[3] * factor)
+                joints_4 = round(joints[4] * factor)
+                joints_5 = round(joints[5] * factor)
 
                 # send_smooth_joint_move(piper, last_joints, joints, steps=10)
                 # last_joints = joints
 
                 piper.MotionCtrl_2(0x01, 0x01, 100, 0x00)
-                piper.JointCtrl(joints[0], joints[1], joints[2], joints[3], joints[4], joints[5])
+                piper.JointCtrl(joints_0, joints_1, joints_2, joints_3, joints_4, joints_5)
 
                 if len(position) > 6 and not np.isnan(position[6]):
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 3000, 0x01, 0)
@@ -599,9 +601,11 @@ def main():
                 # position_value += [cvt_rot[1] / 180 * np.pi]
                 # position_value += [cvt_rot[2] / 180 * np.pi]
                 if EEPOSE_MODE:
-                    position_value = arm_ik.get_fk(joint_value[:6])
+                    position_value = arm_ik.get_fk(np.array(joint_value[:6]))
 
-                    node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
+
+                    if position_value is not None:
+                        node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
 
                 # Master Arm
                 joint = piper.GetArmJointCtrl()
