@@ -26,7 +26,7 @@ from galbot.sensor_proto import imu_pb2, image_pb2, camera_pb2, joy_pb2
 from galbot.tf2_proto import tf2_message_pb2
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
 
 

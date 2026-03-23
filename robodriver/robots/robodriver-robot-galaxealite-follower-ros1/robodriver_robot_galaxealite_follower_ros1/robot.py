@@ -17,7 +17,7 @@ from .status import GALAXEALITEFollowerRos1RobotStatus  # 改为ROS1状态类（
 from .node import GALAXEALITEFollowerRos1RobotNode, ros_spin_thread  # 导入ROS1节点和spin函数
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class GALAXEALITEFollowerRos1Robot(Robot):  # 类名改为ROS1标识

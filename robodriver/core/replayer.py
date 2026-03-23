@@ -9,7 +9,7 @@ from robodriver.dataset.dorobot_dataset import DoRobotDataset
 from robodriver.robots.utils import Robot, busy_wait
 from robodriver.utils.utils import log_say
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 @dataclass
@@ -34,7 +34,7 @@ class ReplayConfig:
 
 @draccus.wrap()
 def replay(cfg: ReplayConfig):
-    logging_mp.basic_config(level=logging_mp.INFO)
+    logging_mp.basicConfig(level=logging_mp.INFO)
     # logging.info(pformat(asdict(cfg)))
 
     # robot = make_robot_from_config(cfg.robot)

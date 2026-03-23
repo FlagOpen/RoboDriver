@@ -1,0 +1,67 @@
+nodes:
+  # ========== 深度相机节点 ==========
+  # Top相机：奥比中光 Gemini335（仅彩色图）
+  - id: camera_top
+    path: ../../../../components/cameras/dora-camera-orbbec-v1/dora_camera_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      VIRTUAL_ENV: ../.venv
+      V4L2_DEVICE: /dev/video16
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  # Wrist相机：Intel RealSense D405（仅彩色图）
+  - id: camera_wrist
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      VIRTUAL_ENV: ../.venv
+      DEVICE_SERIAL: "130322271127"  # RealSense D405 序列号
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  # ========== Piper 机械臂节点 ==========
+  # 注意：piper_arm 节点已注释掉，由 pico_ultra4_dora 直接控制硬件
+  # - id: piper_arm
+  #   path: ../../../../components/arms/dora-arm-piper/dora_arm_piper/main.py
+  #   build: pip install -e ../../../../components/arms/dora-arm-piper
+  #   inputs:
+  #     tick: dora/timer/millis/20  # 50Hz 控制频率
+  #   outputs:
+  #     - leader_jointstate
+  #     - follower_jointstate
+  #     - follower_endpose
+  #   env:
+  #     VIRTUAL_ENV: ../.venv
+  #     CAN_BUS: can0
+  #     TEACH_MODE: "True"
+
+  # ========== Pico Ultra4 遥操器节点（集成版本）==========
+  # 需要先启动 CAN 总线：sudo ip link set can0 up type can bitrate 1000000
+  - id: pico_ultra4_dora
+    path: ../robodriver_teleoperator_pico_ultra4_dora/dora_node_piper.py
+    inputs:
+      tick: dora/timer/millis/20        # 50Hz 控制
+      camera_top_image: camera_top/image
+      camera_wrist_image: camera_wrist/image
+    outputs:
+      - follower_jointstate
+    env:
+      VIRTUAL_ENV: ../.venv
+      PYTHONPATH: /home/dora/RoboDriver
+      DISPLAY: ":0"
+      QT_QPA_PLATFORM: "xcb"
+      CAN_BUS: can0
+      SCALE_FACTOR: "1.5"
+      CONTROL_RATE_HZ: "50"
+      URDF_PATH: /home/dora/teleop_pico/XRoboToolkit-Teleop-Sample-Python/assets/piper/piper.urdf
+      RECORD_DIR: /home/dora/recordings/pico_piper
+      REPO_ID: pico_piper
+      TASK: "teleoperation"
+      USE_VIDEOS: "true"

@@ -1,0 +1,1897 @@
+# DeepWiki Q&A with Code Context for Repository: FlagOpen/RoboDriver
+## Q1
+帮助我快速了解这个项目
+### Answer
+RoboDriver 是一个面向具身智能的标准化机器人驱动与数据采集框架，作为 CoRobot 数据体系的设备端驱动适配层，兼容 LeRobot 接口，支持 ROS/ROS2/Dora 多种接入方式，并提供改进的单条存储数据集格式与仿真集成（Genesis/MuJoCo） RoboDriver:11-20 RoboDriver:11-20 。
+
+---
+
+## 三层架构
+- 云端：RoboXStudio（总控台与数据管理） RoboDriver:18-19 
+- 桥接层：RoboDriver-Server（数据/控制路由，HTTP/SocketIO） RoboDriver:31-44 
+- 设备层：RoboDriver（机器人控制、数据采集、仿真） RoboDriver:18-19 
+
+## 核心组件
+- Coordinator：异步 SocketIO 客户端，与服务器通信并处理命令 RoboDriver:31-44 。
+- Monitor：后台线程，每 60s 上报设备信息 RoboDriver:23-36 。
+- Simulator：MuJoCo/Genesis 仿真，双线程（物理+渲染） RoboDriver:163-185 。
+- Recorder：数据录制，支持单条存储与多线程图像写入 RoboDriver:14-15 。
+- 入口脚本：robodriver-run/robodriver-sim/robodriver-visual RoboDriver:31-35 。
+
+## 机器人接入方式
+| 类型 | 示例机器人 | 说明 |
+|------|------------|------|
+| ROS1 | Realman | 基于 ROS Topic RoboDriver:98-102  |
+| ROS2 | GALAXEALITE、SO101 | 基于 rclpy RoboDriver:103-108  |
+| Dora | Realman、SO101、Franka | 基于 Dora 数据流，支持多虚拟环境隔离 RoboDriver:109-115  |
+
+## 数据格式
+- 采集端：单条存储（每帧一行），便于编辑与传输 RoboDriver:42-43 。
+- 训练端：可聚合成多集合格式，兼容 LeRobot RoboDriver:41-43 。
+
+## 快速上手
+```bash
+git clone https://github.com/FlagOpen/RoboDriver.git && cd RoboDriver
+pip install uv
+uv venv -p 3.10
+uv pip install -e .
+source .venv/bin/activate
+robodriver-run -h
+``` RoboDriver:51-79 
+
+## Notes
+- 完整文档：[RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc) RoboDriver:20-21 。
+- 仿真示例：robodriver/simulations/robodriver-sim-genesis-franka-aio-dora RoboDriver:89-94 。
+- 各机器人详细接入指南见 robodriver/robots/robodriver-robot-*/README.md RoboDriver:81-82 。
+
+Wiki pages you might want to explore:
+- [Overview (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#1)
+- [Dora Dataflow Integration (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#3.2)
+### Citations
+**File:** README.md (L11-21)
+```markdown
+# RoboDriver
+RoboDriver是DataCollect的核心驱动层组件，也是[CoRobot](https://github.com/FlagOpen/CoRobot)数据体系中的标准化机器人接入模块。
+
+<p align="center">
+  <img src="assets/images/robodriver_struct_1.png" alt="RoboDriver 架构图" width="70%"/>
+</p>
+
+如图所示，RoboDriver为“设备端驱动适配层”，[RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server)是“数据/控制的桥接层与通道路由器”，[RoboXStudio](https://ei2data.baai.ac.cn/home)是“云端或平台侧总控制台与数据管理中心”。
+
+RoboDriver使用文档: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
+## 最新消息
+```
+**File:** README.md (L41-43)
+```markdown
+- **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的`Robot`类，这意味着RoboDriver与LeRobot可以互相兼容。
+- **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
+
+```
+**File:** README.md (L51-79)
+```markdown
+首先将 RoboDriver 项目代码clone下来，然后进入项目目录:
+
+```
+git clone https://github.com/FlagOpen/RoboDriver.git && cd RoboDriver
+```
+
+安装 `uv`，不要激活任何环境
+
+```
+pip install uv
+```
+
+创建uv环境
+
+```
+uv venv -p 3.10
+```
+
+安装项目:
+
+```
+uv pip install -e .
+```
+
+使用：
+```
+source .venv/bin/activate
+robodriver-run -h
+```
+```
+**File:** README.md (L81-82)
+```markdown
+要使用对应的机器人，请安装对应的机器人，并参考其文档完成部署和启动。路径：robodriver/robots/robodriver-robot-xxx-xxx-xxx/README.md
+
+```
+**File:** README.md (L89-94)
+```markdown
+### 🪞 Genesis
+
+| 机器人型号 | 简介 | 仓库链接 | 贡献人 |
+|------------|------|--------------|------------------------|
+| Franka 机械臂 | 一台Franka机械臂抓取方块 | [robodriver/simulations/robodriver-sim-genesis-franka-aio-dora](./robodriver/simulations/robodriver-sim-genesis-franka-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+
+```
+**File:** README.md (L98-102)
+```markdown
+### 🔌 ROS1 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|------------|------|--------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) |  [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
+
+```
+**File:** README.md (L103-108)
+```markdown
+### 🔌 ROS2 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| GALAXEALITE | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机 | [robodriver/robots/robodriver-robot-galaxealite-aio-ros2](./robodriver/robots/robodriver-robot-galaxealite-aio-ros2) | [![liuyou1103](https://avatars.githubusercontent.com/liuyou1103?s=50)](https://github.com/liuyou1103) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-ros2](./robodriver/robots/robodriver-robot-so101-aio-ros2) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+
+```
+**File:** README.md (L109-115)
+```markdown
+### 🔌 Dora（SDK）接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman1-aio-dora](./robodriver/robots/robodriver-robot-realman1-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-dora](./robodriver/robots/robodriver-robot-so101-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+| Franka | 工业级机械臂，6DOF+末端夹爪，1*RealSense相机 | [robodriver/robots/robodriver-robot-franka-aio-dora](./robodriver/robots/robodriver-robot-franka-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+
+```
+**File:** README_en.md (L11-20)
+```markdown
+## Overview
+
+RoboDriver is the core driver-layer component of DataCollect and serves as the standardized robot access module within the [CoRobot](https://github.com/FlagOpen/CoRobot) data stack.
+
+<p align="center">
+  <img src="assets/images/robodriver_struct_1.png" alt="RoboDriver Architecture Diagram" width="70%"/>
+</p>
+
+As shown above, RoboDriver acts as the device-side driver adaptation layer. [RoboDriver-Server](https://github.com/FlagOpen/RoboDriver-Server) is the data/control bridge layer and channel router, and [RoboXStudio](https://ei2data.baai.ac.cn/home) is the cloud- or platform-side console and data management center.
+
+```
+**File:** robodriver/core/coordinator.py (L14-15)
+```python
+from robodriver.core.recorder import Record, RecordConfig
+from robodriver.core.replayer import DatasetReplayConfig, ReplayConfig, replay
+```
+**File:** robodriver/core/coordinator.py (L31-44)
+```python
+class Coordinator:
+    def __init__(
+        self,
+        daemon: Daemon,
+        teleop: Optional[Teleoperator],
+        server_url="http://localhost:8088",
+    ):
+        self.server_url = server_url
+        # 异步客户端
+        self.sio = socketio.AsyncClient()
+        self.session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=10, limit_per_host=10)
+        )
+
+```
+**File:** robodriver/core/monitor.py (L23-36)
+```python
+    def send_machine_info_periodically(self, interval_seconds=60):
+        """定时发送设备信息（线程安全）"""
+        while self._running:
+            time.sleep(interval_seconds)
+            try:
+                with self._lock:
+                    # if self.daemon.robot.status is None:
+                    #     continue
+                    json_data = self.daemon.get_status()
+                    # json_data = json.dumps(self._machine_info_dict, ensure_ascii=False)
+
+                response = requests.post(
+                    self.url, data=json_data, headers=self.headers, timeout=10
+                )
+```
+**File:** robodriver/core/simulator.py (L163-185)
+```python
+class Simulator:
+    def __init__(self, config: SimulatorConfig):
+        self.config = config
+
+        self.model = mujoco.MjModel.from_xml_path(self.config.xml_path)
+        self.data = mujoco.MjData(self.model)
+
+        self.model.opt.timestep = config.timestep
+
+        self.running_event = threading.Event()
+        self.lock = threading.Lock()
+        
+        self.sim_thread = SimulationThread(self.model, self.data, self.config, self.running_event, self.lock)
+        self.view_thread = ViewerRendererThread(self.model, self.data, self.config, self.running_event, self.lock)
+        # self._last_update_time = None
+        # self._max_steps_per_update = 10  # Limit steps to prevent freezing
+
+    def start(self):
+        """启动模拟器线程"""
+        self.running_event.set()
+        self.sim_thread.start()
+        self.view_thread.start()
+
+```
+**File:** pyproject.toml (L31-35)
+```text
+[project.scripts]
+robodriver-run="robodriver.scripts.run:main"
+robodriver-sim="robodriver.scripts.sim:main"
+robodriver-visual="robodriver.scripts.visual:main"
+
+```
+## Q2
+我想接入新机械臂该怎样接入？
+### Answer
+接入新机械臂可按以下步骤进行，选择 ROS1/ROS2/Dora 三种方式之一，并参考已有示例的目录结构与实现。
+
+---
+
+## 1 选择接入方式并创建目录
+- 命名规范：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`，例如 `robodriver-robot-myarm-aio-dora` RoboDriver:116-119 。
+- 在 `robodriver/robots/` 下新建同名目录，并包含 `pyproject.toml`、`README.md`、`robodriver_robot_xxx/` 包。
+
+## 2 实现核心文件
+### 2.1 配置类（config.py）
+- 继承 `RobotConfig` 并用 `@RobotConfig.register_subclass("myarm_aio_dora")` 注册 RoboDriver:11-16 。
+- 定义 `follower_motors`/`leader_motors`（电机与归一化模式）和 `cameras`（相机配置） RoboDriver:18-36 。
+
+### 2.2 机器人类（robot.py）
+- 继承 `lerobot.robots.robot.Robot`，实现 `connect`、`get_observation`、`send_action` RoboDriver:30-96 。
+- 在 `__init__` 中初始化通信节点（如 ROS2 节点或 Dora 动态节点）并启动 RoboDriver:24-42 。
+- 实现 `observation_features` 与 `action_features` 属性，描述观测与动作结构 RoboDriver:75-83 。
+
+### 2.3 通信节点（按接入方式）
+- **ROS2**：实现 rclpy 节点，订阅/发布关节与图像话题（参考 `A2DAioRos2Node`） RoboDriver:40-42 。
+- **Dora**：实现继承 `DoraRobotNode` 的动态节点，管理 `send_queue` 与 `dora_run` 线程，处理 PyArrow 消息 RoboDriver:38-40 。
+- **ROS1**：实现 ZMQ 桥接脚本，将 ROS Topic 转为 ZMQ 供主进程使用（见 realman-aio-ros1 示例） RoboDriver:41-49 。
+
+### 2.4 数据流定义（仅 Dora）
+- 在 `dora/dataflow.yml` 中定义相机节点、机械臂节点与动态节点，配置 `VIRTUAL_ENV`、`DEVICE_SERIAL`、`ARM_IP` 等环境变量 RoboDriver:1-15 。
+
+## 3 编写文档与安装配置
+- 在 `README.md` 中写明环境准备、依赖安装、配置修改与启动步骤，参考 realman1-aio-dora 的 README RoboDriver:17-39 。
+- 在 `pyproject.toml` 中定义包名与入口，确保可被 `robodriver-run` 动态发现。
+
+## 4 启动与验证
+```bash
+# 安装插件
+uv pip install -e ./robodriver/robots/robodriver-robot-myarm-aio-dora
+
+# 启动 Dora 数据流（如为 Dora 接入）
+dora start dora/dataflow.yml --uv
+
+# 启动 RoboDriver
+robodriver-run --robot.type=myarm_aio_dora
+```
+
+## Notes
+- 各接入方式的完整示例目录：`robodriver-robot-realman-aio-ros1`、`robodriver-robot-a2d-aio-ros2`、`robodriver-robot-agilex-aloha-aio-dora`、`robodriver-robot-realman1-aio-dora`、`robodriver-robot-so101-aio-dora` RoboDriver:98-115 。
+- 插件会被 `import_utils` 自动发现，确保包名以 `robodriver_robot_` 开头 RoboDriver:64-66 。
+- 如遇 OpenCV 显示报错，可注释 `run.py` 中的 `cv2.imshow` 与 `cv2.waitKey` RoboDriver:68-71 。
+
+Wiki pages you might want to explore:
+- [Overview (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#1)
+- [Dora Dataflow Integration (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#3.2)
+### Citations
+**File:** README.md (L98-115)
+```markdown
+### 🔌 ROS1 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|------------|------|--------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) |  [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
+
+### 🔌 ROS2 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| GALAXEALITE | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机 | [robodriver/robots/robodriver-robot-galaxealite-aio-ros2](./robodriver/robots/robodriver-robot-galaxealite-aio-ros2) | [![liuyou1103](https://avatars.githubusercontent.com/liuyou1103?s=50)](https://github.com/liuyou1103) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-ros2](./robodriver/robots/robodriver-robot-so101-aio-ros2) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+
+### 🔌 Dora（SDK）接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman1-aio-dora](./robodriver/robots/robodriver-robot-realman1-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-dora](./robodriver/robots/robodriver-robot-so101-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+| Franka | 工业级机械臂，6DOF+末端夹爪，1*RealSense相机 | [robodriver/robots/robodriver-robot-franka-aio-dora](./robodriver/robots/robodriver-robot-franka-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+
+```
+**File:** README.md (L116-119)
+```markdown
+> ✨ 说明：
+> 1. 接入方式命名规范：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`（如 `aio`/`follwer`/`teleoperate`, `ros2`/`dora`）；
+> 2. 每个适配仓库内包含**环境搭建、配置修改、采集/控制验证**等完整接入指南；
+> 3. 持续新增适配机器人，可关注本列表或项目更新。
+```
+**File:** robodriver/robots/configs.py (L11-16)
+```python
+@dataclass
+class RobotConfig(draccus.ChoiceRegistry, abc.ABC):
+    @property
+    def type(self) -> str:
+        return self.get_choice_name(self.__class__)
+
+```
+**File:** robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/robodriver_robot_agilex_aloha_aio_dora/config.py (L18-36)
+```python
+    leader_motors: Dict[str, Motor] = field(
+        default_factory=lambda norm_mode_body=norm_mode_body: {
+            "joint1_right": Motor(1, "piper-motor", norm_mode_body),
+            "joint2_right": Motor(2, "piper-motor", norm_mode_body),
+            "joint3_right": Motor(3, "piper-motor", norm_mode_body),
+            "joint4_right": Motor(4, "piper-motor", norm_mode_body),
+            "joint5_right": Motor(5, "piper-motor", norm_mode_body),
+            "joint6_right": Motor(6, "piper-motor", norm_mode_body),
+            "gripper_right": Motor(7, "piper-gripper", MotorNormMode.RANGE_0_100),
+
+            "joint1_left": Motor(8, "piper-motor", norm_mode_body),
+            "joint2_left": Motor(9, "piper-motor", norm_mode_body),
+            "joint3_left": Motor(10, "piper-motor", norm_mode_body),
+            "joint4_left": Motor(11, "piper-motor", norm_mode_body),
+            "joint5_left": Motor(12, "piper-motor", norm_mode_body),
+            "joint6_left": Motor(13, "piper-motor", norm_mode_body),
+            "gripper_left": Motor(14, "piper-gripper", MotorNormMode.RANGE_0_100),
+        }
+    )
+```
+**File:** robodriver/_simulators/robot.py (L30-96)
+```python
+class Robot(abc.ABC):
+    """
+    The base abstract class for all LeRobot-compatible robots.
+
+    This class provides a standardized interface for interacting with physical robots.
+    Subclasses must implement all abstract methods and properties to be usable.
+
+    Attributes:
+        config_class (RobotConfig): The expected configuration class for this robot.
+        name (str): The unique robot name used to identify this robot type.
+    """
+
+    # Set these in ALL subclasses
+    config_class: builtins.type[RobotConfig]
+    name: str
+
+    def __init__(self, config: RobotConfig):
+        self.robot_type = self.name
+        self.id = config.id
+        self.calibration_dir = (
+            config.calibration_dir if config.calibration_dir else HF_LEROBOT_CALIBRATION / ROBOTS / self.name
+        )
+        self.calibration_dir.mkdir(parents=True, exist_ok=True)
+        self.calibration_fpath = self.calibration_dir / f"{self.id}.json"
+        self.calibration: dict[str, MotorCalibration] = {}
+        if self.calibration_fpath.is_file():
+            self._load_calibration()
+
+    def __str__(self) -> str:
+        return f"{self.id} {self.__class__.__name__}"
+
+    # TODO(aliberts): create a proper Feature class for this that links with datasets
+    @property
+    @abc.abstractmethod
+    def observation_features(self) -> dict:
+        """
+        A dictionary describing the structure and types of the observations produced by the robot.
+        Its structure (keys) should match the structure of what is returned by :pymeth:`get_observation`.
+        Values for the dict should either be:
+            - The type of the value if it's a simple value, e.g. `float` for single proprioceptive value (a joint's position/velocity)
+            - A tuple representing the shape if it's an array-type value, e.g. `(height, width, channel)` for images
+
+        Note: this property should be able to be called regardless of whether the robot is connected or not.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def action_features(self) -> dict:
+        """
+        A dictionary describing the structure and types of the actions expected by the robot. Its structure
+        (keys) should match the structure of what is passed to :pymeth:`send_action`. Values for the dict
+        should be the type of the value if it's a simple value, e.g. `float` for single proprioceptive value
+        (a joint's goal position/velocity)
+
+        Note: this property should be able to be called regardless of whether the robot is connected or not.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_connected(self) -> bool:
+        """
+        Whether the robot is currently connected or not. If `False`, calling :pymeth:`get_observation` or
+        :pymeth:`send_action` should raise an error.
+        """
+        pass
+```
+**File:** robodriver/robots/robodriver-robot-a2d-aio-ros2/robodriver_robot_a2d_aio_ros2/robot.py (L24-42)
+```python
+    def __init__(self, config: A2DAioRos2RobotConfig):
+        rclpy.init()
+        super().__init__(config)
+        self.config = config
+        self.robot_type = self.config.type
+        self.use_videos = self.config.use_videos
+        self.microphones = self.config.microphones
+
+        # A2D 通常没有 leader（遥操作主手），所以 leader_motors 为空
+        self.leader_motors = config.leader_motors  # 应为 {}
+        self.follower_motors = config.follower_motors  # 包含 14 arm + 2 gripper
+        self.cameras = make_cameras_from_configs(self.config.cameras)
+
+        # 排除某些虚拟相机（如 pose 图）
+        self.connect_excluded_cameras = ["image_pika_pose"]
+
+        # 启动 ROS2 节点
+        self.robot_ros2_node = A2DAioRos2Node()
+        self.robot_ros2_node.start()
+```
+**File:** robodriver/robots/robodriver-robot-a2d-aio-ros2/robodriver_robot_a2d_aio_ros2/robot.py (L75-83)
+```python
+    @cached_property
+    def observation_features(self) -> dict[str, Any]:
+        return {**self._follower_motors_ft, **self._cameras_ft}
+
+    @cached_property
+    def action_features(self) -> dict[str, Any]:
+        # A2D 是 follower-only 控制，action 即目标 follower joint
+        # 所以 action_features 应与 follower 一致（用于模仿学习）
+        return self._follower_motors_ft
+```
+**File:** robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/robodriver_robot_agilex_aloha_aio_dora/robot.py (L38-40)
+```python
+        self.status = AgilexAlohaAIODoraRobotStatus()
+        self.robot_dora_node = AgilexAlohaAIODoraRobotNode()
+        self.robot_dora_node.start()
+```
+**File:** robodriver/robots/robodriver-robot-realman-aio-ros1/README.md (L41-49)
+```markdown
+### 2.3 Start dataflow (ROS1 → ZMQ bridge) / 启动 ROS1 → ZMQ 数据流
+
+In this repository directory:  
+在本仓库目录中运行：
+
+```bash
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman-aio-ros1
+python -m robodriver_robot_realman_aio_ros1.ros1_zmq_bridge
+```
+```
+**File:** robodriver/robots/robodriver-robot-realman-aio-ros1/README.md (L68-71)
+```markdown
+- If you encounter OpenCV `cvShowImage` related errors when launching RoboXStudio,  
+  you can comment out `cv2.imshow` / `cv2.waitKey` in `robodriver/scripts/run.py`.  
+  如果在启动 RoboXStudio 时遇到 OpenCV `cvShowImage` 的报错，可以在  
+  `robodriver/scripts/run.py` 中注释掉 `cv2.imshow` 和 `cv2.waitKey` 调用。
+```
+**File:** robodriver/robots/robodriver-robot-realman1-aio-dora/dora/dataflow.yml (L1-15)
+```yaml
+nodes:
+  - id: camera_top
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      VIRTUAL_ENV: ../.venv
+      DEVICE_SERIAL: 150622072280
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  - id: camera_left_wrist
+```
+**File:** robodriver/robots/robodriver-robot-realman1-aio-dora/README.md (L17-39)
+```markdown
+安装 robodriver-robot-realman1-aio-dora 模块 环境
+```
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman1-aio-dora
+uv venv .venv -p 3.9
+source .venv/bin/activate
+uv pip install -e .
+```
+
+配置 dataflow.yml 文件
+```
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman1-aio-dora
+cd dora
+```
+
+打开 dataflow.yml 文件，修改其中的 VIRTUAL_ENV 路径，以及 DEVICE_SERIAL、ARM_IP 和 ARM_PORT 参数。
+### 参数说明：
+
+- VIRTUAL_ENV：realman dora 节点使用的虚拟环境路径
+- DEVICE_SERIAL：RealSense 相机的序列号
+- ARM_IP：机械臂的 IP 地址
+- ARM_PORT：机械臂的端口号
+
+## 开始数据采集
+```
+**File:** robodriver/_simulators/utils.py (L64-66)
+```python
+        try:
+            return cast(Robot, make_device_from_device_class(config))
+        except Exception as e:
+```
+## Q3
+可以pip install直接加机械臂吗？
+### Answer
+可以。只要你的包名以 `robodriver_robot_` 开头并通过 pip/uv 安装到当前 Python 环境，RoboDriver 启动时会自动发现并注册该机械臂插件，无需将代码放入主仓库 RoboDriver:100-136 。
+
+---
+
+## 原理
+- `register_third_party_devices` 在 `robodriver-run` 启动时扫描 `sys.path` 中所有以 `robodriver_robot_` 等前缀开头的模块并导入，使其配置类注册到 `ChoiceRegistry` RoboDriver:127-136 。
+- `make_device_from_device_class` 根据配置的 `type` 动态实例化对应的机器人类，支持从外部包加载 RoboDriver:27-97 。
+
+## 步骤
+1. 按规范创建独立包，包名如 `robodriver_robot_myarm_aio_dora`，内部实现 `RobotConfig` 子类并注册，例如 `@RobotConfig.register_subclass("myarm_aio_dora")` RoboDriver:11-16 。
+2. 在 RoboDriver 主环境中安装该包：
+   ```bash
+   pip install ./robodriver_robot_myarm_aio_dora  # 或 uv pip install
+   ```
+3. 启动时指定类型：
+   ```bash
+   robodriver-run --robot.type=myarm_aio_dora
+   ```
+
+## 示例参考
+- `robodriver-robot-realman1-aio-dora` 等插件即采用此方式，在其目录内 `uv pip install -e .` 后，主环境可直接使用 `--robot.type=realman1_aio_dora` RoboDriver:17-39 。
+
+## Notes
+- 确保包名前缀为 `robodriver_robot_`，否则不会被自动扫描 RoboDriver:107-113 。
+- 插件安装后无需修改主仓库代码，重启 `robodriver-run` 即生效。
+
+Wiki pages you might want to explore:
+- [Overview (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#1)
+### Citations
+**File:** robodriver/utils/import_utils.py (L27-97)
+```python
+def make_device_from_device_class(config: ChoiceRegistry) -> Any:
+    """
+    Dynamically instantiates an object from its `ChoiceRegistry` configuration.
+
+    This factory uses the module path and class name from the `config` object's
+    type to locate and instantiate the corresponding device class (not the config).
+    It derives the device class name by removing a trailing 'Config' from the config
+    class name and tries a few candidate modules where the device implementation is
+    commonly located.
+    """
+    if not isinstance(config, ChoiceRegistry):
+        raise ValueError(
+            f"Config should be an instance of `ChoiceRegistry`, got {type(config)}"
+        )
+
+    config_cls = config.__class__
+    module_path = (
+        config_cls.__module__
+    )  # typical: lerobot_teleop_mydevice.config_mydevice
+    config_name = config_cls.__name__  # typical: MyDeviceConfig
+
+    # Derive device class name (strip "Config")
+    if not config_name.endswith("Config"):
+        raise ValueError(
+            f"Config class name '{config_name}' does not end with 'Config'"
+        )
+
+    device_class_name = config_name[:-6]  # typical: MyDeviceConfig -> MyDevice
+
+    # Build candidate modules to search for the device class
+    parts = module_path.split(".")
+    parent_module = ".".join(parts[:-1]) if len(parts) > 1 else module_path
+    candidates = [
+        parent_module,  # typical: lerobot_teleop_mydevice
+        parent_module
+        + "."
+        + device_class_name.lower(),  # typical: lerobot_teleop_mydevice.mydevice
+    ]
+
+    # handle modules named like "config_xxx" -> try replacing that piece with "xxx"
+    last = parts[-1] if parts else ""
+    if last.startswith("config_"):
+        candidates.append(".".join(parts[:-1] + [last.replace("config_", "")]))
+
+    # de-duplicate while preserving order
+    seen: set[str] = set()
+    candidates = [c for c in candidates if not (c in seen or seen.add(c))]
+
+    tried: list[str] = []
+    for candidate in candidates:
+        tried.append(candidate)
+        try:
+            module = importlib.import_module(candidate)
+        except ImportError:
+            continue
+
+        if hasattr(module, device_class_name):
+            cls = getattr(module, device_class_name)
+            if callable(cls):
+                try:
+                    return cls(config)
+                except TypeError as e:
+                    raise TypeError(
+                        f"Failed to instantiate '{device_class_name}' from module '{candidate}': {e}"
+                    ) from e
+
+    raise ImportError(
+        f"Could not locate device class '{device_class_name}' for config '{config_name}'. "
+        f"Tried modules: {tried}. Ensure your device class name is the config class name without "
+        f"'Config' and that it's importable from one of those modules."
+    )
+```
+**File:** robodriver/utils/import_utils.py (L100-136)
+```python
+def register_third_party_devices() -> None:
+    """
+    Discover and import third-party robodriver_* plugins so they can register themselves.
+
+    Scans top-level modules on sys.path for packages starting with
+    'robodriver_robot_', 'robodriver_camera_', "robodriver_policy_" or 'robodriver_teleoperator_' and imports them.
+    """
+    prefixes = (
+        "robodriver_robot_",
+        "robodriver_camera_",
+        "robodriver_sim",
+        "robodriver_policy_",
+        "robodriver_teleoperator",
+    )
+    imported: list[str] = []
+    failed: list[str] = []
+
+    for module_info in pkgutil.iter_modules():
+        name = module_info.name
+        if name.startswith(prefixes):
+            _attempt_import(name, imported, failed)
+
+    editable_pattern = re.compile(r"__editable___(.+?)_\d+_\d+_\d+_finder")
+    for module_info in pkgutil.iter_modules():
+        match = editable_pattern.match(module_info.name)
+        if match:
+            original_name = match.group(1).replace(
+                "_", "-"
+            )  # Convert to canonical package name
+            if any(
+                original_name.startswith(prefix.replace("_", "-"))
+                for prefix in prefixes
+            ):
+                # Convert back to module name format (replace - with _)
+                module_name = original_name.replace("-", "_")
+                _attempt_import(module_name, imported, failed)
+
+```
+**File:** robodriver/scripts/run.py (L127-136)
+```python
+def main():
+    git_branch_log()
+
+    register_third_party_devices()
+    logger.info(f"Registered robot types: {list(RobotConfig._choice_registry.keys())}")
+    logger.info(
+        f"Registered teleoperator types: {list(TeleoperatorConfig._choice_registry.keys())}"
+    )
+
+    asyncio.run(async_main())
+```
+**File:** robodriver/robots/robodriver-robot-realman1-aio-dora/README.md (L17-39)
+```markdown
+安装 robodriver-robot-realman1-aio-dora 模块 环境
+```
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman1-aio-dora
+uv venv .venv -p 3.9
+source .venv/bin/activate
+uv pip install -e .
+```
+
+配置 dataflow.yml 文件
+```
+cd /path/to/your/RoboDriver/robodriver/robots/robodriver-robot-realman1-aio-dora
+cd dora
+```
+
+打开 dataflow.yml 文件，修改其中的 VIRTUAL_ENV 路径，以及 DEVICE_SERIAL、ARM_IP 和 ARM_PORT 参数。
+### 参数说明：
+
+- VIRTUAL_ENV：realman dora 节点使用的虚拟环境路径
+- DEVICE_SERIAL：RealSense 相机的序列号
+- ARM_IP：机械臂的 IP 地址
+- ARM_PORT：机械臂的端口号
+
+## 开始数据采集
+```
+## Q4
+运行robodriver-run -h  时INFO:root:Environment variable 'ROBODRIVER_HOME' not set. Using defaul        
+       t path: /home/dora/DoRobot    这个地址是什么意思？
+### Answer
+`ROBODRIVER_HOME` 是 RoboDriver 用于存放采集数据、数据集与运行时文件的根目录。未设置时默认为 `~/DoRobot`（当前用户主目录下的 DoRobot），程序会自动创建该目录 RoboDriver:26-38 。
+
+---
+
+## 用途
+- 数据采集默认存储位置：任务数据按任务名存为子目录，包含 data、videos、depth、meta、audio 等子文件夹 RoboDriver:200-237 。
+- 数据集默认根路径：`DOROBOT_DATASET = ROBODRIVER_HOME / "dataset"`，用于 DoRobotDataset 读取与回放 RoboDriver:49-49 。
+
+## 如何自定义
+```bash
+export ROBODRIVER_HOME=/path/to/my_storage
+robodriver-run -h
+```
+设置后日志会显示已使用自定义路径 RoboDriver:30-36 。
+
+## 目录结构示例（采集后）
+```
+/home/dora/DoRobot/
+└─ TaskName_TaskId/
+   ├─ data/          # Parquet 运动数据
+   ├─ videos/        # MP4 图像
+   ├─ depth/         # AVI 深度图
+   ├─ audio/         # WAV 音频
+   ├─ meta/          # 元信息 JSON
+   └─ device/        # 设备信息
+``` RoboDriver:214-250 
+
+## Notes
+- 若无写权限，程序会报错并提示设置 ROBODRIVER_HOME 到可写位置 RoboDriver:40-44 。
+- 回放与可视化工具默认也基于该路径查找数据集，除非用 --root 参数覆盖 RoboDriver:21-22 RoboDriver:420-424 。
+
+Wiki pages you might want to explore:
+- [ROS2 Integration (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#3.3)
+### Citations
+**File:** robodriver/utils/constants.py (L26-38)
+```python
+user_home = Path.home()
+ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "DoRobot"))).expanduser().resolve()
+
+
+if "ROBODRIVER_HOME" not in os.environ:
+    logging.info(
+        f"Environment variable 'ROBODRIVER_HOME' not set. Using default path: {ROBODRIVER_HOME}"
+    )
+else:
+    logging.info(f"Environment variable 'ROBODRIVER_HOME' is set to: {ROBODRIVER_HOME}")
+
+try:
+    ROBODRIVER_HOME.mkdir(parents=True, exist_ok=True)
+```
+**File:** robodriver/utils/constants.py (L40-44)
+```python
+except PermissionError as e:
+    logging.error(f"Permission denied! Cannot create {ROBODRIVER_HOME}")
+    logging.error(f"Please check permissions for: {user_home}")
+    logging.error(f"Or set ROBODRIVER_HOME environment variable to a writable location")
+    raise
+```
+**File:** robodriver/utils/constants.py (L49-49)
+```python
+DOROBOT_DATASET = ROBODRIVER_HOME / "dataset"
+```
+**File:** robodriver/robots/robodriver-robot-galaxealite-aio-ros1/README-EN.md (L200-237)
+```markdown
+## Data Description
+### Storage Path
+Collected data is stored in the `/home/yourname/DoRobot` directory by default, organized into folders named by task.
+
+### Directory Structure
+```
+TaskName_TaskId/
+├── audio/          # Audio data
+│   └── chunk-000/
+│       ├── observation.audio.audio_left/  # Left channel audio (WAV format)
+│       └── observation.audio.audio_right/ # Right channel audio (WAV format)
+├── data/           # Motion command/feedback data (Parquet format)
+│   └── chunk-000/
+├── depth/          # Depth images (AVI format)
+│   └── chunk-000/
+│       ├── observation.images.image_depth_right/
+│       └── observation.images.image_depth_top/
+├── device/         # Device information
+│   └── device_info.json
+├── label/          # Annotation data (generated after annotation)
+│   └── data_annotation.json
+├── meta/           # Metadata
+│   ├── common_record.json    # Collection task information
+│   ├── episodes.jsonl        # Task description and frame length
+│   ├── episodes_stats.jsonl  # Normalized statistical information
+│   ├── info.json             # Feature schema, frame rate, version
+│   ├── op_dataid.jsonl       # Device number
+│   └── tasks.jsonl
+└── videos/         # Visible light images (MP4 format)
+    └── chunk-000/
+        ├── observation.images.image_left/        # Left camera
+        ├── observation.images.image_left_tac_l/  # Left tactile left camera
+        ├── observation.images.image_left_tac_r/  # Left tactile right camera
+        ├── observation.images.image_right/       # Right camera
+        ├── observation.images.image_right_tac_l/ # Right tactile left camera
+        ├── observation.images.image_right_tac_r/ # Right tactile right camera
+        └── observation.images.image_top/         # Top camera
+```
+```
+**File:** robodriver/robots/robodriver-robot-galaxealite-aio-ros2/README.md (L214-250)
+```markdown
+### 存储路径
+采集数据默认存储于 `/home/yourname/DoRobot` 目录，按任务命名划分文件夹。
+
+### 目录结构
+```
+TaskName_TaskId/
+├── audio/          # 音频数据
+│   └── chunk-000/
+│       ├── observation.audio.audio_left/  # 左声道音频（WAV格式）
+│       └── observation.audio.audio_right/ # 右声道音频（WAV格式）
+├── data/           # 运动指令/反馈数据（Parquet格式）
+│   └── chunk-000/
+├── depth/          # 深度图像（AVI格式）
+│   └── chunk-000/
+│       ├── observation.images.image_depth_right/
+│       └── observation.images.image_depth_top/
+├── device/         # 设备信息
+│   └── device_info.json
+├── label/          # 标注数据（标注后生成）
+│   └── data_annotation.json
+├── meta/           # 元数据
+│   ├── common_record.json    # 采集任务信息
+│   ├── episodes.jsonl        # 任务描述与帧长
+│   ├── episodes_stats.jsonl  # 归一化统计信息
+│   ├── info.json             # 特征schema、帧率、版本
+│   ├── op_dataid.jsonl       # 设备编号
+│   └── tasks.jsonl
+└── videos/         # 可见光图像（MP4格式）
+    └── chunk-000/
+        ├── observation.images.image_left/        # 左侧相机
+        ├── observation.images.image_left_tac_l/  # 左侧触觉左相机
+        ├── observation.images.image_left_tac_r/  # 左侧触觉右相机
+        ├── observation.images.image_right/       # 右侧相机
+        ├── observation.images.image_right_tac_l/ # 右侧触觉左相机
+        ├── observation.images.image_right_tac_r/ # 右侧触觉右相机
+        └── observation.images.image_top/         # 顶部相机
+```
+```
+**File:** robodriver/core/replayer.py (L21-22)
+```python
+    # Root directory where the dataset will be stored (e.g. 'dataset/path').
+    root: str | Path | None = None
+```
+**File:** robodriver/dataset/visual/visualize_dataset_html.py (L420-424)
+```python
+        "--root",
+        type=Path,
+        default=None,
+        help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
+    )
+```
+## Q5
+怎样进行的数据保存？
+### Answer
+RoboDriver 通过 Coordinator 接收采集命令，使用 Record 组件将观测与动作以改进的 LeRobot 单条存储格式写入磁盘，支持图像（PNG/MP4）、音频（WAV）与元数据（JSON），并在保存后进行完整性校验 RoboDriver:113-205 RoboDriver:26-49 。
+
+---
+
+## 保存触发与路径构建
+- 触发：Coordinator 收到 `start_collection` 后检查磁盘空间，构造 `RecordConfig` 与 `Record` 实例并调用 `record.start()`；收到 `finish_collection` 后调用 `record.stop()` 与 `record.save()` RoboDriver:113-219 。
+- 路径：默认根目录为 `ROBODRIVER_HOME/dataset`，采集目录按 `日期/user/任务名_任务ID/任务名_任务ID_数据ID` 组织，支持通过 `ROBODRIVER_HOME` 环境变量自定义根目录 RoboDriver:26-49 。
+
+## 数据格式与文件组织
+- Parquet：每帧一行（单条存储），路径模板 `data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet` RoboDriver:42-44 。
+- 图像：可选 PNG（逐帧）或 MP4（视频），路径模板见 `DEFAULT_IMAGE_PATH` 与 `DEFAULT_VIDEO_PATH` RoboDriver:45-38 。
+- 音频：WAV 格式，由 `AsyncAudioWriter` 多设备异步写入 RoboDriver:12-30 。
+- 元信息：`meta/` 目录下包含 info.json、episodes.jsonl、episodes_stats.jsonl、tasks.jsonl、common_record.json 等 RoboDriver:214-250 。
+
+## 并发写入与线程模型
+- 图像：ImageWriter 线程池（每相机一线程）异步写入 PNG 或封装 MP4 RoboDriver:1-258 。
+- 音频：AsyncAudioWriter 为每个麦克风启动独立录制任务，通过 soundfile 写 WAV RoboDriver:31-73 。
+- 主线程：在控制循环中调用 `add_frame` 将观测/动作加入 episode 缓冲，最终由 Record 线程落盘 Parquet。
+
+## 保存后校验
+- 文件完整性：检查 Parquet 可读、videos/images 目录存在与帧数匹配 RoboDriver:403-434 。
+- 帧率校验：对比视频帧率与配置 FPS，生成校验报告 RoboDriver:780-821 。
+
+## 回放与可视化
+- DoRobotDataset 读取本地数据集，默认从 `DOROBOT_DATASET` 加载，支持 `--root` 覆盖 RoboDriver:21-22 RoboDriver:420-424 。
+- 可视化工具支持本地与远程模式，通过 Rerun 或 Web 界面回放视频与时序数据 RoboDriver:242-338 。
+
+## 目录结构示例
+```
+/home/dora/DoRobot/dataset/20250827/user/TaskA_001/TaskA_001_abc123/
+├─ data/chunk-000/episode_000000.parquet
+├─ videos/chunk-000/image_top/episode_000000.mp4
+├─ audio/chunk-000/audio_left/episode_000000.wav
+├─ meta/info.json
+├─ meta/episodes.jsonl
+└─ device/device_info.json
+```
+
+## Notes
+- 单条存储便于逐帧编辑与传输，训练时可聚合为多集合格式 RoboDriver:42-43 。
+- 若磁盘空间不足（<2GB），采集会被拒绝 RoboDriver:117-120 。
+- 完整数据保存流程见 Record 类实现与 Coordinator 的 `__on_robot_command_handle` RoboDriver:1-258 。
+
+Wiki pages you might want to explore:
+- [Overview (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#1)
+### Citations
+**File:** robodriver/core/coordinator.py (L113-219)
+```python
+        elif data.get("cmd") == "start_collection":
+            logger.info("处理开始采集命令...")
+            msg = data.get("msg")
+
+            if not check_disk_space(min_gb=2):
+                logger.warning("存储空间不足,小于2GB,取消采集！")
+                await self.send_response("start_collection", "存储空间不足,小于2GB")
+                return
+
+            if self.replaying == True:
+                logger.warning("Replay is running, cannot start collection.")
+                await self.send_response("start_collection", "fail")
+                return
+
+            if self.recording == True:
+                self.record.stop()
+                self.record.discard()
+                self.recording = False
+
+            self.recording = True
+
+            task_id = msg.get("task_id")
+            task_name = msg.get("task_name")
+            task_data_id = msg.get("task_data_id")
+            countdown_seconds = msg.get("countdown_seconds", 3)
+            task_dir = f"{task_name}_{task_id}"
+            repo_id = f"{task_name}_{task_id}_{task_data_id}"
+
+            date_str = datetime.now().strftime("%Y%m%d")
+
+            # 构建目标目录路径
+            dataset_path = DOROBOT_DATASET
+
+            git_branch_name = get_current_git_branch()
+            target_dir = dataset_path / date_str / "user" / task_dir / repo_id
+            # if "release" in git_branch_name or "main" in git_branch_name:
+            #     target_dir = dataset_path / date_str / "user" / task_dir / repo_id
+            # elif "dev" in git_branch_name:
+            #     target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
+            # else:
+            #     target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
+
+            # 判断是否存在对应文件夹以决定是否启用恢复模式
+            resume = False
+
+            # 检查数据集目录是否存在
+            if not dataset_path.exists():
+                logger.info(
+                    f"Dataset directory '{dataset_path}' does not exist. Cannot resume."
+                )
+            else:
+                # 检查目标文件夹是否存在且为目录
+                if target_dir.exists() and target_dir.is_dir():
+                    # resume = True
+                    # logging.info(f"Found existing directory for repo_id '{repo_id}'. Resuming operation.")
+
+                    logger.info(
+                        f"Found existing directory for repo_id '{repo_id}'. Delete directory."
+                    )
+                    shutil.rmtree(target_dir)
+                    time.sleep(0.5)  # make sure delete success.
+                else:
+                    logger.info(
+                        f"No directory found for repo_id '{repo_id}'. Starting fresh."
+                    )
+
+            # resume 变量现在可用于后续逻辑
+            logger.info(f"Resume mode: {'Enabled' if resume else 'Disabled'}")
+
+            record_cfg = RecordConfig(
+                fps=DEFAULT_FPS,
+                single_task=task_name,
+                repo_id=repo_id,
+                video=self.daemon.robot.use_videos,
+                resume=resume,
+                root=target_dir,
+            )
+            self.record = Record(
+                fps=DEFAULT_FPS,
+                robot=self.daemon.robot,
+                daemon=self.daemon,
+                teleop=self.teleop,
+                record_cfg=record_cfg,
+                record_cmd=msg,
+            )
+            # 发送响应
+            await self.send_response("start_collection", "success")
+            # 开始采集倒计时
+            logger.info(f"开始采集倒计时{countdown_seconds}s...")
+            time.sleep(countdown_seconds)
+
+            # 开始采集
+            self.record.start()
+
+        elif data.get("cmd") == "finish_collection":
+            logger.info("处理完成采集命令...")
+            if self.replaying == True:
+                logger.warning("Replay is running, cannot finish collection.")
+                await self.send_response("finish_collection", "fail")
+                return
+
+            if not self.saveing and self.record.save_data is None:
+                # 如果不在保存状态，立即停止记录并保存
+                self.saveing = True
+                self.record.stop()
+                self.record.save()
+                self.recording = False
+```
+**File:** robodriver/utils/constants.py (L26-49)
+```python
+user_home = Path.home()
+ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "DoRobot"))).expanduser().resolve()
+
+
+if "ROBODRIVER_HOME" not in os.environ:
+    logging.info(
+        f"Environment variable 'ROBODRIVER_HOME' not set. Using default path: {ROBODRIVER_HOME}"
+    )
+else:
+    logging.info(f"Environment variable 'ROBODRIVER_HOME' is set to: {ROBODRIVER_HOME}")
+
+try:
+    ROBODRIVER_HOME.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Directory ready: {ROBODRIVER_HOME}")
+except PermissionError as e:
+    logging.error(f"Permission denied! Cannot create {ROBODRIVER_HOME}")
+    logging.error(f"Please check permissions for: {user_home}")
+    logging.error(f"Or set ROBODRIVER_HOME environment variable to a writable location")
+    raise
+except Exception as e:
+    logging.error(f"Failed to create directory: {e}")
+    raise
+
+DOROBOT_DATASET = ROBODRIVER_HOME / "dataset"
+```
+**File:** robodriver/utils/dataset.py (L42-44)
+```python
+DEFAULT_PARQUET_PATH = (
+    "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet"
+)
+```
+**File:** robodriver/utils/dataset.py (L45-38)
+```python
+
+```
+**File:** robodriver/dataset/audio_writer.py (L12-30)
+```python
+class AsyncAudioWriter:
+    """异步多设备音频录制器
+
+    示例:
+        writer = AsyncAudioWriter(
+            microphones={
+                "left": 0,   # 设备ID 0
+                "right": 1   # 设备ID 1
+            },
+            savepath={
+                "left": Path("./cache/audio/left.wav"),   # 使用Path对象
+                "right": Path("./cache/audio/right.wav")  # 使用Path对象
+            }
+        )
+        writer.start()
+        # ... 录制中 ...
+        writer.stop()
+        writer.wait_until_done()  # 确保所有数据写入完成
+    """
+```
+**File:** robodriver/dataset/audio_writer.py (L31-73)
+```python
+
+    def __init__(
+        self,
+        microphones: Dict[str, int],
+        savepath: Dict[str, Path],  # 修改为Path对象字典
+        samplerate: Optional[int] = None,
+        channels: int = 1,
+        subtype: Optional[str] = "PCM_16",
+    ):
+        """
+        初始化音频录制器
+
+        Args:
+            microphones: 设备ID映射字典 (设备名称 -> 设备ID)
+            savepath: 保存路径映射字典 (设备名称 -> Path对象)
+            samplerate: 采样率 (None表示使用设备默认值)
+            channels: 声道数 (默认1)
+            subtype: 音频格式 (如 "PCM_24", None表示使用soundfile默认)
+        """
+        # 验证每个microphones键都能在savepath中找到对应的键（通过后缀匹配）
+        for mic_key in microphones.keys():
+            # 查找包含mic_key的savepath键
+            matching_keys = [k for k in savepath.keys() if k.endswith(mic_key)]
+
+            if not matching_keys:
+                raise ValueError(
+                    f"savepath中找不到与microphones键 '{mic_key}' 对应的键\n"
+                    f"microphones keys: {list(microphones.keys())}\n"
+                    f"savepath keys: {list(savepath.keys())}"
+                )
+
+        self.microphones = microphones
+        self.savepath = savepath  # 现在是一个字典 {设备名: Path对象}
+        self.samplerate = samplerate
+        self.channels = channels
+        self.subtype = subtype
+
+        # 内部状态
+        self._tasks: List[Dict] = []  # 存储每个任务的资源
+        self._is_started = False
+        self._stop_event = threading.Event()
+        self._stop_timeout = 5.0  # 停止超时时间(秒)
+
+```
+**File:** robodriver/utils/data_file.py (L403-434)
+```python
+    img_session_dir = images_dir
+
+    if not parquet_path.exists():
+        verification_result["file_integrity"] = "no pass"
+        verification_result["file_integrity_comment"] = (
+            f"检测不到Parquet文件: {parquet_path}"
+        )
+        return {"verification": verification_result}
+
+    try:
+        df = pd.read_parquet(parquet_path)
+    except Exception as e:
+        verification_result["file_integrity"] = "no pass"
+        verification_result["file_integrity_comment"] = f"读取Parquet文件失败: {str(e)}"
+        return {"verification": verification_result}
+    
+    # 2. 确定媒体目录和类型（核心：优先videos，后images）
+    media_dir = None
+    media_type = None
+    if videos_dir.exists():
+        media_dir = videos_dir
+        media_type = "video"
+        print(f"[INFO] 检测到videos目录，优先使用该目录校验: {videos_dir}")
+    elif images_dir.exists():
+        media_dir = images_dir
+        media_type = "image"
+        print(f"[INFO] 未检测到videos目录，使用images目录校验: {images_dir}")
+    else:
+        verification_result["camera_frame_rate"] = "no pass"
+        verification_result["file_integrity"] = "no pass"
+        verification_result["file_integrity_comment"] = "未检测到videos/images目录"
+        return {"verification": verification_result}
+```
+**File:** robodriver/utils/data_file.py (L780-821)
+```python
+def update_common_record_json(path, data):
+    opdata_path = os.path.join(path, "meta", "common_record.json")
+    os.makedirs(os.path.dirname(opdata_path), exist_ok=True)
+    if os.path.isfile(opdata_path):
+        with open(opdata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if "task_id" in data:
+                return
+    overwrite_data = {
+        "task_id": str(data["task_id"]),
+        "task_name": str(data["task_name"]),
+        "machine_id": str(data["machine_id"]),
+    }
+    # 假设data变量已提前定义（包含所需的所有键值对）
+    # overwrite_data = {
+    #     "task_id": str(data["task_id"]),
+    #     "task_name": str(data["task_name"]),
+    #     "machine_id": str(data["machine_id"]),
+    #     "scene_type": str(data["scene_type"]),       # 场景标签
+    #     "task_description": str(data["task_description"]),  # 任务描述
+    #     "tele_type": str(data["tele_type"]),         # 遥操作类型
+    #     "task_instruction": str(data["task_instruction"])   # 任务步骤
+    # }
+
+    # 以追加模式打开文件（如果不存在则创建）
+    with open(opdata_path, "w", encoding="utf-8") as f:
+        # 写入一行 JSON 数据（每行一个 JSON 对象）
+        f.write(json.dumps(overwrite_data, ensure_ascii=False) + "\n")
+
+
+def check_disk_space(min_gb=1):
+    # 获取根目录（/）的磁盘使用情况（Docker 默认挂载点）
+    total, used, free = shutil.disk_usage("/")
+    # 转换为 GB
+    free_gb = free // (2**30)  # 1 GB = 2^30 bytes
+    if free_gb < min_gb:
+        print(f"警告：剩余存储空间不足 {min_gb}GB（当前剩余 {free_gb}GB）")
+        return False
+    else:
+        print(f"存储空间充足（剩余 {free_gb}GB）")
+        return True
+
+```
+**File:** robodriver/dataset/visual/visualize_dataset_html.py (L420-424)
+```python
+        "--root",
+        type=Path,
+        default=None,
+        help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
+    )
+```
+**File:** robodriver/dataset/visual/visual_dataset.py (L242-338)
+```python
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--repo-id",
+        type=str,
+        required=True,
+        help="Name of hugging face repository containing a DoRobotDataset dataset (e.g. `lerobot/pusht`).",
+    )
+    parser.add_argument(
+        "--episode-index",
+        type=int,
+        required=True,
+        help="Episode to visualize.",
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help="Root directory for the dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directory path to write a .rrd file when `--save 1` is set.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        help="Batch size loaded by DataLoader.",
+    )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=4,
+        help="Number of processes of Dataloader for loading the data.",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="local",
+        help=(
+            "Mode of viewing between 'local' or 'distant'. "
+            "'local' requires data to be on a local machine. It spawns a viewer to visualize the data locally. "
+            "'distant' creates a server on the distant machine where the data is stored. "
+            "Visualize the data by connecting to the server with `rerun ws://localhost:PORT` on the local machine."
+        ),
+    )
+    parser.add_argument(
+        "--web-port",
+        type=int,
+        default=9195,
+        help="Web port for rerun.io when `--mode distant` is set.",
+    )
+    parser.add_argument(
+        "--ws-port",
+        type=int,
+        default=9285,
+        help="Web socket port for rerun.io when `--mode distant` is set.",
+    )
+    parser.add_argument(
+        "--save",
+        type=int,
+        default=0,
+        help=(
+            "Save a .rrd file in the directory provided by `--output-dir`. "
+            "It also deactivates the spawning of a viewer. "
+            "Visualize the data by running `rerun path/to/file.rrd` on your local machine."
+        ),
+    )
+
+    parser.add_argument(
+        "--tolerance-s",
+        type=float,
+        default=1e-4,
+        help=(
+            "Tolerance in seconds used to ensure data timestamps respect the dataset fps value"
+            "This is argument passed to the constructor of DoRobotDataset and maps to its tolerance_s constructor argument"
+            "If not given, defaults to 1e-4."
+        ),
+    )
+
+    args = parser.parse_args()
+    kwargs = vars(args)
+    repo_id = kwargs.pop("repo_id")
+    root = kwargs.pop("root")
+    tolerance_s = kwargs.pop("tolerance_s")
+
+    logging.info("Loading dataset")
+
+    stop_event = Event()
+    dataset = DoRobotDataset(repo_id, root=root, tolerance_s=tolerance_s)
+
+    # try:
+    visualize_dataset(dataset, **vars(args), stop_event=stop_event)
+```
+**File:** README.md (L42-43)
+```markdown
+- **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
+
+```
+## Q6
+我是说我采集完一组数据后怎样做才能保存这一组数据？
+### Answer
+在采集完成后，你需要通过 RoboXStudio 点击“完成采集”或向 Coordinator 发送 `finish_collection` 命令，系统会自动停止录制并保存数据到磁盘 RoboDriver:207-233 。
+
+---
+
+## 保存触发流程
+- **触发方式**：RoboXStudio 界面点击“完成采集”，或直接发送 SocketIO 命令 `{"cmd": "finish_collection"}` 到 Coordinator RoboDriver:207-213 。
+- **内部执行**：
+  1. Coordinator 将 `self.saveing` 置为 true，调用 `self.record.stop()` 停止录制线程 RoboDriver:216-218 。
+  2. 调用 `self.record.save()` 将内存中的 episode 缓冲写入 Parquet，并等待图像/音频线程完成写入 RoboDriver:218-220 。
+  3. 保存完成后将 `self.recording` 与 `self.saveing` 置为 false，并将 `self.record.save_data`（包含元信息）返回给服务器 RoboDriver:220-233 。
+
+## 行为细节
+- 若同名目录已存在，当前实现会在开始采集时删除旧目录并重新采集，因此“完成采集”总是完整保存新数据，不支持断点续存的保存模式（resume=False） RoboDriver:169-177 。
+- 保存路径为 `ROBODRIVER_HOME/dataset/日期/user/任务名_任务ID/任务名_任务ID_数据ID`，可在环境变量 `ROBODRIVER_HOME` 中自定义根目录 RoboDriver:26-49 。
+
+## Notes
+- 保存过程可能较久（图像转 MP4/写入 WAV），期间 UI 会显示保存中，请勿关闭程序 RoboDriver:222-225 。
+- 若想放弃本次采集，可发送 `discard_collection` 命令，系统会调用 `record.discard()` 并删除临时数据 RoboDriver:235-249 。
+
+Wiki pages you might want to explore:
+- [Overview (FlagOpen/RoboDriver)](/wiki/FlagOpen/RoboDriver#1)
+### Citations
+**File:** robodriver/core/coordinator.py (L169-177)
+```python
+                    logger.info(
+                        f"Found existing directory for repo_id '{repo_id}'. Delete directory."
+                    )
+                    shutil.rmtree(target_dir)
+                    time.sleep(0.5)  # make sure delete success.
+                else:
+                    logger.info(
+                        f"No directory found for repo_id '{repo_id}'. Starting fresh."
+                    )
+```
+**File:** robodriver/core/coordinator.py (L207-233)
+```python
+        elif data.get("cmd") == "finish_collection":
+            logger.info("处理完成采集命令...")
+            if self.replaying == True:
+                logger.warning("Replay is running, cannot finish collection.")
+                await self.send_response("finish_collection", "fail")
+                return
+
+            if not self.saveing and self.record.save_data is None:
+                # 如果不在保存状态，立即停止记录并保存
+                self.saveing = True
+                self.record.stop()
+                self.record.save()
+                self.recording = False
+                self.saveing = False
+
+            # 如果正在保存，循环等待直到 self.record.save_data 有数据
+            while self.saveing:
+                time.sleep(0.1)  # 避免CPU过载，适当延迟
+            # 此时无论 saveing 状态如何，self.record.save_data 已有有效数据
+            response_data = {
+                "msg": "success",
+                "data": self.record.save_data,
+            }
+            # 发送响应
+            await self.send_response(
+                "finish_collection", response_data["msg"], response_data
+            )
+```
+**File:** robodriver/core/coordinator.py (L235-249)
+```python
+        elif data.get("cmd") == "discard_collection":
+            # 模拟处理丢弃采集
+            logger.info("处理丢弃采集命令...")
+
+            if self.replaying == True:
+                logger.warning("Replay is running, cannot discard collection.")
+                await self.send_response("discard_collection", "fail")
+                return
+
+            self.record.stop()
+            self.record.discard()
+            self.recording = False
+
+            # 发送响应
+            await self.send_response("discard_collection", "success")
+```
+**File:** robodriver/utils/constants.py (L26-49)
+```python
+user_home = Path.home()
+ROBODRIVER_HOME = Path(os.getenv("ROBODRIVER_HOME", str(user_home / "DoRobot"))).expanduser().resolve()
+
+
+if "ROBODRIVER_HOME" not in os.environ:
+    logging.info(
+        f"Environment variable 'ROBODRIVER_HOME' not set. Using default path: {ROBODRIVER_HOME}"
+    )
+else:
+    logging.info(f"Environment variable 'ROBODRIVER_HOME' is set to: {ROBODRIVER_HOME}")
+
+try:
+    ROBODRIVER_HOME.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Directory ready: {ROBODRIVER_HOME}")
+except PermissionError as e:
+    logging.error(f"Permission denied! Cannot create {ROBODRIVER_HOME}")
+    logging.error(f"Please check permissions for: {user_home}")
+    logging.error(f"Or set ROBODRIVER_HOME environment variable to a writable location")
+    raise
+except Exception as e:
+    logging.error(f"Failed to create directory: {e}")
+    raise
+
+DOROBOT_DATASET = ROBODRIVER_HOME / "dataset"
+```
+
+# DeepWiki Q&A with Code Context for Repository: FlagOpen/RoboDriver
+## Q1
+支持哪些机械臂，怎样添加新的机械臂
+### Answer
+# RoboDriver 支持的机械臂及如何添加新机械臂
+
+## 一、当前支持的机械臂
+
+RoboDriver 按接入方式分类，目前支持以下机械臂： RoboDriver:96-119 
+
+### 按目录结构整理如下：
+
+| 机器人型号 | 接入方式 | 目录名 | Robot Type 标识 |
+|---|---|---|---|
+| **Realman 机械臂** | ROS1 | `robodriver-robot-realman-aio-ros1` | `realman_aio_ros1` |
+| **Realman 机械臂** | Dora (SDK) | `robodriver-robot-realman1-aio-dora` | `realman1_aio_dora` |
+| **SO101 机械臂** | ROS2 | `robodriver-robot-so101-aio-ros2` | `so101_aio_ros2` |
+| **SO101 机械臂** | Dora (SDK) | `robodriver-robot-so101-aio-dora` | — |
+| **SO101 机械臂** | Dora (Follower模式) | `robodriver-robot-so101-follower-dora` | — |
+| **Franka 机械臂** | Dora (SDK) | `robodriver-robot-franka-aio-dora` | `franka_aio_dora` |
+| **GALAXEALITE 双臂** | ROS2 | `robodriver-robot-galaxealite-aio-ros2` | `galaxealite-aio-ros2` |
+| **GALAXEALITE 双臂** | ROS1 | `robodriver-robot-galaxealite-aio-ros1` | — |
+| **GALAXEALITE 双臂** | ROS1 (Follower模式) | `robodriver-robot-galaxealite-follower-ros1` | — |
+| **Agilex Aloha 双臂** | Dora (SDK) | `robodriver-robot-agilex-aloha-aio-dora` | `agilex_aloha_aio_dora` |
+| **宇树 A2D (G1)** | ROS2 | `robodriver-robot-a2d-aio-ros2` | `a2d_aio_ros2` |
+
+仿真环境中还支持 **Franka 机械臂**（Genesis 仿真）： RoboDriver:91-93 
+
+---
+
+## 二、每个机械臂适配包的结构
+
+以 Franka（Dora接入）为例，每个机器人适配包都包含以下核心文件：
+
+```
+robodriver_robot_xxx_xxx_xxx/
+├── __init__.py    # 导出 Robot 类和 Config 类
+├── config.py      # 机器人配置（电机、相机等）
+├── node.py        # 通信节点（Dora/ROS）
+├── robot.py       # Robot 类实现
+└── status.py      # 状态定义（可选）
+``` RoboDriver:1-3 
+
+---
+
+## 三、如何添加新的机械臂
+
+### 步骤总览
+
+```mermaid
+graph TD
+    "1. 在 robots/ 目录下新建适配包" --> "2. 实现 config.py（注册 RobotConfig 子类）"
+    "2. 实现 config.py（注册 RobotConfig 子类）" --> "3. 实现 node.py（通信节点）"
+    "3. 实现 node.py（通信节点）" --> "4. 实现 robot.py（继承 Robot 基类）"
+    "4. 实现 robot.py（继承 Robot 基类）" --> "5. pip install -e . 安装适配包"
+    "5. pip install -e . 安装适配包" --> "6. 用 --robot.type=xxx 启动"
+```
+
+---
+
+### 第1步：命名与目录结构
+
+按规范命名：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`，在 `robodriver/robots/` 下新建目录： RoboDriver:116-127 
+
+---
+
+### 第2步：实现 `config.py`
+
+需要用 `@RobotConfig.register_subclass("your_robot_type")` 装饰器注册你的机器人类型，并在 dataclass 中声明电机（`motors`/`leader_motors`/`follower_motors`）和相机（`cameras`）：
+
+参考 SO101 ROS2 版本的 config： RoboDriver:10-50 
+
+参考 Franka Dora 版本的 config： RoboDriver:27-78 
+
+---
+
+### 第3步：实现 `node.py`（通信节点）
+
+根据接入方式不同，有两种主要实现方式：
+
+**ROS2 接入**：继承 `rclpy.node.Node`，订阅关节状态和图像 topic，并在 `NODE_CONFIG` 中配置 topic 名称： RoboDriver:24-58 
+
+**Dora 接入**：使用 `dora.Node` 接收数据，在独立线程处理发送/接收： RoboDriver:23-60 
+
+---
+
+### 第4步：实现 `robot.py`
+
+继承 LeRobot 的 `Robot` 基类，实现以下必要方法：
+
+- `connect()` / `disconnect()`
+- `get_observation()`
+- `get_action()`
+- `send_action()`
+- `is_connected` / `is_calibrated` 属性
+
+参考 SO101 ROS2 版本 robot 类： RoboDriver:20-44 
+
+---
+
+### 第5步：自动注册机制
+
+RoboDriver 启动时会自动扫描所有以 `robodriver_robot_` 前缀开头的已安装包，并自动导入注册： RoboDriver:100-139 
+
+在 `run.py` 中的 `main()` 函数调用了上述自动注册逻辑： RoboDriver:127-136 
+
+因此，只需将适配包以 `pip install -e .` 安装后，RoboDriver 就能自动发现并注册新的机器人类型。
+
+---
+
+### 第6步：启动验证
+
+安装后用 `--robot.type=你注册的类型名` 启动：
+
+参考 Franka 的启动方式： RoboDriver:36-40 
+
+参考 Agilex Aloha 的启动方式： RoboDriver:233-240 
+
+---
+
+## Notes
+
+1. **命名约定**：Python 包名需以 `robodriver_robot_` 开头（下划线分隔），这是自动注册机制的扫描前缀。目录名可用连字符（如 `robodriver-robot-xxx`），包名用下划线（如 `robodriver_robot_xxx`）。
+2. **LeRobot 兼容**：所有 Robot 类直接继承自 LeRobot 的 `Robot` 基类，因此 RoboDriver 与 LeRobot 生态互相兼容。 RoboDriver:40-42 
+3. **贡献流程**：开发完成后向主仓库 `dev` 分支提交 PR，代码需放在 `robodriver/robots/` 目录下。 RoboDriver:121-127 
+4. **Dora 接入**的适配包还需要配置 `dora/dataflow.yml` 文件来定义数据流图，ROS 接入则需要配置对应的 ROS topic 名称（在 `node.py` 的 `NODE_CONFIG` 中）。
+### Citations
+**File:** README.md (L40-42)
+```markdown
+- **多种机器人接入方式**： RoboDriver 考虑了除SDK外，使用ROS、Dora的接入方式。
+- **LeRobot兼容**： RoboDriver 的机器人接口直接使用了LeRobot的`Robot`类，这意味着RoboDriver与LeRobot可以互相兼容。
+- **改进的LeRobot数据集格式**：在不同数据阶段采取不同数据结构。在采集端单条储存，更易编辑和传输。还扩展了LeRobot格式的内容。
+```
+**File:** README.md (L91-93)
+```markdown
+| 机器人型号 | 简介 | 仓库链接 | 贡献人 |
+|------------|------|--------------|------------------------|
+| Franka 机械臂 | 一台Franka机械臂抓取方块 | [robodriver/simulations/robodriver-sim-genesis-franka-aio-dora](./robodriver/simulations/robodriver-sim-genesis-franka-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+```
+**File:** README.md (L96-127)
+```markdown
+RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下（各仓库包含对应机器人的接入步骤、环境配置、指令适配等完整指南）：
+
+### 🔌 ROS1 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|------------|------|--------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) |  [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
+
+### 🔌 ROS2 接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| GALAXEALITE | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机 | [robodriver/robots/robodriver-robot-galaxealite-aio-ros2](./robodriver/robots/robodriver-robot-galaxealite-aio-ros2) | [![liuyou1103](https://avatars.githubusercontent.com/liuyou1103?s=50)](https://github.com/liuyou1103) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-ros2](./robodriver/robots/robodriver-robot-so101-aio-ros2) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+
+### 🔌 Dora（SDK）接入
+| 机器人型号 | 简介 | 代码链接 | 贡献人 |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman1-aio-dora](./robodriver/robots/robodriver-robot-realman1-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+| SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-dora](./robodriver/robots/robodriver-robot-so101-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+| Franka | 工业级机械臂，6DOF+末端夹爪，1*RealSense相机 | [robodriver/robots/robodriver-robot-franka-aio-dora](./robodriver/robots/robodriver-robot-franka-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+
+> ✨ 说明：
+> 1. 接入方式命名规范：`robodriver-robot-[机器人型号]-[遥操方式]-[接入类型]`（如 `aio`/`follwer`/`teleoperate`, `ros2`/`dora`）；
+> 2. 每个适配仓库内包含**环境搭建、配置修改、采集/控制验证**等完整接入指南；
+> 3. 持续新增适配机器人，可关注本列表或项目更新。
+
+我们非常欢迎社区开发者贡献更多机器人的实现！可按以下方式参与：
+1. 参考已适配机器人的代码结构和 README 模板，按接入类型（ROS1/ROS2/Dora）完成适配开发；
+2. 将适配代码新增至主仓库的 `robodriver/robots/` 目录下（命名规范与已适配机器人保持一致）；
+3. 确保代码规范、文档完整（包含环境准备、配置步骤、功能验证）；
+4. 提交代码 PR 至主仓库的 `dev` 分支，我们将及时审核并合并。
+
+期待与您一起丰富 RoboDriver 的机器人生态！ 🤝
+```
+**File:** robodriver/robots/robodriver-robot-franka-aio-dora/robodriver_robot_franka_aio_dora/__init__.py (L1-3)
+```python
+from .robot import  FrankaAioDoraRobot
+from .config import FrankaAioDoraRobotConfig
+from .status import FrankaAioDoraRobotStatus
+```
+**File:** robodriver/robots/robodriver-robot-so101-aio-ros2/robodriver_robot_so101_aio_ros2/config.py (L10-50)
+```python
+@RobotConfig.register_subclass("so101_aio_ros2")
+@dataclass
+class So101AioRos2RobotConfig(RobotConfig):
+    use_degrees = True
+    norm_mode_body = (
+        MotorNormMode.DEGREES if use_degrees else MotorNormMode.RANGE_M100_100
+    )
+
+    # 按组件分组：{ comp_id: { joint_name: Motor, ... }, ... }
+    leader_motors: Dict[str, Dict[str, Motor]] = field(
+        default_factory=lambda norm_mode_body=norm_mode_body: {
+            "shoulder_pan": Motor(1, "sts3215", norm_mode_body),
+            "shoulder_lift": Motor(2, "sts3215", norm_mode_body),
+            "elbow_flex": Motor(3, "sts3215", norm_mode_body),
+            "wrist_flex": Motor(4, "sts3215", norm_mode_body),
+            "wrist_roll": Motor(5, "sts3215", norm_mode_body),
+            "gripper": Motor(6, "sts3215", MotorNormMode.RANGE_0_100),
+        }
+    )
+
+    follower_motors: Dict[str, Dict[str, Motor]] = field(
+        default_factory=lambda norm_mode_body=norm_mode_body: {
+            "shoulder_pan": Motor(1, "sts3215", norm_mode_body),
+            "shoulder_lift": Motor(2, "sts3215", norm_mode_body),
+            "elbow_flex": Motor(3, "sts3215", norm_mode_body),
+            "wrist_flex": Motor(4, "sts3215", norm_mode_body),
+            "wrist_roll": Motor(5, "sts3215", norm_mode_body),
+            "gripper": Motor(6, "sts3215", MotorNormMode.RANGE_0_100),
+        }
+    )
+
+    cameras: Dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "image_top": OpenCVCameraConfig(index_or_path=0, fps=30, width=640, height=480),
+        }
+    )
+
+    use_videos: bool = False
+
+    microphones: Dict[str, int] = field(
+        default_factory=lambda: {}
+```
+**File:** robodriver/robots/robodriver-robot-franka-aio-dora/robodriver_robot_franka_aio_dora/config.py (L27-78)
+```python
+@RobotConfig.register_subclass("franka_aio_dora")
+@dataclass
+class FrankaAioDoraRobotConfig(RobotConfig):
+    use_degrees = True
+    norm_mode_body = MotorNormMode.DEGREES if use_degrees else MotorNormMode.RANGE_M100_100
+ 
+    motors: Dict[str, Motor] = field(
+        default_factory=lambda norm_mode_body=norm_mode_body: {
+            "follower_arm": {
+                "joint_1": Motor(1, "franka", norm_mode_body),
+                "joint_2": Motor(2, "franka", norm_mode_body),
+                "joint_3": Motor(3, "franka", norm_mode_body),
+                "joint_4": Motor(4, "franka", norm_mode_body),
+                "joint_5": Motor(5, "franka", norm_mode_body),
+                "joint_6": Motor(6, "franka", norm_mode_body),
+                "joint_7": Motor(7, "franka", norm_mode_body),
+                "gripper": Motor(8, "franka", norm_mode_body),
+                "pose_x":  Motor(9, "franka", norm_mode_body),
+                "pose_y":  Motor(10, "franka", norm_mode_body),
+                "pose_z":  Motor(11, "franka", norm_mode_body),
+                "pose_rx":  Motor(12, "franka", norm_mode_body),
+                "pose_ry":  Motor(13, "franka", norm_mode_body),
+                "pose_rz":  Motor(14, "franka", norm_mode_body),
+            },
+        }
+    )
+
+    cameras: Dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "image_wrist": OpenCVCameraConfig(
+                index_or_path=1,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "image_wrist_depth": OpenCVCameraConfig(
+                index_or_path=2,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+
+        }
+    )
+
+    use_videos: bool = False
+
+    microphones: Dict[str, int] = field(
+        default_factory=lambda: {
+        }
+    )
+    
+```
+**File:** robodriver/robots/robodriver-robot-so101-aio-ros2/robodriver_robot_so101_aio_ros2/node.py (L24-58)
+```python
+NODE_CONFIG = {
+    "leader_joint_topics": {
+        "leader_arm": {
+            "topic": "/joint_states",
+            "msg": "JointState"
+        }
+    },
+    "follower_joint_topics": {
+        "follower_arm": {
+            "topic": "/f_joint_states",
+            "msg": "JointState"
+        }
+    },
+    "camera_topics": {
+        "image_top": {
+            "topic": "/camera/camera/color/image_raw",
+            "msg": "Image"
+        }
+    }
+}
+
+
+class So101AioRos2Node(Node):
+    """
+    ROS2 → 本地数据存储（无 ZMQ，无 Dora）
+    leader / follower / camera 多 topic，按 JSON 配置自动订阅。
+    """
+
+    def __init__(
+        self,
+        leader_joint_topics: Dict[str, Dict[str, str]] = NODE_CONFIG["leader_joint_topics"],
+        follower_joint_topics: Dict[str, Dict[str, str]] = NODE_CONFIG["follower_joint_topics"],
+        camera_topics: Dict[str, Dict[str, str]] = NODE_CONFIG["camera_topics"],
+    ):
+        super().__init__("so101_aio_ros2_direct")
+```
+**File:** robodriver/robots/robodriver-robot-franka-aio-dora/robodriver_robot_franka_aio_dora/node.py (L23-60)
+```python
+class FrankaAioDoraRobotNode(DoraRobotNode):
+    def __init__(self):
+        self.node = Node("franka_aio_dora")
+        
+        self.send_queue = queue.Queue(maxsize=100)
+        self.recv_images: Dict[str, float] = {}
+        self.recv_joint: Dict[str, float] = {}
+        self.recv_images_status: Dict[str, int] = {}
+        self.recv_joint_status: Dict[str, int] = {}
+        self.lock = threading.Lock()
+
+        self.thread = threading.Thread(target=self.dora_recv, daemon=True)
+        self.running = False
+
+        # 使用字典记录不同事件类型的最后发送时间
+        self.last_send_times: Dict[str, float] = {}
+
+    def dora_send(self, event_id, data):
+        """线程安全的发送方法 - 只负责入队"""
+        # logger.debug(f"{self} queue send event_id:{event_id}, value:{data}")
+        try:
+            # 限制发送频率 (可选) - 针对不同事件类型分别限制
+            current_time = time.time()
+            last_time = self.last_send_times.get(event_id, 0)
+            if current_time - last_time < 0.005:  # 200Hz上限
+                return
+            
+            # 转换为列表确保类型安全
+            data_list = [float(x) for x in data]
+            self.send_queue.put_nowait((event_id, data_list))
+
+            # 更新该事件类型的最后发送时间
+            self.last_send_times[event_id] = current_time
+        except queue.Full:
+            logger.warning(f"Send queue full! Dropping {event_id} event")
+        except Exception as e:
+            logger.error(f"Queue error: {str(e)}")
+
+```
+**File:** robodriver/robots/robodriver-robot-so101-aio-ros2/robodriver_robot_so101_aio_ros2/robot.py (L20-44)
+```python
+class So101AioRos2Robot(Robot):
+    config_class = So101AioRos2RobotConfig
+    name = "so101_aio_ros2"
+
+    def __init__(self, config: So101AioRos2RobotConfig):
+        rclpy.init()
+        super().__init__(config)
+        self.config = config
+        self.robot_type = self.config.type
+        self.use_videos = self.config.use_videos
+        self.microphones = self.config.microphones
+
+        # 这里的 leader_motors / follower_motors 可以是按组件分组的 dict
+        # （比如 {"leader_arm": {...}, "left_arm": {...}}）
+        self.leader_motors = config.leader_motors
+        self.follower_motors = config.follower_motors
+        self.cameras = make_cameras_from_configs(self.config.cameras)
+
+        self.connect_excluded_cameras = ["image_pika_pose"]
+
+        self.robot_ros2_node = So101AioRos2Node()
+        self.robot_ros2_node.start()
+
+        self.connected = False
+        self.logs = {}
+```
+**File:** robodriver/utils/import_utils.py (L100-139)
+```python
+def register_third_party_devices() -> None:
+    """
+    Discover and import third-party robodriver_* plugins so they can register themselves.
+
+    Scans top-level modules on sys.path for packages starting with
+    'robodriver_robot_', 'robodriver_camera_', "robodriver_policy_" or 'robodriver_teleoperator_' and imports them.
+    """
+    prefixes = (
+        "robodriver_robot_",
+        "robodriver_camera_",
+        "robodriver_sim",
+        "robodriver_policy_",
+        "robodriver_teleoperator",
+    )
+    imported: list[str] = []
+    failed: list[str] = []
+
+    for module_info in pkgutil.iter_modules():
+        name = module_info.name
+        if name.startswith(prefixes):
+            _attempt_import(name, imported, failed)
+
+    editable_pattern = re.compile(r"__editable___(.+?)_\d+_\d+_\d+_finder")
+    for module_info in pkgutil.iter_modules():
+        match = editable_pattern.match(module_info.name)
+        if match:
+            original_name = match.group(1).replace(
+                "_", "-"
+            )  # Convert to canonical package name
+            if any(
+                original_name.startswith(prefix.replace("_", "-"))
+                for prefix in prefixes
+            ):
+                # Convert back to module name format (replace - with _)
+                module_name = original_name.replace("-", "_")
+                _attempt_import(module_name, imported, failed)
+
+    logger.debug(
+        "Third-party plugin import summary: imported=%s failed=%s", imported, failed
+    )
+```
+**File:** robodriver/scripts/run.py (L127-136)
+```python
+def main():
+    git_branch_log()
+
+    register_third_party_devices()
+    logger.info(f"Registered robot types: {list(RobotConfig._choice_registry.keys())}")
+    logger.info(
+        f"Registered teleoperator types: {list(TeleoperatorConfig._choice_registry.keys())}"
+    )
+
+    asyncio.run(async_main())
+```
+**File:** robodriver/robots/robodriver-robot-franka-aio-dora/README.md (L36-40)
+```markdown
+```
+cd /path/to/your/RoboDriver
+python robodriver/scripts/run.py \
+  --robot.type=franka_aio_dora 
+```
+```
+**File:** robodriver/robots/robodriver-robot-agilex-aloha-aio-dora/README.md (L233-240)
+```markdown
+运行：
+
+```bash
+robodriver-run \
+    --robot.type=agilex_aloha_aio_dora \
+    --sim.xml_path=descriptions/agilex_aloha/scene.xml \
+    --sim.from_unit=rad
+```
+```

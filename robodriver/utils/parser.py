@@ -24,7 +24,7 @@ from typing import List, Optional, Sequence, Union
 import draccus
 import logging_mp
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 from robodriver.utils.utils import has_method
 

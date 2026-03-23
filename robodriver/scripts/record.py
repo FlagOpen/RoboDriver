@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import logging_mp
 from deepdiff import DeepDiff
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 from robodriver.core.recorder import RecordConfig
@@ -52,7 +52,7 @@ class ControlPipelineConfig:
 
 @parser.wrap()
 def record(cfg: ControlPipelineConfig):
-    logging_mp.basic_config(level=logging_mp.INFO)
+    logging_mp.basicConfig(level=logging_mp.INFO)
     git_branch_log()
 
     # daemon = Daemon(fps=DEFAULT_FPS)

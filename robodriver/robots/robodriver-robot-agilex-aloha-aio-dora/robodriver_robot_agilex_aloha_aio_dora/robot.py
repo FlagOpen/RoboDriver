@@ -15,7 +15,7 @@ from .status import AgilexAlohaAIODoraRobotStatus
 from .node import AgilexAlohaAIODoraRobotNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class AgilexAlohaAIODoraRobot(Robot):
