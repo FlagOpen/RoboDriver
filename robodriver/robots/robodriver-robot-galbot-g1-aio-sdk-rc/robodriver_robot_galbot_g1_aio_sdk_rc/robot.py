@@ -188,6 +188,7 @@ class GalbotG1AIOSDKRCRobot(Robot):
         if conditions[2][0]():
             success_messages.append(f"左臂关节角度: 已接收 ({len(self.robot_node.recv_follower_arm_left)}个数据点)")
 
+        time.sleep(1)
 
         log_message = "\n[连接成功] 所有设备已就绪:\n"
         log_message += "\n".join(f"  - {msg}" for msg in success_messages)
@@ -245,7 +246,16 @@ class GalbotG1AIOSDKRCRobot(Robot):
                 obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_chassis[i-23]
             elif "chassis" in motor and "vel" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_chassis_velocity[i-27]
-            
+
+            elif "odom" in motor and "pose" in motor and "position" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_position[i-31]
+            elif "odom" in motor and "pose" in motor and "orientation" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_orientation[i-33]
+
+            elif "odom" in motor and "twist" in motor and "linear" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_position[i-35]
+            elif "odom" in motor and "twist" in motor and "angular" in motor:
+                obs_dict[f"follower_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_orientation[i-37]
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read follower state: {dt_ms:.1f} ms")
@@ -289,6 +299,16 @@ class GalbotG1AIOSDKRCRobot(Robot):
                 act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_chassis[i-23]
             elif "chassis" in motor and "vel" in motor:
                 act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_chassis_velocity[i-27]
+
+            elif "odom" in motor and "pose" in motor and "position" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_position[i-31]
+            elif "odom" in motor and "pose" in motor and "orientation" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_orientation[i-33]
+
+            elif "odom" in motor and "twist" in motor and "linear" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_position[i-35]
+            elif "odom" in motor and "twist" in motor and "angular" in motor:
+                act_dict[f"leader_{motor}.pos"] = self.robot_node.recv_follower_odom_pose_orientation[i-37]
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f} ms")

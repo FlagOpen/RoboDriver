@@ -294,19 +294,19 @@ def show_odom_from_proto(odom_msg):
 
     print("Fields present:", [field.name for field, value in odom_msg.ListFields()])
 
-    if not odom_msg.joint_sensor_map:
-        print("⚠️  No joint data in sensor message.")
-        return
+    # if not odom_msg:
+    #     print("⚠️  No joint data in sensor message.")
+    #     return
     
-    print(f"odom_msg.child_frame_id: {odom_msg.child_frame_id}")
+    # print(f"odom_msg.child_frame_id: {odom_msg.child_frame_id}")
     
-    print(f"odom_msg.pose: {odom_msg.pose}")
-    print(f"odom_msg.pose.pose: position: {odom_msg.pose.pose.position}, orientation: {odom_msg.pose.pose.orientation}")
-    print(f"odom_msg.pose.covariance: {odom_msg.pose.covariance}")
+    # print(f"odom_msg.pose: {odom_msg.pose}")
+    # print(f"odom_msg.pose.pose: position: {odom_msg.pose.pose.position}, orientation: {odom_msg.pose.pose.orientation}")
+    # print(f"odom_msg.pose.covariance: {odom_msg.pose.covariance}")
 
-    print(f"odom_msg.twist: {odom_msg.twist}")
-    print(f"odom_msg.twist.twist: linear: {odom_msg.twist.twist.linear}, angular: {odom_msg.twist.twist.angular}")
-    print(f"odom_msg.twist.covariance: {odom_msg.twist.covariance}")
+    # print(f"odom_msg.twist: {odom_msg.twist}")
+    # print(f"odom_msg.twist.twist: linear: {odom_msg.twist.twist.linear}, angular: {odom_msg.twist.twist.angular}")
+    # print(f"odom_msg.twist.covariance: {odom_msg.twist.covariance}")
 
 
 # ========================
