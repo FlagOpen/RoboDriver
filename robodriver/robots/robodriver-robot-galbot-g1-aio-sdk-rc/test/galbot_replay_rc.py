@@ -77,22 +77,18 @@ def split_action_31(action: List[float]) -> Dict[str, List[float]]:
 def generate_trajectory_point(
     parts: Dict[str, List[float]], 
     time_from_start_second: float, 
-    gripper_scale: float = 100.0,
-    # 新增夹爪专用参数（可根据需要调整默认值）
-    gripper_acceleration: float = 30,    # 夹爪加速度 (rad/s²)
-    gripper_effort: float = 50.0,          # 夹爪力矩 (N·m)
-    gripper_velocity: float = 100         # 夹爪速度 (rad/s)
+    gripper_scale: float = 100.0
 ) -> TrajectoryPoint:
     """
-    生成单个轨迹点（扩展夹爪参数支持）
+    生成单个轨迹点
     
     Args:
         parts: 拆分后的动作部分
         time_from_start_second: 从轨迹开始的时间（秒）
         gripper_scale: 夹爪缩放比例
-        gripper_acceleration: 夹爪关节加速度
-        gripper_effort: 夹爪关节力矩
-        gripper_velocity: 夹爪关节速度
+        
+    Returns:
+        TrajectoryPoint: 轨迹点对象
     """
     # 构建关节位置向量，按照机器人要求的顺序
     joint_pos_vec = []
@@ -102,42 +98,22 @@ def generate_trajectory_point(
     joint_pos_vec.extend(parts["head"])
     joint_pos_vec.extend(parts["left_arm"])
     joint_pos_vec.extend(parts["right_arm"])
-    # 夹爪位置值（应用缩放比例）
-    left_gripper_pos = parts["left_gripper"][0] * gripper_scale / 100.0
-    right_gripper_pos = parts["right_gripper"][0] * gripper_scale / 100.0
-    joint_pos_vec.append(left_gripper_pos)
-    joint_pos_vec.append(right_gripper_pos)
+    joint_pos_vec.append(parts["left_gripper"][0] * gripper_scale / 1000)
+    joint_pos_vec.append(parts["right_gripper"][0] * gripper_scale / 1000)
     
     # 创建轨迹点
     trajectory_point = TrajectoryPoint()
     trajectory_point.time_from_start_second = time_from_start_second
     
-    # 创建关节命令（区分普通关节和夹爪关节）
+    # 创建关节命令
     joint_command_vec = []
-    joint_count = len(joint_pos_vec)
-    
-    for i in range(joint_count):
+    for pos in joint_pos_vec:
         joint_cmd = JointCommand()
-        # 1. 设置位置（所有关节都需要）
-        joint_cmd.position = joint_pos_vec[i]
-        
-        # 2. 判断是否是夹爪关节（最后两个）
-        is_gripper_joint = i >= joint_count - 2
-        
-        if is_gripper_joint:
-            # 为夹爪设置专属的加速度、力矩、速度
-            joint_cmd.acceleration = gripper_acceleration
-            joint_cmd.effort = gripper_effort
-            joint_cmd.velocity = gripper_velocity
-            logger.debug(f"夹爪关节 {i} 设置: pos={joint_pos_vec[i]:.3f}, "
-                         f"acc={gripper_acceleration}, effort={gripper_effort}, "
-                         f"vel={gripper_velocity}")
-        
+        joint_cmd.position = pos
         joint_command_vec.append(joint_cmd)
     
     trajectory_point.joint_command_vec = joint_command_vec
     return trajectory_point
-
 
 class FourOmniWheelKinematics:
     """
