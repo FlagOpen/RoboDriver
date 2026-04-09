@@ -120,26 +120,26 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
             "image_head_right": OpenCVCameraConfig(
                 index_or_path=1,
                 fps=30,
-                width=640,
-                height=480,
+                width=1280,
+                height=960,
             ),
             "image_head_left": OpenCVCameraConfig(
                 index_or_path=2,
                 fps=30,
-                width=640,
-                height=480,
+                width=1280,
+                height=960,
             ),
             "image_arm_right": OpenCVCameraConfig(
                 index_or_path=3,
                 fps=30,
-                width=640,
-                height=480,
+                width=1280,
+                height=960,
             ),
             "image_arm_left": OpenCVCameraConfig(
                 index_or_path=4,
                 fps=30,
-                width=640,
-                height=480,
+                width=1280,
+                height=960,
             ),
         }
     )

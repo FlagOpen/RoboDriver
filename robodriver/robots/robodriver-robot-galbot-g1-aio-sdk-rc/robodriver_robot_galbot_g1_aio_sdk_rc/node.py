@@ -215,7 +215,7 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
                 np_arr = np.frombuffer(pb_message.data, np.uint8)
                 image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 if image is not None:
-                    image = cv2.resize(image, (640, 480))
+                    image = cv2.resize(image, (1280, 960))
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     with self.image_lock:
                         if "right" in topic and "head" in topic:
