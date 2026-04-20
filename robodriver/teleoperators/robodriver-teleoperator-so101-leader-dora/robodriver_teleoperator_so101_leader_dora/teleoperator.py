@@ -13,7 +13,7 @@ from .status import  SO101LeaderDoraTeleoperatorStatus
 from .node import  SO101LeaderDoraTeleoperatorNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class SO101LeaderDoraTeleoperator(Teleoperator):

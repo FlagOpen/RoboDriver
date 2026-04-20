@@ -16,7 +16,7 @@ from .status import GALAXEALITEAIORos2RobotStatus
 from .node import GALAXEALITEAIORos2RobotNode, ros_spin_thread
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 

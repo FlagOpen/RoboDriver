@@ -15,7 +15,7 @@ from .status import SO101FollowerDoraRobotStatus
 from .node import SO101FollowerDoraRobotNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class SO101FollowerDoraRobot(Robot):

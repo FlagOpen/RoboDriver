@@ -5,6 +5,7 @@ from typing import List
 
 import cv2
 import logging_mp
+logging_mp.basicConfig(level=logging_mp.INFO)
 from lerobot.robots import RobotConfig
 from lerobot.teleoperators import TeleoperatorConfig
 
@@ -24,8 +25,7 @@ from robodriver.utils.utils import git_branch_log
 
 # from lerobot.teleoperators import make_teleoperator_from_config
 
-logging_mp.basic_config(level=logging_mp.INFO)
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 @dataclass
@@ -109,12 +109,12 @@ async def async_main(cfg: ControlPipelineConfig):
                         img = cv2.cvtColor(observation[key], cv2.COLOR_RGB2BGR)
                         # name = key[len("observation.images."):]
                         tasks.append(coordinator.update_stream_async(key, img))
-                        # cv2.imshow(key, img)
+                        cv2.imshow(key, img)
             
             if observation_sim is not None:
                 observation_sim = cv2.cvtColor(observation_sim, cv2.COLOR_RGB2BGR)
                 tasks.append(coordinator.update_stream_async("image_sim", observation_sim))
-                # cv2.imshow("image_sim", observation_sim)
+                cv2.imshow("image_sim", observation_sim)
             
             if tasks:
                 try:
@@ -127,8 +127,8 @@ async def async_main(cfg: ControlPipelineConfig):
             
             else:
                 logger.warning("observation is none")
-            
-            # cv2.waitKey(1)
+
+            cv2.waitKey(1)
             await asyncio.sleep(0)
     except KeyboardInterrupt:
         logger.info("coordinator and daemon stop")

@@ -15,7 +15,7 @@ from .status import GalaxeaLiteEEposeROS2RobotStatus
 from .node import GalaxeaLiteEEposeROS2RobotNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 

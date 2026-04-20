@@ -21,7 +21,7 @@ from typing import Any
 import logging_mp
 from draccus.choice_types import ChoiceRegistry
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 def make_device_from_device_class(config: ChoiceRegistry) -> Any:
