@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
+GRIPPER_VALUE_TO_WIDTH_M = 0.001
+
 def to_list(x: Any) -> List[float]:
     """
     将 parquet 中的 action 单元转换为 Python list
@@ -127,9 +129,9 @@ def generate_trajectory_point(
         
         if is_gripper_joint:
             # 为夹爪设置专属的加速度、力矩、速度
-            joint_cmd.acceleration = gripper_acceleration
+            # joint_cmd.acceleration = gripper_acceleration
             joint_cmd.effort = gripper_effort
-            joint_cmd.velocity = gripper_velocity
+            joint_cmd.velocity = gripper_velocity * GRIPPER_VALUE_TO_WIDTH_M
             logger.debug(f"夹爪关节 {i} 设置: pos={joint_pos_vec[i]:.3f}, "
                          f"acc={gripper_acceleration}, effort={gripper_effort}, "
                          f"vel={gripper_velocity}")
