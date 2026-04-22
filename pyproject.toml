@@ -17,7 +17,7 @@ dependencies = [
     # "genesis-world",
     "mujoco",
 
-    "logging_mp",
+    "logging_mp==0.1.5",
     "python-socketio",
 
     "sounddevice",
