@@ -680,7 +680,7 @@ def replay_parquet(
 
     # Read parquet file
     df = pd.read_parquet(parquet_path)
-    robot = GalbotRobot()
+    robot = GalbotRobot.get_instance()
     initialized = False
     try:
         # Initialize robot connection

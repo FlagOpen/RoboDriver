@@ -534,7 +534,7 @@ def replay_parquet(
     logger.info(f"开始回放文件: {parquet_path}")
     
     # 初始化机器人
-    robot = GalbotRobot()
+    robot = GalbotRobot.get_instance()
     ok = robot.init()
     time.sleep(1.5)  # 增加初始化等待时间
     if not ok:
