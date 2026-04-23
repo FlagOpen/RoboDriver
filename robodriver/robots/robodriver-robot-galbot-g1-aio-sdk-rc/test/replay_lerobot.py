@@ -83,6 +83,10 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
     galbot_mcap_to_lerobot.py. The gripper values are already scaled by 0.01
     in the dataset.
 
+    Full 38-dimensional structure:
+    [leg(5), right_arm(7), right_gripper(1), left_arm(7), left_gripper(1), head(2),
+     chassis_pos(4), chassis_vel(4), odom_pose(4), odom_twist(3)]
+
     Args:
         a: Action array to split. Can be a list or numpy array. Expected length
             is at least 23 elements (5+7+1+7+1+2).
@@ -98,6 +102,8 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
         - "left_arm": List of 7 left arm joint values
         - "left_gripper": Single float value for left gripper
         - "head": List of 2 head joint values
+        - "odom_twist_linear": List of 2 values [linear_x, linear_y]
+        - "odom_twist_angular": List of 1 value [angular_z]
 
     Raises:
         ValueError: If the action array is too short (less than 23 elements).
@@ -183,7 +189,24 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
     idx += left_gripper_joints
     head = a[idx : idx + head_joints].tolist()
 
-    return {
+    # Parse odom twist (indices 35-38)
+    # Full structure: leg(5) + right_arm(7) + right_gripper(1) + left_arm(7) +
+    #                 left_gripper(1) + head(2) = 23
+    #                 chassis_pos(4) = 27
+    #                 chassis_vel(4) = 31
+    #                 odom_pose(4) = 35
+    #                 odom_twist(3) = 38
+    ODOM_TWIST_START = 35
+    ODOM_TWIST_LINEAR_LEN = 2
+    ODOM_TWIST_ANGULAR_LEN = 1
+
+    odom_twist_linear = []
+    odom_twist_angular = []
+    if len(a) >= ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN + ODOM_TWIST_ANGULAR_LEN:
+        odom_twist_linear = a[ODOM_TWIST_START : ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN].tolist()
+        odom_twist_angular = [float(a[ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN])]
+
+    result = {
         "leg": leg,
         "right_arm": right_arm,
         "right_gripper": right_gripper,
@@ -191,6 +214,13 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
         "left_gripper": left_gripper,
         "head": head,
     }
+
+    # Only add odom_twist if data is available
+    if odom_twist_linear and odom_twist_angular:
+        result["odom_twist_linear"] = odom_twist_linear
+        result["odom_twist_angular"] = odom_twist_angular
+
+    return result
 
 
 def infer_gripper_format(
@@ -638,6 +668,184 @@ def move_to_first_frame_joint_positions(
     print("[prepare] Reached replay initial frame. Start replay.")
 
 
+def _safe_set_base_velocity(robot: GalbotRobot, velocity: list[float]) -> bool:
+    """Safely send base velocity command with validation.
+
+    Args:
+        robot: GalbotRobot instance.
+        velocity: [vx, vy, omega] velocity command.
+
+    Returns:
+        True if command was sent successfully, False otherwise.
+    """
+    if not isinstance(velocity, (list, tuple)) or len(velocity) != 3:
+        print(f"[odom] Invalid velocity vector (wrong length): {velocity}")
+        return False
+
+    if any(np.isnan(v) or np.isinf(v) for v in velocity):
+        print(f"[odom] Velocity contains invalid values: {velocity}")
+        return False
+
+    # Clamp to reasonable ranges
+    max_linear = 2.0  # m/s
+    max_angular = 3.0  # rad/s
+    velocity = [
+        float(np.clip(velocity[0], -max_linear, max_linear)),
+        float(np.clip(velocity[1], -max_linear, max_linear)),
+        float(np.clip(velocity[2], -max_angular, max_angular)),
+    ]
+
+    try:
+        linear = [velocity[0], velocity[1], 0.0]
+        angular = [0.0, 0.0, velocity[2]]
+
+        if any(np.isnan(v) or np.isinf(v) for v in linear + angular):
+            print(f"[odom] Computed velocity contains invalid values: {linear}, {angular}")
+            return False
+
+        status = robot.set_base_velocity(linear, angular)
+        if status != ControlStatus.SUCCESS:
+            print(f"[odom] Failed to set base velocity, status={status}")
+        return status == ControlStatus.SUCCESS
+
+    except Exception as e:
+        print(f"[odom] Exception while sending velocity: {e}")
+        return False
+
+
+def replay_with_odom_twist(
+    robot: GalbotRobot,
+    parsed_frames: list[tuple[float, dict[str, list[float] | float]]],
+    gripper_scale: float,
+    gripper_offset: float,
+    gripper_format: str,
+    speed_scale: float,
+    gripper_speed: float | None,
+    odom_scale: float = 1.0,
+) -> None:
+    """Replay trajectory with synchronized odom twist chassis control.
+
+    This function sends base velocity commands based on odom_twist data
+    from the dataset while executing the joint trajectory.
+
+    Args:
+        robot: GalbotRobot instance.
+        parsed_frames: List of (timestamp, parts) tuples.
+        gripper_scale: Gripper scaling factor.
+        gripper_offset: Gripper offset.
+        gripper_format: Gripper format ("raw" or "scaled").
+        speed_scale: Speed multiplier for replay.
+        gripper_speed: Gripper speed.
+        odom_scale: Scaling factor for odom twist velocities.
+    """
+    if not parsed_frames:
+        raise ValueError("Replay trajectory is empty.")
+
+    # Check if odom twist data is available
+    has_odom = all(
+        "odom_twist_linear" in parts and "odom_twist_angular" in parts
+        for _, parts in parsed_frames
+    )
+    if not has_odom:
+        print("[odom] No odom twist data found in frames, replaying without chassis control.")
+        replay_with_execute_joint_trajectory(
+            robot, parsed_frames, gripper_scale, gripper_offset,
+            gripper_format, speed_scale, gripper_speed,
+        )
+        return
+
+    expanded_joint_names: list[str] = []
+    for group_name in JOINT_GROUP_ORDER:
+        expanded_joint_names.extend(robot.get_joint_names(True, [group_name]))
+    if not expanded_joint_names:
+        raise RuntimeError("Failed to resolve joint_names from JOINT_GROUP_ORDER")
+
+    traj = Trajectory()
+    traj.joint_groups = []
+    traj.joint_names = expanded_joint_names
+
+    cumulative_time_s = 0.0
+    points: list[TrajectoryPoint] = []
+    odom_commands: list[tuple[float, list[float]]] = []
+
+    for idx, (timestamp, parts) in enumerate(parsed_frames):
+        if idx == 0:
+            point_time_s = 0.0
+        else:
+            prev_timestamp = parsed_frames[idx - 1][0]
+            raw_dt_s = max(timestamp - prev_timestamp, 0.0)
+            scaled_dt_s = raw_dt_s / speed_scale
+            step_s = max(scaled_dt_s, MIN_COMMAND_DT_S)
+            cumulative_time_s += step_s
+            point_time_s = cumulative_time_s
+
+        points.append(
+            build_replay_trajectory_point(
+                parts, point_time_s, gripper_scale, gripper_offset,
+                gripper_format, gripper_speed,
+            )
+        )
+
+        # Extract odom twist and scale
+        linear = parts.get("odom_twist_linear", [0.0, 0.0])
+        angular = parts.get("odom_twist_angular", [0.0])
+        vx = float(linear[0]) * odom_scale if len(linear) > 0 else 0.0
+        vy = float(linear[1]) * odom_scale if len(linear) > 1 else 0.0
+        omega = float(angular[0]) * odom_scale if len(angular) > 0 else 0.0
+        odom_commands.append((point_time_s, [vx, vy, omega]))
+
+    traj.points = points
+
+    if traj.points and len(traj.points[0].joint_command_vec) != len(expanded_joint_names):
+        raise RuntimeError(
+            "Command vector length does not match resolved joint_names length. "
+            f"commands={len(traj.points[0].joint_command_vec)}, joint_names={len(expanded_joint_names)}"
+        )
+
+    total_duration_s = traj.points[-1].time_from_start_second if traj.points else 0.0
+    print(
+        f"[replay] Submit execute_joint_trajectory with {len(traj.points)} points, "
+        f"duration={total_duration_s:.3f}s, speed_scale={speed_scale:.3f}"
+    )
+    print(f"[odom] Sending {len(odom_commands)} odom twist commands")
+
+    # Send zero velocity first for safety
+    _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+    time.sleep(0.1)
+
+    # Execute trajectory in non-blocking mode
+    robot.execute_joint_trajectory(traj, is_blocking=False)
+
+    # Main loop: synchronize odom twist commands
+    start_time = time.monotonic()
+    odom_idx = 0
+
+    try:
+        while odom_idx < len(odom_commands):
+            current_time = time.monotonic() - start_time
+            target_time, velocity = odom_commands[odom_idx]
+
+            if current_time >= target_time:
+                _safe_set_base_velocity(robot, velocity)
+                odom_idx += 1
+
+            time.sleep(0.005)  # 5ms control cycle
+
+        print("[replay] Joint trajectory and odom twist execution completed")
+
+    except Exception as e:
+        print(f"[replay] Error during execution: {e}")
+        raise
+
+    finally:
+        # Ensure chassis stops
+        _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+        time.sleep(0.2)
+
+    print(f"[replay] Waiting {REPLAY_TAIL_WAIT_S:.1f}s for final command execution before shutdown...")
+    time.sleep(REPLAY_TAIL_WAIT_S)
+
+
 def validate_required_joint_groups(robot: GalbotRobot) -> None:
     """Validate required joint groups exist on current robot/SDK."""
     available_groups = set(robot.get_joint_group_names())
@@ -662,6 +870,8 @@ def replay_parquet(
     timeout_s: float = 15.0,
     delta_threshold_rad: float = DEFAULT_PREPARE_DELTA_THRESHOLD_RAD,
     auto_confirm: bool = False,
+    odom_control: bool = False,
+    odom_scale: float = 1.0,
 ) -> None:
     """Replay a complete trajectory from a parquet dataset file.
 
@@ -674,6 +884,8 @@ def replay_parquet(
             default positional parsing.
         gripper_scale: Scaling factor for gripper values. Default is 100.0.
         gripper_offset: Offset for gripper values. Default is 0.6.
+        odom_control: Whether to enable odom twist chassis control.
+        odom_scale: Scaling factor for odom twist velocities.
     """
     if speed_scale <= 0:
         raise ValueError(f"speed_scale must be positive, got {speed_scale}")
@@ -729,15 +941,27 @@ def replay_parquet(
             time.sleep(0.2)
 
         # Execute replay via execute_joint_trajectory with explicit joint_names.
-        replay_with_execute_joint_trajectory(
-            robot,
-            parsed_frames,
-            gripper_scale=gripper_scale,
-            gripper_offset=gripper_offset,
-            gripper_format=resolved_gripper_format,
-            speed_scale=speed_scale,
-            gripper_speed=gripper_speed,
-        )
+        if odom_control:
+            replay_with_odom_twist(
+                robot,
+                parsed_frames,
+                gripper_scale=gripper_scale,
+                gripper_offset=gripper_offset,
+                gripper_format=resolved_gripper_format,
+                speed_scale=speed_scale,
+                gripper_speed=gripper_speed,
+                odom_scale=odom_scale,
+            )
+        else:
+            replay_with_execute_joint_trajectory(
+                robot,
+                parsed_frames,
+                gripper_scale=gripper_scale,
+                gripper_offset=gripper_offset,
+                gripper_format=resolved_gripper_format,
+                speed_scale=speed_scale,
+                gripper_speed=gripper_speed,
+            )
     finally:
         if initialized:
             # Cleanup robot connection
@@ -904,6 +1128,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip confirmation prompt before moving to the first replay frame",
     )
+    ap.add_argument(
+        "--odom-control",
+        action="store_true",
+        help="Enable odom twist chassis control (uses odom_twist from dataset)",
+    )
+    ap.add_argument(
+        "--odom-scale",
+        type=float,
+        default=1.0,
+        help="Scaling factor for odom twist velocities (default: 1.0)",
+    )
     args = ap.parse_args()
 
     # Get dataset file paths and metadata
@@ -925,4 +1160,6 @@ if __name__ == "__main__":
         timeout_s=args.timeout,
         delta_threshold_rad=args.prepare_delta_threshold,
         auto_confirm=args.yes,
+        odom_control=args.odom_control,
+        odom_scale=args.odom_scale,
     )
