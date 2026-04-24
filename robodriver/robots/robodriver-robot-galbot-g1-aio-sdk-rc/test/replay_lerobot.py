@@ -26,6 +26,8 @@ from typing import Any
 from galbot_sdk.g1 import ControlStatus, GalbotRobot, JointCommand, Trajectory, TrajectoryPoint
 import numpy as np
 import pandas as pd
+import math
+
 
 JOINT_GROUP_ORDER = [
     "leg",
@@ -46,7 +48,11 @@ GRIPPER_MAX_WIDTH_M = 0.12
 GRIPPER_RAW_MAX_VALUE = 100.0
 MIN_COMMAND_DT_S = 0.01
 REPLAY_TAIL_WAIT_S = 1.0
+DATA_FPS = 30.0
 
+last_odom_pose_position_x = 0.0
+last_odom_pose_position_y = 0.0
+last_odom_pose_orientation_z = 0.0
 
 def to_list(x: Any) -> list[Any]:
     """Convert action cell in parquet to Python list.
@@ -73,7 +79,7 @@ def to_list(x: Any) -> list[Any]:
     raise TypeError(f"Unsupported action type: {type(x)}")
 
 
-def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = None) -> dict[str, list[float] | float]:
+def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = None, use_diff_odom: bool = True) -> dict[str, list[float] | float]:
     """Split action array into parts based on the Galbot dataset structure.
 
     The action array is structured as:
@@ -121,8 +127,13 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
     left_gripper_joints = 1
     head_joints = 2
 
+    ODOM_POSE_POSITION_LEN = 2
+    ODOM_POSE_ORIENTATION_LEN = 2
     ODOM_TWIST_LINEAR_LEN = 2
     ODOM_TWIST_ANGULAR_LEN = 1
+
+    ODOM_POSE_START = 31
+    ODOM_TWIST_START = 35
 
     # If action_names is provided, try to use semantic parsing first so replay
     # can tolerate dataset-specific layouts and extra non-joint signals.
@@ -157,13 +168,35 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
         right_gripper_idx = find_gripper_index("right")
         left_gripper_idx = find_gripper_index("left")
 
-        ODOM_TWIST_START = 35
-
         odom_twist_linear = []
         odom_twist_angular = []
-        if len(a) >= ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN + ODOM_TWIST_ANGULAR_LEN:
-            odom_twist_linear = a[ODOM_TWIST_START : ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN].tolist()
-            odom_twist_angular = [float(a[ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN])]
+        if use_diff_odom:
+            # last_odom_pose_position_x = 0.0
+            # last_odom_pose_position_y = 0.0
+            # last_odom_pose_orientation_z = 0.0
+            now_odom_pose_position_x = float(a[ODOM_POSE_START])
+            now_odom_pose_position_y = float(a[ODOM_POSE_START+1])
+
+            now_odom_pose_orientation_z = float(a[ODOM_POSE_START+2])
+            now_odom_pose_orientation_w = float(a[ODOM_POSE_START+3])
+
+            # 计算 Z 轴旋转角（Yaw），单位为弧度
+            now_odom_pose_orientation_z = 2 * math.atan2(now_odom_pose_orientation_z, now_odom_pose_orientation_w)
+
+            d_odom_pose_position_x = (now_odom_pose_position_x - last_odom_pose_position_x) * DATA_FPS
+            d_odom_pose_position_y = (now_odom_pose_position_y - last_odom_pose_position_y) * DATA_FPS
+            d_odom_pose_orientation_z = (now_odom_pose_orientation_z - last_odom_pose_orientation_z) * DATA_FPS
+
+            last_odom_pose_position_x = now_odom_pose_position_x
+            last_odom_pose_position_y = now_odom_pose_position_y
+            last_odom_pose_orientation_z = now_odom_pose_orientation_z
+
+            odom_twist_linear = [d_odom_pose_position_x, d_odom_pose_position_y]
+            odom_twist_angular = [d_odom_pose_orientation_z]
+        else:
+            if len(a) >= ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN + ODOM_TWIST_ANGULAR_LEN:
+                odom_twist_linear = a[ODOM_TWIST_START : ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN].tolist()
+                odom_twist_angular = [float(a[ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN])]
 
         # If we found the main groups, use name-based parsing and ignore
         # unrelated signals such as chassis or odometry state.
@@ -891,6 +924,7 @@ def replay_parquet(
     auto_confirm: bool = False,
     odom_control: bool = False,
     odom_scale: float = 1.0,
+    use_diff_odom: bool = True,
 ) -> None:
     """Replay a complete trajectory from a parquet dataset file.
 
@@ -928,7 +962,7 @@ def replay_parquet(
         for _, row in df.iterrows():
             # Parse action and split into parts
             action = to_list(row["action"])
-            parts = split_action(action, action_names)
+            parts = split_action(action, action_names, use_diff_odom)
 
             if first_parts is None:
                 first_parts = parts
@@ -1158,6 +1192,11 @@ if __name__ == "__main__":
         default=1.0,
         help="Scaling factor for odom twist velocities (default: 1.0)",
     )
+    ap.add_argument(
+        "--use-diff-odom",
+        action="store_true",
+        help="Control odom with diff pose",
+    )
     args = ap.parse_args()
 
     # Get dataset file paths and metadata
@@ -1181,4 +1220,5 @@ if __name__ == "__main__":
         auto_confirm=args.yes,
         odom_control=args.odom_control,
         odom_scale=args.odom_scale,
+        use_diff_odom=args.use_diff_odom,
     )
