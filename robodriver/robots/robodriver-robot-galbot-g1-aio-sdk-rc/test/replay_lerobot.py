@@ -29,6 +29,170 @@ import pandas as pd
 import math
 
 
+class FourOmniWheelKinematics:
+    """
+    四轮万向轮底盘运动学
+    用于从四个轮子的速度计算机器人本体的运动速度
+    
+    轮子顺序固定为：
+        0: 左前 (Front-Left, FL)
+        1: 右前 (Front-Right, FR)
+        2: 右后 (Rear-Right, RR)
+        3: 左后 (Rear-Left, RL)
+    """
+
+    def __init__(self, layout_type='x45', L=0.2, W=0.2):
+        """
+        初始化运动学参数
+        
+        Args:
+            layout_type: 布局类型
+                - 'x45': X型45°布局（最常见）
+                - 'plus': +型布局（前后左右）
+                - 'custom': 自定义布局（需后续手动设置 wheel_directions）
+            L: 底盘长度的一半（前后方向，单位：米）
+            W: 底盘宽度的一半（左右方向，单位：米）
+        """
+        self.L = L  # 前后方向半长（从中心到前/后轮轴）
+        self.W = W  # 左右方向半宽（从中心到左/右轮轴）
+        self.layout_type = layout_type
+
+        # 轮子位置（机器人坐标系：X向前，Y向左）
+        # 顺序：[左前, 右前, 右后, 左后]
+        self.wheel_positions = np.array([
+            [ L,  W],   # 0: 左前 (FL)
+            [ L, -W],   # 1: 右前 (FR)
+            [-L, -W],   # 2: 右后 (RR)
+            [-L,  W]    # 3: 左后 (RL)
+        ])
+
+        # 根据布局类型设置轮子滚动方向（单位向量，指向自由滚动方向）
+        if layout_type == 'x45':
+            s = np.sqrt(2) / 2
+            self.wheel_directions = np.array([
+                [-s,  s],   # 左前:（X负，Y正）
+                [ s,  s],   # 右前:（X正，Y正）
+                [ s, -s],   # 右后:（X正，Y负）
+                [-s, -s]    # 左后:（X负，Y负）
+            ])
+        elif layout_type == 'plus':
+            self.wheel_directions = np.array([
+                [1, 0],     # 左前: 向前滚动（+X）
+                [0, -1],    # 右前: 向左滚动（-Y）
+                [-1, 0],    # 右后: 向后滚动（-X）
+                [0, 1]      # 左后: 向右滚动（+Y）
+            ])
+        elif layout_type == 'custom':
+            self.wheel_directions = None  # 需外部设置
+        else:
+            raise ValueError(f"未知的布局类型: {layout_type}")
+
+        # 计算运动学雅可比矩阵 J 和其伪逆
+        self.J = self._calculate_jacobian()
+        self.J_pinv = np.linalg.pinv(self.J)
+
+    def _calculate_jacobian(self):
+        """计算运动学雅可比矩阵 J，满足 v_wheel = J @ [vx, vy, omega]^T"""
+        if self.wheel_directions is None:
+            directions = np.zeros((4, 2))
+        else:
+            directions = self.wheel_directions
+
+        J = np.zeros((4, 3))
+        for i in range(4):
+            rx, ry = self.wheel_positions[i]
+            dx, dy = directions[i]
+            J[i, 0] = dx                    # vx 分量
+            J[i, 1] = dy                    # vy 分量
+            J[i, 2] = dy * rx - dx * ry     # omega 分量（绕Z轴）
+        return J
+
+    def wheels_to_chassis(self, wheel_speeds):
+        """
+        正运动学：由轮速计算底盘速度
+        
+        Args:
+            wheel_speeds: [v_fl, v_fr, v_rr, v_rl]
+                v_fl: 左前轮速度
+                v_fr: 右前轮速度
+                v_rr: 右后轮速度
+                v_rl: 左后轮速度
+                （正值表示沿 wheel_directions 定义的方向运动）
+        
+        Returns:
+            [vx, vy, omega]: 机器人在本体坐标系下的速度
+                vx: 前进速度 (m/s)
+                vy: 横向速度 (m/s)，向左为正
+                omega: 角速度 (rad/s)，逆时针为正
+        """
+        wheel_speeds = np.asarray(wheel_speeds).flatten()
+        if wheel_speeds.size != 4:
+            raise ValueError("wheel_speeds 必须包含4个元素：[左前, 右前, 右后, 左后]")
+        return self.J_pinv @ wheel_speeds
+
+    def chassis_to_wheels(self, vx, vy, omega):
+        """
+        逆运动学：由底盘速度计算所需轮速
+        
+        Args:
+            vx: 前进速度 (m/s)
+            vy: 横向速度 (m/s)
+            omega: 角速度 (rad/s)
+        
+        Returns:
+            [v_fl, v_fr, v_rr, v_rl]: 四个轮子的目标速度
+        """
+        chassis_vel = np.array([vx, vy, omega])
+        return self.J @ chassis_vel
+
+    def set_custom_directions(self, directions):
+        """
+        为 'custom' 布局设置轮子方向（必须按 [FL, FR, RR, RL] 顺序）
+        
+        Args:
+            directions: shape (4, 2) 的数组，每行为 [dx, dy] 单位向量
+        """
+        directions = np.asarray(directions)
+        if directions.shape != (4, 2):
+            raise ValueError("directions 必须是 (4, 2) 形状的数组")
+        self.wheel_directions = directions
+        self.J = self._calculate_jacobian()
+        self.J_pinv = np.linalg.pinv(self.J)
+
+    def get_condition_number(self):
+        """返回运动学矩阵 J 的条件数（越小越好）"""
+        return np.linalg.cond(self.J)
+
+    def print_configuration(self):
+        """打印当前运动学配置"""
+        print("四轮万向轮运动学配置")
+        print(f"布局类型: {self.layout_type}")
+        print(f"底盘尺寸: L={self.L:.3f} m, W={self.W:.3f} m")
+        print("\n轮子顺序: [0]左前(FL), [1]右前(FR), [2]右后(RR), [3]左后(RL)")
+        print("\n轮子位置 (X向前, Y向左):")
+        names = ["左前", "右前", "右后", "左后"]
+        for i in range(4):
+            x, y = self.wheel_positions[i]
+            print(f"  [{i}] {names[i]}: ({x:+.3f}, {y:+.3f}) m")
+
+        if self.wheel_directions is not None:
+            print("\n轮子滚动方向 (单位向量):")
+            for i in range(4):
+                dx, dy = self.wheel_directions[i]
+                print(f"  [{i}] {names[i]}: [{dx:+.3f}, {dy:+.3f}]")
+        else:
+            print("\n轮子滚动方向: 未设置 (custom 模式)")
+
+        print("\n运动学矩阵 J (4x3):")
+        print(self.J)
+        print(f"\n条件数: {self.get_condition_number():.3f}")
+
+        det_val = np.linalg.det(self.J.T @ self.J)
+        print(f"JᵀJ 行列式: {det_val:.6e}")
+        if abs(det_val) < 1e-10:
+            print("⚠️ 警告: JᵀJ 接近奇异，运动学可能不稳定！")
+
+
 JOINT_GROUP_ORDER = [
     "leg",
     "right_arm",
@@ -132,6 +296,8 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
     ODOM_TWIST_LINEAR_LEN = 2
     ODOM_TWIST_ANGULAR_LEN = 1
 
+    CHASSIS_VEL_START = 27
+    CHASSIS_VEL_LEN = 4
     ODOM_POSE_START = 31
     ODOM_TWIST_START = 35
 
@@ -198,8 +364,8 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
                 odom_twist_linear = a[ODOM_TWIST_START : ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN].tolist()
                 odom_twist_angular = [float(a[ODOM_TWIST_START + ODOM_TWIST_LINEAR_LEN])]
 
-        # If we found the main groups, use name-based parsing and ignore
-        # unrelated signals such as chassis or odometry state.
+        # If we found the main groups, use name-based parsing and include
+        # chassis_vel (wheel speeds) for chassis control
         if right_arm_indices and left_arm_indices:
             result = {
                 "leg": [a[i] for i in leg_indices] if leg_indices else [],
@@ -210,10 +376,14 @@ def split_action(a: list[float] | np.ndarray, action_names: list[str] | None = N
                 "head": [a[i] for i in head_indices] if head_indices else [],
             }
 
-        # Only add odom_twist if data is available
-        if odom_twist_linear and odom_twist_angular:
-            result["odom_twist_linear"] = odom_twist_linear
-            result["odom_twist_angular"] = odom_twist_angular
+            # Extract chassis_vel (wheel speeds) for chassis control
+            if len(a) >= CHASSIS_VEL_START + CHASSIS_VEL_LEN:
+                result["chassis_vel"] = a[CHASSIS_VEL_START : CHASSIS_VEL_START + CHASSIS_VEL_LEN].tolist()
+
+            # Only add odom_twist if data is available
+            if odom_twist_linear and odom_twist_angular:
+                result["odom_twist_linear"] = odom_twist_linear
+                result["odom_twist_angular"] = odom_twist_angular
 
         return result
     else:
@@ -898,6 +1068,159 @@ def replay_with_odom_twist(
     time.sleep(REPLAY_TAIL_WAIT_S)
 
 
+def replay_with_chassis_wheel(
+    robot: GalbotRobot,
+    parsed_frames: list[tuple[float, dict[str, list[float] | float]]],
+    gripper_scale: float,
+    gripper_offset: float,
+    gripper_format: str,
+    speed_scale: float,
+    gripper_speed: float | None,
+    wheel_layout: str = "x45",
+    wheel_L: float = 0.2,
+    wheel_W: float = 0.2,
+    wheel_scale: float = 1.0,
+) -> None:
+    """Replay trajectory with synchronized chassis control based on wheel speeds.
+
+    This function uses FourOmniWheelKinematics to compute chassis velocity
+    from wheel speeds (chassis_vel) in the dataset, then sends base velocity
+    commands while executing the joint trajectory.
+
+    Args:
+        robot: GalbotRobot instance.
+        parsed_frames: List of (timestamp, parts) tuples.
+        gripper_scale: Gripper scaling factor.
+        gripper_offset: Gripper offset.
+        gripper_format: Gripper format ("raw" or "scaled").
+        speed_scale: Speed multiplier for replay.
+        gripper_speed: Gripper speed.
+        wheel_layout: Wheel layout type ('x45', 'plus', or 'custom').
+        wheel_L: Half length of chassis (front-back direction, meters).
+        wheel_W: Half width of chassis (left-right direction, meters).
+        wheel_scale: Scaling factor for wheel speeds.
+    """
+    if not parsed_frames:
+        raise ValueError("Replay trajectory is empty.")
+
+    # Check if chassis_vel data is available
+    has_chassis_vel = all("chassis_vel" in parts for _, parts in parsed_frames)
+    if not has_chassis_vel:
+        print("[wheel] No chassis_vel data found in frames, replaying without chassis control.")
+        replay_with_execute_joint_trajectory(
+            robot, parsed_frames, gripper_scale, gripper_offset,
+            gripper_format, speed_scale, gripper_speed,
+        )
+        return
+
+    # Initialize kinematics
+    kin = FourOmniWheelKinematics(layout_type=wheel_layout, L=wheel_L, W=wheel_W)
+    print("[wheel] FourOmniWheelKinematics initialized:")
+    kin.print_configuration()
+
+    expanded_joint_names: list[str] = []
+    for group_name in JOINT_GROUP_ORDER:
+        expanded_joint_names.extend(robot.get_joint_names(True, [group_name]))
+    if not expanded_joint_names:
+        raise RuntimeError("Failed to resolve joint_names from JOINT_GROUP_ORDER")
+
+    traj = Trajectory()
+    traj.joint_groups = []
+    traj.joint_names = expanded_joint_names
+
+    cumulative_time_s = 0.0
+    points: list[TrajectoryPoint] = []
+    chassis_commands: list[tuple[float, list[float]]] = []
+
+    for idx, (timestamp, parts) in enumerate(parsed_frames):
+        if idx == 0:
+            point_time_s = 0.0
+        else:
+            prev_timestamp = parsed_frames[idx - 1][0]
+            raw_dt_s = max(timestamp - prev_timestamp, 0.0)
+            scaled_dt_s = raw_dt_s / speed_scale
+            step_s = max(scaled_dt_s, MIN_COMMAND_DT_S)
+            cumulative_time_s += step_s
+            point_time_s = cumulative_time_s
+
+        points.append(
+            build_replay_trajectory_point(
+                parts, point_time_s, gripper_scale, gripper_offset,
+                gripper_format, gripper_speed,
+            )
+        )
+
+        # Extract wheel speeds and compute chassis velocity
+        wheel_speeds = parts.get("chassis_vel", [0.0, 0.0, 0.0, 0.0])
+        wheel_speeds_scaled = [float(v) * wheel_scale for v in wheel_speeds]
+
+        # Compute chassis velocity from wheel speeds
+        chassis_vel = kin.wheels_to_chassis(wheel_speeds_scaled)
+
+        # Validate velocity
+        if np.any(np.isnan(chassis_vel)) or np.any(np.isinf(chassis_vel)):
+            print(f"[wheel] Invalid chassis velocity at time {point_time_s:.3f}s: {chassis_vel}, using zero")
+            chassis_vel = np.zeros(3)
+
+        # Clamp to reasonable ranges
+        max_speed = 2.0  # m/s
+        max_omega = 3.0  # rad/s
+        chassis_vel = np.clip(chassis_vel, [-max_speed, -max_speed, -max_omega], [max_speed, max_speed, max_omega])
+
+        chassis_commands.append((point_time_s, chassis_vel.tolist()))
+
+    traj.points = points
+
+    if traj.points and len(traj.points[0].joint_command_vec) != len(expanded_joint_names):
+        raise RuntimeError(
+            "Command vector length does not match resolved joint_names length. "
+            f"commands={len(traj.points[0].joint_command_vec)}, joint_names={len(expanded_joint_names)}"
+        )
+
+    total_duration_s = traj.points[-1].time_from_start_second if traj.points else 0.0
+    print(
+        f"[replay] Submit execute_joint_trajectory with {len(traj.points)} points, "
+        f"duration={total_duration_s:.3f}s, speed_scale={speed_scale:.3f}"
+    )
+    print(f"[wheel] Sending {len(chassis_commands)} chassis velocity commands")
+
+    # Send zero velocity first for safety
+    _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+    time.sleep(0.1)
+
+    # Execute trajectory in non-blocking mode
+    robot.execute_joint_trajectory(traj, is_blocking=False)
+
+    # Main loop: synchronize chassis velocity commands
+    start_time = time.monotonic()
+    chassis_idx = 0
+
+    try:
+        while chassis_idx < len(chassis_commands):
+            current_time = time.monotonic() - start_time
+            target_time, velocity = chassis_commands[chassis_idx]
+
+            if current_time >= target_time:
+                _safe_set_base_velocity(robot, velocity)
+                chassis_idx += 1
+
+            time.sleep(0.005)  # 5ms control cycle
+
+        print("[replay] Joint trajectory and chassis wheel execution completed")
+
+    except Exception as e:
+        print(f"[replay] Error during execution: {e}")
+        raise
+
+    finally:
+        # Ensure chassis stops
+        _safe_set_base_velocity(robot, [0.0, 0.0, 0.0])
+        time.sleep(0.2)
+
+    print(f"[replay] Waiting {REPLAY_TAIL_WAIT_S:.1f}s for final command execution before shutdown...")
+    time.sleep(REPLAY_TAIL_WAIT_S)
+
+
 def validate_required_joint_groups(robot: GalbotRobot) -> None:
     """Validate required joint groups exist on current robot/SDK."""
     available_groups = set(robot.get_joint_group_names())
@@ -922,6 +1245,11 @@ def replay_parquet(
     timeout_s: float = 15.0,
     delta_threshold_rad: float = DEFAULT_PREPARE_DELTA_THRESHOLD_RAD,
     auto_confirm: bool = False,
+    wheel_control: bool = True,
+    wheel_layout: str = "x45",
+    wheel_L: float = 0.2,
+    wheel_W: float = 0.2,
+    wheel_scale: float = 1.0,
     odom_control: bool = False,
     odom_scale: float = 1.0,
     use_diff_odom: bool = True,
@@ -937,6 +1265,12 @@ def replay_parquet(
             default positional parsing.
         gripper_scale: Scaling factor for gripper values. Default is 100.0.
         gripper_offset: Offset for gripper values. Default is 0.6.
+        wheel_control: Whether to enable wheel-based chassis control (default: True).
+            Uses chassis_vel from dataset with FourOmniWheelKinematics.
+        wheel_layout: Wheel layout type ('x45', 'plus', or 'custom').
+        wheel_L: Half length of chassis (front-back direction, meters).
+        wheel_W: Half width of chassis (left-right direction, meters).
+        wheel_scale: Scaling factor for wheel speeds.
         odom_control: Whether to enable odom twist chassis control.
         odom_scale: Scaling factor for odom twist velocities.
     """
@@ -994,7 +1328,22 @@ def replay_parquet(
             time.sleep(0.2)
 
         # Execute replay via execute_joint_trajectory with explicit joint_names.
-        if odom_control:
+        # Priority: wheel_control (default) > odom_control > no chassis control
+        if wheel_control:
+            replay_with_chassis_wheel(
+                robot,
+                parsed_frames,
+                gripper_scale=gripper_scale,
+                gripper_offset=gripper_offset,
+                gripper_format=resolved_gripper_format,
+                speed_scale=speed_scale,
+                gripper_speed=gripper_speed,
+                wheel_layout=wheel_layout,
+                wheel_L=wheel_L,
+                wheel_W=wheel_W,
+                wheel_scale=wheel_scale,
+            )
+        elif odom_control:
             replay_with_odom_twist(
                 robot,
                 parsed_frames,
@@ -1197,12 +1546,45 @@ if __name__ == "__main__":
         action="store_true",
         help="Control odom with diff pose",
     )
+    ap.add_argument(
+        "--no-wheel-control",
+        action="store_true",
+        help="Disable wheel-based chassis control (wheel_control is enabled by default)",
+    )
+    ap.add_argument(
+        "--wheel-layout",
+        type=str,
+        default="x45",
+        choices=["x45", "plus", "custom"],
+        help="Wheel layout type for FourOmniWheelKinematics (default: x45)",
+    )
+    ap.add_argument(
+        "--wheel-L",
+        type=float,
+        default=0.2,
+        help="Half length of chassis (front-back direction, meters) (default: 0.2)",
+    )
+    ap.add_argument(
+        "--wheel-W",
+        type=float,
+        default=0.2,
+        help="Half width of chassis (left-right direction, meters) (default: 0.2)",
+    )
+    ap.add_argument(
+        "--wheel-scale",
+        type=float,
+        default=1.0,
+        help="Scaling factor for wheel speeds (default: 1.0)",
+    )
     args = ap.parse_args()
 
     # Get dataset file paths and metadata
     parquet_file = get_first_parquet_file(args.lerobot_dir)
     info_file = get_info_file(args.lerobot_dir)
     action_names = get_action_names(info_file)
+
+    # Wheel control is enabled by default, can be disabled with --no-wheel-control
+    wheel_control = not args.no_wheel_control
 
     # Replay the complete trajectory
     replay_parquet(
@@ -1218,6 +1600,11 @@ if __name__ == "__main__":
         timeout_s=args.timeout,
         delta_threshold_rad=args.prepare_delta_threshold,
         auto_confirm=args.yes,
+        wheel_control=wheel_control,
+        wheel_layout=args.wheel_layout,
+        wheel_L=args.wheel_L,
+        wheel_W=args.wheel_W,
+        wheel_scale=args.wheel_scale,
         odom_control=args.odom_control,
         odom_scale=args.odom_scale,
         use_diff_odom=args.use_diff_odom,
