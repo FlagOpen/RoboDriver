@@ -30,7 +30,7 @@ class OPENARMRos2Robot(Robot):
         self.config = config
         self.robot_type = self.config.type
         self.use_videos = self.config.use_videos
-        #self.microphones = self.config.microphones
+        self.microphones = self.config.microphones
 
         # 电机和相机配置
         #self.leader_motors = config.leader_motors  # 主臂电机（用于示教）
@@ -52,6 +52,21 @@ class OPENARMRos2Robot(Robot):
         # 状态标志
         self.connected = False
         self.logs = {}  # 日志记录
+
+    @staticmethod
+    def _motor_key_to_ros_joint_name(motor_key: str) -> str:
+        """将配置中的关节键映射为 /joint_states 里的关节名。"""
+        if motor_key.startswith("left_arm_joint_") and motor_key.endswith("_rad"):
+            joint_idx = motor_key.replace("left_arm_joint_", "").replace("_rad", "")
+            return f"openarm_left_joint{joint_idx}"
+        if motor_key.startswith("right_arm_joint_") and motor_key.endswith("_rad"):
+            joint_idx = motor_key.replace("right_arm_joint_", "").replace("_rad", "")
+            return f"openarm_right_joint{joint_idx}"
+        if motor_key == "left_gripper_degree_mm":
+            return "openarm_left_finger_joint1"
+        if motor_key == "right_gripper_degree_mm":
+            return "openarm_right_finger_joint1"
+        return ""
 
     @property
     def _follower_motors_ft(self) -> dict[str, type]:
@@ -81,8 +96,9 @@ class OPENARMRos2Robot(Robot):
 
     @cached_property
     def action_features(self) -> dict[str, type]:
-        # 没有主臂，返回空字典
-        return {}
+        # 参考其他机器人实现：action_features 需与 get_action 输出键保持一致，
+        # 否则数据集不会生成 action 列，后续数据校验会因缺少 "action" 失败。
+        return self._follower_motors_ft
     
     @property
     def is_connected(self) -> bool:
@@ -272,11 +288,19 @@ class OPENARMRos2Robot(Robot):
             for follower_name, follower in self.robot_ros2_node.recv_follower.items():
                 if follower_name == comp_name:
                     joint_keys = list(joints.keys())
-                    # 只遍历实际接收到的数据数量，避免索引越界
-                    num_joints = min(len(joint_keys), len(follower))
-                    for i in range(num_joints):
-                        joint_name = joint_keys[i]
-                        obs_dict[f"follower_{joint_name}.pos"] = float(follower[i])
+                    if isinstance(follower, dict):
+                        for joint_name in joint_keys:
+                            ros_joint_name = self._motor_key_to_ros_joint_name(joint_name)
+                            if ros_joint_name and ros_joint_name in follower:
+                                obs_dict[f"follower_{joint_name}.pos"] = float(
+                                    follower[ros_joint_name]
+                                )
+                    else:
+                        # 兼容旧格式：按顺序映射
+                        num_joints = min(len(joint_keys), len(follower))
+                        for i in range(num_joints):
+                            joint_name = joint_keys[i]
+                            obs_dict[f"follower_{joint_name}.pos"] = float(follower[i])
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read follower state: {dt_ms:.1f} ms")
@@ -304,11 +328,19 @@ class OPENARMRos2Robot(Robot):
             for follower_name, follower in self.robot_ros2_node.recv_follower.items():
                 if follower_name == comp_name:
                     joint_keys = list(joints.keys())
-                    # 防御长度不匹配，避免索引越界
-                    num_joints = min(len(joint_keys), len(follower))
-                    for i in range(num_joints):
-                        joint_name = joint_keys[i]
-                        act_dict[f"follower_{joint_name}.pos"] = float(follower[i])
+                    if isinstance(follower, dict):
+                        for joint_name in joint_keys:
+                            ros_joint_name = self._motor_key_to_ros_joint_name(joint_name)
+                            if ros_joint_name and ros_joint_name in follower:
+                                act_dict[f"follower_{joint_name}.pos"] = float(
+                                    follower[ros_joint_name]
+                                )
+                    else:
+                        # 兼容旧格式：按顺序映射
+                        num_joints = min(len(joint_keys), len(follower))
+                        for i in range(num_joints):
+                            joint_name = joint_keys[i]
+                            act_dict[f"follower_{joint_name}.pos"] = float(follower[i])
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read follower state: {dt_ms:.1f} ms")
@@ -335,13 +367,21 @@ class OPENARMRos2Robot(Robot):
         
         # 从动作字典提取值列表
         goal_joint = [val for key, val in action.items()]
-        # 转换为numpy数组（38维：双臂7DOF + 夹爪等）
-        goal_joint_numpy = np.array([t.item() for t in goal_joint], dtype=np.float32)
+        goal_joint_numpy = np.array(
+            [
+                float(t.item()) if hasattr(t, "item") else float(t)
+                for t in goal_joint
+            ],
+            dtype=np.float32,
+        )
         
         try:
             # 验证动作向量维度
-            if goal_joint_numpy.shape != (38,):
-                raise ValueError(f"动作向量必须是38维，实际为{goal_joint_numpy.shape[0]}维")
+            expected_dim = len(self._follower_motors_ft)
+            if goal_joint_numpy.shape != (expected_dim,):
+                raise ValueError(
+                    f"动作向量必须是{expected_dim}维，实际为{goal_joint_numpy.shape[0]}维"
+                )
             
             # 通过ROS2节点发布动作指令
             self.robot_ros2_node.ros_replay(goal_joint_numpy)
