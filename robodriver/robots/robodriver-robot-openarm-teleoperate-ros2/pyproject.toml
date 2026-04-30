@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver_robot_openarm_teleoperate_ros2"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "Hanyu Feng", email = "derronfeng0520@163.com"},
+]
+keywords = ["robotics", "lerobot", "openarm"]
+dependencies = [
+    "logging_mp",
+    "opencv-python",
+    "lerobot"
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_robot_openarm_teleoperate_ros2",
+    "lerobot_robot_openarm_teleoperate_ros2"
+]
