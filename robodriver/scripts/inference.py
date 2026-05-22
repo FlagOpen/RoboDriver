@@ -13,6 +13,8 @@ from robodriver.robots.utils import (
     make_robot_from_config,
 )
 
+from openpi_client import websocket_client_policy
+
 
 logging_mp.basic_config(level=logging_mp.INFO)
 logger = logging_mp.get_logger(__name__)
@@ -44,9 +46,21 @@ async def async_main(cfg: ControlPipelineConfig):
     if not robot.is_connected:
         robot.connect()
     logger.info("Connect robot success")
+
+    
+
+    policy = websocket_client_policy.WebsocketClientPolicy(
+        host="localhost",  # 例如 "192.168.1.100" 或 "localhost"
+        port=8000,               # 默认端口
+        api_key=None             # 如果设置了API密钥需要提供
+    )
+
     
     # 在下面实现推理代码
     observation = robot.get_observation() # 从臂和图像信息
+
+    observation["prompt"] = "franka_A1_collision_sim_test"
+    action = policy.infer(observation)
     action = None
     if action:
         robot.send_action(action)
