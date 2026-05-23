@@ -15,7 +15,7 @@ from .config import RealmanAioRos1RobotConfig
 from .node import RealmanAioRos1Node
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class RealmanAioRos1Robot(Robot):

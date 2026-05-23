@@ -13,8 +13,8 @@ from robodriver.utils import parser
 from robodriver.utils.import_utils import register_third_party_devices
 from robodriver.utils.utils import git_branch_log
 
-logging_mp.basic_config(level=logging_mp.INFO)
-logger = logging_mp.get_logger(__name__)
+logging_mp.basicConfig(level=logging_mp.INFO)
+logger = logging_mp.getLogger(__name__)
 
 
 @dataclass

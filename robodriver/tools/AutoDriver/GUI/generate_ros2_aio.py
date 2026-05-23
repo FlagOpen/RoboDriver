@@ -274,7 +274,7 @@ from .config import __CAMEL_NAME__RobotConfig
 from .node import __CAMEL_NAME__Node
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class __CAMEL_NAME__Robot(Robot):
@@ -646,7 +646,7 @@ from nav_msgs.msg import Odometry
 
 import logging_mp
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 CONNECT_TIMEOUT_FRAME = 10
 

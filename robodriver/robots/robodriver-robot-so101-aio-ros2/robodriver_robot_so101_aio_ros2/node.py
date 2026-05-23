@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 from typing import Dict, Any
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 CONNECT_TIMEOUT_FRAME = 10
 
