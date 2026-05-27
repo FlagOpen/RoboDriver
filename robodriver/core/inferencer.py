@@ -18,6 +18,7 @@ from lerobot.teleoperators import Teleoperator
 from lerobot.utils.constants import ACTION, OBS_STR
 
 from robodriver.robots.daemon import Daemon
+from robodriver.core.policies import create_policy, BasePolicy
 
 logger = logging_mp.get_logger(__name__)
 
@@ -30,6 +31,9 @@ class InferenceConfig:
     policy_port: int = 8087
     policy_path: str = "/inference"
     api_key: Optional[str] = None
+    
+    # 推理服务类型: "flagscale" (默认) 或 "openpi"
+    policy_type: str = "flagscale"
     
     # 推理参数
     prompt: str = "default_task"
@@ -96,26 +100,16 @@ class Inferencer:
 
     def connect(self):
         """主动连接策略服务器"""
-        from openpi_client import websocket_client_policy
+        logger.info(f"Creating policy client of type: {self.infer_cfg.policy_type}")
         
-        # 构建完整 URL: ws://host:port/path
-        host = self.infer_cfg.policy_host
-        port = self.infer_cfg.policy_port
-        path = self.infer_cfg.policy_path
-        
-        # 如果 host 已经是完整 URL 格式，直接使用
-        if host.startswith("ws"):
-            url = host
-        else:
-            url = f"ws://{host}:{port}{path}"
-        
-        logger.info(f"Connecting to policy server: {url}")
-        self.policy_client = websocket_client_policy.WebsocketClientPolicy(
-            host=url,
-            port=None,  # URL 已包含端口
-            api_key=self.infer_cfg.api_key
+        self.policy_client = create_policy(
+            policy_type=self.infer_cfg.policy_type,
+            host=self.infer_cfg.policy_host,
+            port=self.infer_cfg.policy_port,
+            path=self.infer_cfg.policy_path,
+            api_key=self.infer_cfg.api_key,
         )
-        logger.info(f"Policy client connected: {url}")
+        logger.info(f"Policy client created: {self.infer_cfg.policy_type}")
 
     def start(self):
         """启动推理循环"""
@@ -144,7 +138,24 @@ class Inferencer:
             self.thread.join(timeout=5.0)
             if self.thread.is_alive():
                 logger.warning("Warning: Inferencer thread did not exit cleanly")
+        
+        # 关闭 policy client
+        self.disconnect()
+        
         logger.info("Inferencer stopped")
+
+    def disconnect(self):
+        """断开策略服务器连接"""
+        if self.policy_client is not None:
+            if isinstance(self.policy_client, BasePolicy):
+                self.policy_client.close()
+            elif hasattr(self.policy_client, "reset"):
+                try:
+                    self.policy_client.reset()
+                except Exception:
+                    pass
+            self.policy_client = None
+            logger.info("Policy client disconnected")
 
     def _inference_loop(self):
         """核心推理循环"""
