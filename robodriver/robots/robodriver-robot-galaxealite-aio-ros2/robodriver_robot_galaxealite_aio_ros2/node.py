@@ -99,7 +99,7 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
             torso_pos = np.array(torso.position, dtype=np.float32)
             torso_pos = torso_pos[:-1]
            
-            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos, torso_pos])
+            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos])
             with self.lock:
                 self.recv_follower['follower_arms'] = merged_data
                 self.recv_follower_status['follower_arms'] = CONNECT_TIMEOUT_FRAME

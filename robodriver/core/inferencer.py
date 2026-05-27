@@ -219,6 +219,23 @@ class Inferencer:
             logger.error(f"Policy inference failed: {e}")
             return None
 
+    @staticmethod
+    def _decode_serialized_ndarray(data: dict) -> np.ndarray:
+        """解码序列化的 ndarray 字典格式 {'__ndarray__': True, 'dtype': '<f4', 'shape': [...], 'data': b'...'}"""
+        if isinstance(data, dict) and data.get("__ndarray__"):
+            dtype = np.dtype(data["dtype"])
+            shape = tuple(data["shape"])
+            raw_data = data["data"]
+            if isinstance(raw_data, str):
+                # Base64 encoded string
+                import base64
+                raw_bytes = base64.b64decode(raw_data)
+            else:
+                raw_bytes = raw_data
+            array = np.frombuffer(raw_bytes, dtype=dtype)
+            return array.reshape(shape)
+        return np.asarray(data)
+
     def _execute_action_chunk(self, action_dict: dict, step: int = 0):
         """执行一个动作块（action chunk）"""
         if action_dict is None:
@@ -231,11 +248,15 @@ class Inferencer:
             logger.warning("No 'actions' key in returned dict")
             return
         
-        # 转换为 numpy 数组
-        if hasattr(actions, "numpy"):
+        # 转换为 numpy 数组，处理序列化的 ndarray 格式
+        if isinstance(actions, dict) and actions.get("__ndarray__"):
+            actions = self._decode_serialized_ndarray(actions)
+        elif hasattr(actions, "numpy"):
             actions = actions.numpy()
-        
-        actions = np.asarray(actions)
+        else:
+            actions = np.asarray(actions)
+
+        logger.info(f"inference get actions:{actions}")
         
         # 确保是 2D 数组
         if actions.ndim == 1:
@@ -254,12 +275,18 @@ class Inferencer:
             action_array = actions[i]
             action_for_robot = self._numpy_to_action_dict(action_array, action_features)
             
+            logger.info(f"inference get action_for_robot:{action_for_robot}")
+
             # 记录到 rerun
             if self.infer_cfg.use_rerun:
                 self._log_action_to_rerun(action_for_robot, step + i)
             
+            logger.info(f"will send action_for_robot.")
+
             if action_for_robot:
                 self.robot.send_action(action_for_robot)
+
+            logger.info(f"send action_for_robot success.")
 
             time.sleep(self.infer_cfg.action_chunk_sleep)
 
@@ -325,4 +352,20 @@ class Inferencer:
         for key, val in action_dict.items():
             # 将 key 中的特殊字符替换为 /
             rr_key = key.replace(".", "/")
+            # Use rr.Scalar for single scalar values (accepts float directly)
             rr.log(f"action/{rr_key}", rr.Scalars(float(val)))
+
+
+    @staticmethod
+    def _log_action_list_to_rerun(action_list: list, step: int):
+        """将 action 记录到 rerun"""
+        if action_list is None:
+            return
+        
+        rr.set_time("frame_idx", sequence=step)
+        
+        for i, val in enumerate(action_list):
+            # 将 key 中的特殊字符替换为 /
+            # rr_key = key.replace(".", "/")
+            # Use rr.Scalar for single scalar values (accepts float directly)
+            rr.log(f"action/{i}", rr.Scalars(float(val)))

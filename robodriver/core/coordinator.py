@@ -147,7 +147,7 @@ class Coordinator:
             dataset_path = DOROBOT_DATASET
 
             git_branch_name = get_current_git_branch()
-            target_dir = dataset_path / date_str / "user" / task_dir / repo_id
+            target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
             # if "release" in git_branch_name or "main" in git_branch_name:
             #     target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # elif "dev" in git_branch_name:
@@ -287,7 +287,7 @@ class Coordinator:
             # 构建目标目录路径
             dataset_path = DOROBOT_DATASET
             git_branch_name = get_current_git_branch()
-            target_dir = dataset_path / date_str / "user" / task_dir / repo_id
+            target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
             # if "release" in git_branch_name or "main" in git_branch_name:
             #     target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # elif "dev" in git_branch_name:
