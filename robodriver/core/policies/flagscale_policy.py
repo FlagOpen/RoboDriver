@@ -204,6 +204,26 @@ class FlagScalePolicy(BasePolicy):
         
         return flagscale_obs
     
+    @staticmethod
+    def _decode_nested_msgpack(obj):
+        """递归解码嵌套的 msgpack bytes 数据
+        
+        FlagScale 服务器可能返回嵌套的 msgpack 编码数据，
+        需要递归解码所有 bytes 类型的值。
+        """
+        if isinstance(obj, dict):
+            return {k: FlagScalePolicy._decode_nested_msgpack(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [FlagScalePolicy._decode_nested_msgpack(v) for v in obj]
+        elif isinstance(obj, bytes):
+            try:
+                decoded = msgpack_numpy.unpackb(obj)
+                return FlagScalePolicy._decode_nested_msgpack(decoded)
+            except Exception:
+                return obj
+        else:
+            return obj
+
     def infer(self, obs: Dict) -> Dict:
         """执行推理
         
@@ -229,8 +249,19 @@ class FlagScalePolicy(BasePolicy):
                 raise RuntimeError(f"Error in inference server:\n{response}")
             
             # 反序列化响应
-            actions = msgpack_numpy.unpackb(response)
-            return actions
+            result = msgpack_numpy.unpackb(response)
+            
+            # 递归解码嵌套的 msgpack 数据
+            result = self._decode_nested_msgpack(result)
+            
+            # 日志记录返回结果的键信息
+            if isinstance(result, dict):
+                logger.debug(f"FlagScale response keys: {list(result.keys())}")
+                if "actions" in result:
+                    actions = result["actions"]
+                    logger.debug(f"Actions type: {type(actions)}, shape/len: {getattr(actions, 'shape', len(actions) if hasattr(actions, '__len__') else 'N/A')}")
+            
+            return result
             
         except Exception as e:
             logger.error(f"FlagScale inference failed: {e}")
