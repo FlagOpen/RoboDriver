@@ -1,0 +1,37 @@
+name: "LinkerBot CI"
+
+on:
+  push:
+    branches: [ "main" ] # 每次推送到 main 分支时触发
+  pull_request:
+    branches: [ "main" ] # 提交 PR 时触发
+
+jobs:
+  test_requirements:
+    runs-on: ubuntu-latest
+    env:
+      # 强制使用官方源，防止任何遗留的镜像源配置导致 403
+      UV_DEFAULT_INDEX: "https://pypi.org/simple"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true # 开启缓存加速后续构建
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          uv sync
+          
+      - name: Run Pytest
+        run: |
+          # 运行 tests 目录下的所有测试，并输出详细信息
+          uv run pytest tests/test.py -v

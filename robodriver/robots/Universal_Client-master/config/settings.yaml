@@ -1,0 +1,101 @@
+app:
+  name: "LinkerBot-ZMQ-Hub"
+  middleware: "ros2"  # 可选: "ros1", "ros2"
+  fps: 30
+
+zmq:
+  pub_address: "tcp://0.0.0.0:5577" # 状态广播
+  sub_address: "tcp://0.0.0.0:5578" # 控制端广播
+  debug: false
+
+adapter:
+  pub_address: "tcp://0.0.0.0:6000" # 旧版系统监听的地址
+  fps: 30                           # 数据采集发送频率
+
+# 硬件设备树：已彻底解耦为 sensors(获取) 和 actuators(控制)
+devices:
+  # ==========================================
+  # Sensors: 用于订阅 ROS 话题并将数据上报给 ZMQ
+  # ==========================================
+  sensors:
+    image_top:
+      topic: "/camera/color/image_raw"
+      msg_class: "sensor_msgs.msg.Image"
+      
+    # --- 主臂数据源 ---
+    leader_left_joints:
+      topic: "/left_arm_joint_control"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "generic"
+    leader_right_joints:
+      topic: "/right_arm_joint_control"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "generic"
+    leader_left_hand:
+      topic: "/cb_left_hand_raw_data"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+    leader_right_hand:
+      topic: "/cb_right_hand_raw_data"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+
+    # --- 从臂数据源 ---
+    follower_left_joints:
+      topic: "/robot1/left_arm/joint_states"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "generic"
+    follower_left_pose:
+      topic: "/robot1/left_arm/pose_states"
+      msg_class: "geometry_msgs.msg.PoseStamped"
+      format: "pose"
+    follower_right_joints:
+      topic: "/robot1/right_arm/joint_states"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "generic"
+    follower_right_pose:
+      topic: "/robot1/right_arm/pose_states" 
+      msg_class: "geometry_msgs.msg.PoseStamped"
+      format: "pose"
+
+    # --- 灵巧手 (支持无名关节的脏数据清洗) ---
+    follower_left_hand:
+      topic: "/cb_left_hand_state"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+    follower_right_hand:
+      topic: "/cb_right_hand_state"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+
+  # ==========================================
+  # Actuators: 用于接收 ZMQ 指令并发布为 ROS 话题
+  # ==========================================
+  actuators:
+    follower_left_arm_control:
+      topic: "/robot1/left_arm/joint_follow"
+      msg_class: "lbot_arm_interfaces.msg.FollowJoint"
+      format: "generic"
+    
+    follower_right_arm_control:
+      topic: "/robot1/right_arm/joint_follow"
+      msg_class: "lbot_arm_interfaces.msg.FollowJoint"
+      format: "generic"
+    
+    follower_left_hand_control:
+      topic: "/cb_left_hand_control_cmd"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+    
+    follower_right_hand_control:
+      topic: "/cb_right_hand_control_cmd"
+      msg_class: "sensor_msgs.msg.JointState"
+      format: "hand"
+
+inference:
+  engine: "beingh"        
+  host: "127.0.0.1"     
+  port: 5800              
+  
+  engine_params:
+    action_chunk_index: 0 
