@@ -1,0 +1,1 @@
+Use the left arm to pick up and hold the basket. Then use the right arm to pick up the green block from the red, green, and blue blocks and place it into the basket. Return to the initial state afterward.

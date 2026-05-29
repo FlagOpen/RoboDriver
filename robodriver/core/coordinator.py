@@ -391,6 +391,8 @@ class Coordinator:
             try:
                 # 解析配置
                 fps = msg.get("fps", 30)
+                prompt = msg.get("prompt", "default_task")
+                print(prompt)
                 
                 # 支持从 data_channel 提取完整 URL 信息
                 data_channel = msg.get("data_channel", {})
@@ -417,6 +419,7 @@ class Coordinator:
                     policy_host=policy_host,
                     policy_port=policy_port,
                     policy_path=policy_path,
+                    prompt=prompt,
                     fps=fps,
                 )
                 
@@ -443,12 +446,86 @@ class Coordinator:
                 logger.error(f"Failed to start inference: {e}")
                 await self.send_response("start_inference", str(e))
 
+        elif data.get("cmd") == "reset_pose":
+            logger.info("处理重置位姿命令...")
+            
+            # 检查是否有其他任务在运行
+            if self.recording:
+                logger.warning("Recording is running, cannot reset pose.")
+                await self.send_response("reset_pose", "Recording is running, cannot reset pose")
+                return
+            if self.replaying:
+                logger.warning("Replay is running, cannot reset pose.")
+                await self.send_response("reset_pose", "Replay is running, cannot reset pose")
+                return
+            if self.inferring:
+                logger.warning("Inference is running, cannot reset pose.")
+                await self.send_response("reset_pose", "Inference is running, cannot reset pose")
+                return
+            
+            try:
+                robot = self.daemon.robot
+                action_features = robot.action_features
+                
+                # 读取当前 observation 获取关节位置
+                observation = self.daemon.get_observation()
+                if observation is None:
+                    observation = robot.get_observation()
+                
+                # 构建起始位置和目标位置
+                start_pose = {}
+                target_pose = {}
+                
+                for key in action_features.keys():
+                    # 将 leader_ 替换为 follower_ 去 observation 中查找当前值
+                    obs_key = key.replace("leader_", "follower_")
+                    if obs_key in observation:
+                        start_pose[key] = float(observation[obs_key])
+                    else:
+                        # 兜底：如果找不到对应字段，使用 0
+                        logger.warning(f"Could not find {obs_key} in observation, using 0 as start value")
+                        start_pose[key] = 0.0
+                    
+                    # 目标值：gripper 保持当前值不调整，其他关节复位到 0
+                    if "gripper" in key:
+                        target_pose[key] = start_pose[key]  # gripper 保持当前位置
+                    else:
+                        target_pose[key] = 0.0  # 关节归零
+                
+                # 规划匀速轨迹（1.5秒）
+                num_steps = int(1.5 * DEFAULT_FPS)  # 约 45 步 @ 30fps
+                logger.info(f"Planning reset trajectory: {num_steps} steps, duration: 1.5s")
+                logger.info(f"Start pose: {start_pose}")
+                logger.info(f"Target pose: {target_pose}")
+                
+                # 逐步发送插值动作
+                for i in range(1, num_steps + 1):
+                    if not self.running:
+                        logger.warning("Client disconnected, aborting reset trajectory")
+                        break
+                    
+                    t = i / num_steps  # 插值系数 0 -> 1
+                    action = {}
+                    for key in action_features.keys():
+                        # 线性插值: start + (target - start) * t
+                        action[key] = start_pose[key] + (target_pose[key] - start_pose[key]) * t
+                    
+                    robot.send_action(action)
+                    time.sleep(1.0 / DEFAULT_FPS)
+                
+                logger.info("Reset pose completed successfully")
+                await self.send_response("reset_pose", "success")
+                
+            except Exception as e:
+                logger.error(f"Failed to reset pose: {e}")
+                await self.send_response("reset_pose", str(e))
+
         elif data.get("cmd") == "stop_inference":
             logger.info("处理停止推理命令...")
             
             if not self.inferring:
                 logger.warning("Inference is not running")
-                await self.send_response("stop_inference", "Inference is not running")
+                await self.send_response("stop_inference", "success")
                 return
             
             try:
