@@ -1,0 +1,7 @@
+numpy
+pyarrow
+rerun-sdk
+torch
+torchvision
+tqdm
+opencv-python
