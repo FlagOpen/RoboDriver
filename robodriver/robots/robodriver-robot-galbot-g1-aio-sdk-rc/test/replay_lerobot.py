@@ -23,7 +23,8 @@ import re
 import time
 from typing import Any
 
-from galbot_sdk.g1 import ControlStatus, GalbotRobot, JointCommand, Trajectory, TrajectoryPoint
+import galbot_sdk.g1 as gm
+from galbot_sdk.g1 import ControlStatus, GalbotMotion, GalbotRobot, JointCommand, Trajectory, TrajectoryPoint
 import numpy as np
 import pandas as pd
 import math
@@ -1221,6 +1222,180 @@ def replay_with_chassis_wheel(
     time.sleep(REPLAY_TAIL_WAIT_S)
 
 
+def replay_with_eef_pose(
+    robot: GalbotRobot,
+    motion: GalbotMotion,
+    parsed_frames: list[tuple[float, dict[str, list[float] | float]]],
+    gripper_scale: float,
+    gripper_offset: float,
+    gripper_format: str,
+    speed_scale: float,
+    gripper_speed: float | None,
+    eef_chain: str = "both",
+    enable_collision_check: bool = False,
+    timeout: float = 5.0,
+) -> None:
+    """Replay trajectory with end-effector pose control via GalbotMotion.
+
+    This function sends end-effector pose commands based on action_eef_pose
+    from the dataset while executing the joint trajectory for non-arm chains.
+
+    Args:
+        robot: GalbotRobot instance.
+        motion: GalbotMotion instance (must be initialized).
+        parsed_frames: List of (timestamp, parts) tuples.
+        gripper_scale: Gripper scaling factor.
+        gripper_offset: Gripper offset.
+        gripper_format: Gripper format ("raw" or "scaled").
+        speed_scale: Speed multiplier for replay.
+        gripper_speed: Gripper speed.
+        eef_chain: Which chain to control ("left_arm", "right_arm", or "both").
+        enable_collision_check: Whether to enable collision checking.
+        timeout: Timeout for each set_end_effector_pose call.
+    """
+    if not parsed_frames:
+        raise ValueError("Replay trajectory is empty.")
+
+    has_eef = all(
+        "action_eef_pose" in parts
+        for _, parts in parsed_frames
+    )
+    if not has_eef:
+        print("[eef] No action_eef_pose data found in frames, falling back to joint trajectory replay.")
+        replay_with_execute_joint_trajectory(
+            robot, parsed_frames, gripper_scale, gripper_offset,
+            gripper_format, speed_scale, gripper_speed,
+        )
+        return
+
+    # Build joint trajectory WITHOUT arm joints (leg, head, grippers only)
+    non_arm_groups = ["leg", "right_gripper", "left_gripper", "head"]
+    expanded_joint_names: list[str] = []
+    for group_name in non_arm_groups:
+        expanded_joint_names.extend(robot.get_joint_names(True, [group_name]))
+    if not expanded_joint_names:
+        raise RuntimeError("Failed to resolve joint_names from non-arm groups")
+
+    traj = Trajectory()
+    traj.joint_groups = []
+    traj.joint_names = expanded_joint_names
+
+    cumulative_time_s = 0.0
+    points: list[TrajectoryPoint] = []
+    eef_commands: list[tuple[float, list[float], str]] = []  # (time, pose_7d, chain_name)
+
+    for idx, (timestamp, parts) in enumerate(parsed_frames):
+        if idx == 0:
+            point_time_s = 0.0
+        else:
+            prev_timestamp = parsed_frames[idx - 1][0]
+            raw_dt_s = max(timestamp - prev_timestamp, 0.0)
+            scaled_dt_s = raw_dt_s / speed_scale
+            step_s = max(scaled_dt_s, MIN_COMMAND_DT_S)
+            cumulative_time_s += step_s
+            point_time_s = cumulative_time_s
+
+        # Build joint trajectory point for non-arm joints
+        cmd_list: list[JointCommand] = []
+        # leg
+        for value in parts.get("leg", []):
+            cmd = JointCommand()
+            cmd.position = float(value)
+            cmd_list.append(cmd)
+
+        # right gripper
+        right_gripper_cmd = JointCommand()
+        right_gripper_cmd.position = decode_gripper_width_m(
+            parts.get("right_gripper", 0.0), gripper_scale, gripper_offset, gripper_format
+        )
+        gripper_speed_mps = 0.03 if gripper_speed is None else float(gripper_speed) * GRIPPER_VALUE_TO_WIDTH_M
+        gripper_speed_mps = max(gripper_speed_mps, 1e-4)
+        right_gripper_cmd.velocity = gripper_speed_mps
+        right_gripper_cmd.effort = DEFAULT_GRIPPER_FORCE_N
+        cmd_list.append(right_gripper_cmd)
+
+        # left gripper
+        left_gripper_cmd = JointCommand()
+        left_gripper_cmd.position = decode_gripper_width_m(
+            parts.get("left_gripper", 0.0), gripper_scale, gripper_offset, gripper_format
+        )
+        left_gripper_cmd.velocity = gripper_speed_mps
+        left_gripper_cmd.effort = DEFAULT_GRIPPER_FORCE_N
+        cmd_list.append(left_gripper_cmd)
+
+        # head
+        for value in parts.get("head", []):
+            cmd = JointCommand()
+            cmd.position = float(value)
+            cmd_list.append(cmd)
+
+        point = TrajectoryPoint()
+        point.time_from_start_second = point_time_s
+        point.joint_command_vec = cmd_list
+        points.append(point)
+
+        # Extract eef pose command
+        eef_pose_full = parts.get("action_eef_pose", [0.0] * 14)
+        # eef_pose_full is 14-dim: [left_pos(3), left_ori(4), right_pos(3), right_ori(4)]
+        left_pose = list(eef_pose_full[0:7])
+        right_pose = list(eef_pose_full[7:14])
+
+        if eef_chain in ("left_arm", "both"):
+            eef_commands.append((point_time_s, left_pose, "left_arm"))
+        if eef_chain in ("right_arm", "both"):
+            eef_commands.append((point_time_s, right_pose, "right_arm"))
+
+    traj.points = points
+    total_duration_s = traj.points[-1].time_from_start_second if traj.points else 0.0
+
+    print(
+        f"[eef] Submitting non-arm joint trajectory: {len(traj.points)} points, "
+        f"duration={total_duration_s:.3f}s, speed_scale={speed_scale:.3f}, "
+        f"eef_chain={eef_chain}"
+    )
+    print(f"[eef] Sending {len(eef_commands)} end-effector pose commands")
+
+    # Send joint trajectory in non-blocking mode
+    robot.execute_joint_trajectory(traj, is_blocking=False)
+
+    # Custom parameter for set_end_effector_pose
+    custom_param = gm.Parameter()
+
+    # Main loop: synchronize eef pose commands
+    start_time = time.monotonic()
+    eef_idx = 0
+
+    try:
+        while eef_idx < len(eef_commands):
+            current_time = time.monotonic() - start_time
+            target_time, pose, chain_name = eef_commands[eef_idx]
+
+            if current_time >= target_time:
+                status = motion.set_end_effector_pose(
+                    target_pose=pose,
+                    end_effector_frame=chain_name,
+                    reference_frame="base_link",
+                    enable_collision_check=enable_collision_check,
+                    is_blocking=False,
+                    timeout=timeout,
+                    params=custom_param,
+                )
+                if status != gm.MotionStatus.SUCCESS:
+                    print(f"[eef] Warning: set_end_effector_pose failed for {chain_name} at t={target_time:.3f}s, status={status}")
+                eef_idx += 1
+
+            time.sleep(0.005)  # 5ms control cycle
+
+        print("[replay] Joint trajectory and EEF pose execution completed")
+
+    except Exception as e:
+        print(f"[replay] Error during EEF execution: {e}")
+        raise
+
+    print(f"[replay] Waiting {REPLAY_TAIL_WAIT_S:.1f}s for final command execution before shutdown...")
+    time.sleep(REPLAY_TAIL_WAIT_S)
+
+
 def validate_required_joint_groups(robot: GalbotRobot) -> None:
     """Validate required joint groups exist on current robot/SDK."""
     available_groups = set(robot.get_joint_group_names())
@@ -1253,6 +1428,9 @@ def replay_parquet(
     odom_control: bool = False,
     odom_scale: float = 1.0,
     use_diff_odom: bool = True,
+    eef_control: bool = False,
+    eef_chain: str = "both",
+    eef_no_collision_check: bool = False,
 ) -> None:
     """Replay a complete trajectory from a parquet dataset file.
 
@@ -1273,6 +1451,10 @@ def replay_parquet(
         wheel_scale: Scaling factor for wheel speeds.
         odom_control: Whether to enable odom twist chassis control.
         odom_scale: Scaling factor for odom twist velocities.
+        eef_control: Whether to enable end-effector pose control (priority over
+            wheel_control and odom_control).
+        eef_chain: Which chain(s) to control ("left_arm", "right_arm", "both").
+        eef_no_collision_check: Whether to disable collision checking for EEF control.
     """
     if speed_scale <= 0:
         raise ValueError(f"speed_scale must be positive, got {speed_scale}")
@@ -1297,6 +1479,12 @@ def replay_parquet(
             # Parse action and split into parts
             action = to_list(row["action"])
             parts = split_action(action, action_names, use_diff_odom)
+
+            # Read eef pose data from new parquet columns
+            obs_eef = to_list(row["observation_eef_pose"])
+            act_eef = to_list(row["action_eef_pose"])
+            parts["observation_eef_pose"] = obs_eef
+            parts["action_eef_pose"] = act_eef
 
             if first_parts is None:
                 first_parts = parts
@@ -1327,9 +1515,35 @@ def replay_parquet(
             )
             time.sleep(0.2)
 
-        # Execute replay via execute_joint_trajectory with explicit joint_names.
-        # Priority: wheel_control (default) > odom_control > no chassis control
-        if wheel_control:
+        # Execute replay.
+        # Priority: eef_control > wheel_control (default) > odom_control > no chassis control
+        if eef_control:
+            motion = GalbotMotion.get_instance()
+            motion_initialized = False
+            try:
+                ok = motion.init()
+                if not ok:
+                    raise RuntimeError("GalbotMotion.init() failed")
+                motion_initialized = True
+                time.sleep(1.0)  # Wait for motion to fully initialize
+                print("[eef] GalbotMotion initialized successfully")
+                replay_with_eef_pose(
+                    robot,
+                    motion,
+                    parsed_frames,
+                    gripper_scale=gripper_scale,
+                    gripper_offset=gripper_offset,
+                    gripper_format=resolved_gripper_format,
+                    speed_scale=speed_scale,
+                    gripper_speed=gripper_speed,
+                    eef_chain=eef_chain,
+                    enable_collision_check=(not eef_no_collision_check),
+                )
+            finally:
+                if motion_initialized:
+                    pass  # GalbotMotion may not have explicit destroy, cleanup via robot
+                print("[eef] GalbotMotion replay finished")
+        elif wheel_control:
             replay_with_chassis_wheel(
                 robot,
                 parsed_frames,
@@ -1547,6 +1761,23 @@ if __name__ == "__main__":
         help="Control odom with diff pose",
     )
     ap.add_argument(
+        "--eef-control",
+        action="store_true",
+        help="Enable end-effector pose control (uses action_eef_pose from dataset via GalbotMotion)",
+    )
+    ap.add_argument(
+        "--eef-chain",
+        type=str,
+        default="both",
+        choices=["left_arm", "right_arm", "both"],
+        help="Which arm chain to control via end-effector pose (default: both)",
+    )
+    ap.add_argument(
+        "--eef-no-collision-check",
+        action="store_true",
+        help="Disable collision checking for end-effector pose control",
+    )
+    ap.add_argument(
         "--no-wheel-control",
         action="store_true",
         help="Disable wheel-based chassis control (wheel_control is enabled by default)",
@@ -1608,4 +1839,7 @@ if __name__ == "__main__":
         odom_control=args.odom_control,
         odom_scale=args.odom_scale,
         use_diff_odom=args.use_diff_odom,
+        eef_control=args.eef_control,
+        eef_chain=args.eef_chain,
+        eef_no_collision_check=args.eef_no_collision_check,
     )
