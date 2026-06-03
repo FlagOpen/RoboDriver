@@ -23,15 +23,19 @@ dependencies = [
     "sounddevice",
     "soundfile",
 
-    "rerun-sdk==0.26.2",
+    "rerun-sdk",
 ]
 
 [project.optional-dependencies]
+inference = [
+    # "openpi-client",
+]
 
 [project.scripts]
 robodriver-run="robodriver.scripts.run:main"
 robodriver-sim="robodriver.scripts.sim:main"
 robodriver-visual="robodriver.scripts.visual:main"
+robodriver-inference="robodriver.scripts.inference:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -306,7 +306,9 @@ class GALAXEALITEAIORos2Robot(Robot):
                 "KochRobot is not connected. You need to run `robot.connect()`."
             )
         goal_joint = [ val for key, val in action.items()]
-        goal_joint_numpy = np.array([t.item() for t in goal_joint], dtype=np.float32)
+        goal_joint_numpy = np.array(
+            [t.item() if hasattr(t, 'item') else t for t in goal_joint], dtype=np.float32
+        )
         try:
             if goal_joint_numpy.shape == (0,):
                 raise ValueError(f"Action vector got {goal_joint_numpy.shape[0]}")
