@@ -98,6 +98,8 @@ RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下
 ### 🔌 ROS1 接入
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |
 |------------|------|--------------|------------------------|
+| 云深处 X30 | 云深处 X30 四足机器人 贡献单位：浪潮云信息技术股份公司 | [robodriver/robots/robodriver-robot-deeprobotics-x30-ros1](./robodriver/robots/robodriver-robot-deeprobotics-x30-ros1) | [![hixiaobo](https://avatars.githubusercontent.com/hixiaobo?s=50)](https://github.com/hixiaobo) |
+| GALAXEALITE | 基于Galaxealite，双臂6DOF+末端夹爪，ROS1 接入 | [robodriver/robots/robodriver-robot-galaxealite-aio-ros1](./robodriver/robots/robodriver-robot-galaxealite-aio-ros1) | [![liuyou](https://avatars.githubusercontent.com/liuyou?s=50)](https://github.com/liuyou) |
 | Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) | [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
 | 乐聚 Kuavo 4 Pro | 乐聚kuavo4Pro机器人数采程序 | [robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1](./robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1) | [<img src="https://avatars.githubusercontent.com/dirk656" width="50" height="50">](https://github.com/dirk656) |
 
@@ -105,11 +107,13 @@ RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |
 |--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
 | GALAXEALITE | 基于Galaxealite，双臂6DOF+末端夹爪，4*RealSense相机 | [robodriver/robots/robodriver-robot-galaxealite-aio-ros2](./robodriver/robots/robodriver-robot-galaxealite-aio-ros2) | [![liuyou1103](https://avatars.githubusercontent.com/liuyou1103?s=50)](https://github.com/liuyou1103) |
+| Galbot G1 | Galbot G1 AIO ROS2 DDS 接入示例 | [robodriver/robots/robodriver-robot-galbot-g1-aio-ros2-dds](./robodriver/robots/robodriver-robot-galbot-g1-aio-ros2-dds) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 | SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-ros2](./robodriver/robots/robodriver-robot-so101-aio-ros2) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 
 ### 🔌 Dora（SDK）接入
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |
 |--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| AgileX Aloha | AgileX Aloha 双臂机器人 AIO Dora 接入示例 | [robodriver/robots/robodriver-robot-agilex-aloha-aio-dora](./robodriver/robots/robodriver-robot-agilex-aloha-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 | Realman 机械臂 | 基于Realman，6DOF+力控模块，3*RealSense相机 | [robodriver/robots/robodriver-robot-realman1-aio-dora](./robodriver/robots/robodriver-robot-realman1-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
 | SO101 机械臂 | 开源轻量级机械臂，6DOF+末端夹爪，1*RealSense相机，1*RGB相机模块 | [robodriver/robots/robodriver-robot-so101-aio-dora](./robodriver/robots/robodriver-robot-so101-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 | Franka | 工业级机械臂，6DOF+末端夹爪，1*RealSense相机 | [robodriver/robots/robodriver-robot-franka-aio-dora](./robodriver/robots/robodriver-robot-franka-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
@@ -118,8 +122,9 @@ RoboDriver 已完成多款主流机器人的适配，按接入方式示例如下
 
 | 机器人型号 | 简介 | 代码链接 | 贡献人 |
 |--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| Galbot G1 | Galbot G1 AIO SDK Python 接入示例 | [robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-py](./robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-py) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+| Galbot G1 | Galbot G1 AIO SDK RC 接入示例 | [robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-rc](./robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-rc) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 | 宇树 G1 | 宇树人形机器人G1，贡献单位：浪潮云信息技术股份公司 | [robodriver/robots/robodriver-robot-unitree-g1-sdk-py](./robodriver/robots/robodriver-robot-unitree-g1-sdk-py) | [![hixiaobo](https://avatars.githubusercontent.com/hixiaobo?s=50)](https://github.com/hixiaobo) |
-| | | | |
 
 
 > ✨ 说明：
