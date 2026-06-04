@@ -393,27 +393,34 @@ class Coordinator:
                 fps = msg.get("fps", 30)
                 prompt = msg.get("prompt", "default_task")
                 print(prompt)
-                
+
                 # 支持从 data_channel 提取完整 URL 信息
                 data_channel = msg.get("data_channel", {})
-                policy_host = "localhost"
-                policy_port = 8087
-                policy_path = "/inference"
-                
-                if data_channel.get("url"):
-                    # 解析 ws://host:port/path 格式
-                    import re
-                    url_match = re.match(r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"])
-                    if url_match:
-                        policy_host = url_match.group(1)
-                        policy_port = int(url_match.group(2))
-                        if url_match.group(3):
-                            policy_path = url_match.group(3)
-                    else:
-                        logger.warning(f"Could not parse data_channel URL: {data_channel['url']}")
-                
-                logger.info(f"Starting inference: host={policy_host}, port={policy_port}, path={policy_path}, fps={fps}")
-                
+                policy_host = "10.1.15.165"
+                policy_port = 8081
+                policy_path = ""
+
+                # if data_channel.get("url"):
+                #     # 解析 ws://host:port/path 格式
+                #     import re
+                #     url_match = re.match(r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"])
+                #     if url_match:
+                #         policy_host = url_match.group(1)
+                #         policy_port = int(url_match.group(2))
+                #         if url_match.group(3):
+                #             policy_path = url_match.group(3)
+                #     else:
+                #         logger.warning(f"Could not parse data_channel URL: {data_channel['url']}")
+
+                # 策略类型：支持 "flagscale"（默认）、"openpi"、"bc"
+                # "bc" 使用 bc_robodriver 风格的推理路径（直接观察提取 + msgpack WebSocket）
+                policy_type = msg.get("policy_type", "bc")
+
+                logger.info(
+                    f"Starting inference: policy_type={policy_type}, "
+                    f"host={policy_host}, port={policy_port}, path={policy_path}, fps={fps}"
+                )
+
                 # 创建 inferencer 配置
                 infer_cfg = InferenceConfig(
                     policy_host=policy_host,
@@ -421,8 +428,9 @@ class Coordinator:
                     policy_path=policy_path,
                     prompt=prompt,
                     fps=fps,
+                    policy_type=policy_type,
                 )
-                
+
                 # 创建 inferencer
                 self.inferencer = Inferencer(
                     robot=self.daemon.robot,
@@ -430,17 +438,17 @@ class Coordinator:
                     teleop=self.teleop,
                     infer_cfg=infer_cfg,
                 )
-                
+
                 # 连接数据通道
                 self.inferencer.connect()
-                
+
                 # 启动推理
                 self.inferring = True
                 self.inferencer.start()
-                
+
                 logger.info("Inference started successfully")
                 await self.send_response("start_inference", "success")
-                
+
             except Exception as e:
                 self.inferring = False
                 logger.error(f"Failed to start inference: {e}")
@@ -488,7 +496,7 @@ class Coordinator:
                     
                     # 目标值：gripper 保持当前值不调整，其他关节复位到 0
                     if "gripper" in key:
-                        target_pose[key] = start_pose[key]  # gripper 保持当前位置
+                        target_pose[key] = 100
                     else:
                         target_pose[key] = 0.0  # 关节归零
                 
