@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+import cv2
 import logging_mp
 import numpy as np
 import rerun as rr
@@ -286,10 +287,22 @@ class Inferencer:
                 if hasattr(img, "numpy"):
                     img = img.numpy()
                 img = np.asarray(img)
-                # uint8 HWC → float32 CHW → [[R], [G], [B]] 列表（FlagScale 格式）
+                # uint8 → float32 [0, 1]
                 if img.dtype == np.uint8:
                     img = img.astype(np.float32) / 255.0
-                chw = np.transpose(img, (2, 0, 1))  # (C, H, W)
+                # letterbox resize 到 224x224（保持宽高比，黑边填充），与模型内部 resize_with_pad_torch 逻辑一致
+                target_h, target_w = 224, 224
+                cur_h, cur_w = img.shape[:2]
+                ratio = max(cur_w / target_w, cur_h / target_h)
+                new_w = int(cur_w / ratio)
+                new_h = int(cur_h / ratio)
+                resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                # 黑边填充到 224x224
+                pad_top  = (target_h - new_h) // 2
+                pad_left = (target_w - new_w) // 2
+                padded = np.zeros((target_h, target_w, img.shape[2]), dtype=np.float32)
+                padded[pad_top:pad_top + new_h, pad_left:pad_left + new_w] = resized
+                chw = np.transpose(padded, (2, 0, 1))  # HWC → CHW (C, H, W)
                 images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
 
             logger.debug(f"BC images: {list(images.keys())}")

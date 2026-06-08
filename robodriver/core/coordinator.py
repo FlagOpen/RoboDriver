@@ -396,8 +396,12 @@ class Coordinator:
 
                 # 支持从 data_channel 提取完整 URL 信息
                 data_channel = msg.get("data_channel", {})
-                policy_host = "10.1.15.165"
-                policy_port = 8081
+                # policy_host = "localhost"
+                # policy_host = "192.168.19.2"
+                policy_host = "106.63.14.88"
+                # policy_port = 8087
+                policy_port = 8003
+                # policy_path = "/inference"
                 policy_path = ""
 
                 # if data_channel.get("url"):

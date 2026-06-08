@@ -44,7 +44,9 @@ def _unpack(data):
 
 
 def format_image_for_bc(img: np.ndarray) -> np.ndarray:
-    """将图像从 (H, W, C) uint8 转换为 (C, H, W) float32."""
+    """将图像从 (H, W, C) uint8 转换为 (C, H, W) float32，并 resize 到 224x224."""
+    import cv2
+    img = cv2.resize(img, (224, 224), interpolation=cv2.INTER_LINEAR)
     img = np.transpose(img, (2, 0, 1))
     img = img.astype(np.float32) / 255.0
     return img
