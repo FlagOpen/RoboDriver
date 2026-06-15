@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "universal-client"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+
+authors = [
+    {name = "yaoxingkeji"},
+]
+
+dependencies = [
+    "numpy<2",
+    "opencv-python<4.11",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.4",
+    "rospkg>=1.6.0",
+    "torch>=2.11.0",
+    "zmq>=0.0.0",
+]
+[project.scripts]
+universal = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+namespaces = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
