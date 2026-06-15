@@ -14,7 +14,7 @@ from .config import So101AioRos2RobotConfig
 from .node import So101AioRos2Node
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class So101AioRos2Robot(Robot):

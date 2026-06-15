@@ -27,7 +27,7 @@ from robodriver.utils.constants import (
 from robodriver.utils.data_file import check_disk_space, find_epindex_from_dataid_json
 from robodriver.utils.utils import cameras_to_stream_json, get_current_git_branch
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class Coordinator:

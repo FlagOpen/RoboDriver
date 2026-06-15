@@ -27,7 +27,7 @@ from galbot.tf2_proto import tf2_message_pb2
 from galbot.navigation_proto import odometry_pb2
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
 
 

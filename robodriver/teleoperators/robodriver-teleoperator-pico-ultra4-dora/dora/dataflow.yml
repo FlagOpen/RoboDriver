@@ -1,0 +1,51 @@
+nodes:
+  - id: camera_top
+    path: ../../../../components/cameras/dora-camera-orbbec-v1/dora_camera_orbbec_v1/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      VIRTUAL_ENV: /home/dora/RoboDriver/robodriver/teleoperators/robodriver-teleoperator-pico-ultra4-dora/.venv
+      UV_LINK_MODE: copy
+      V4L2_DEVICE: /dev/video16
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  - id: camera_wrist
+    path: ../../../../components/cameras/dora-camera-realsense/dora_camera_realsense/main.py
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    env:
+      VIRTUAL_ENV: /home/dora/RoboDriver/robodriver/teleoperators/robodriver-teleoperator-pico-ultra4-dora/.venv
+      UV_LINK_MODE: copy
+      DEVICE_SERIAL: "130322272232"
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+
+  - id: pico_ultra4_dora
+    path: ../robodriver_teleoperator_pico_ultra4_dora/dora_node_piper.py
+    inputs:
+      tick: dora/timer/millis/20
+      camera_top_image: camera_top/image
+      camera_wrist_image: camera_wrist/image
+    outputs:
+      - right_follower_jointstate
+      - left_follower_jointstate
+    env:
+      VIRTUAL_ENV: /home/dora/RoboDriver/robodriver/teleoperators/robodriver-teleoperator-pico-ultra4-dora/.venv
+      UV_LINK_MODE: copy
+      PYTHONPATH: /home/dora/RoboDriver:/home/dora/teleop_pico/XRoboToolkit-Teleop-Sample-Python
+      DISPLAY: ":0"
+      QT_QPA_PLATFORM: "xcb"
+      RIGHT_CAN_BUS: can0
+      LEFT_CAN_BUS: can1
+      SCALE_FACTOR: "1.5"
+      CONTROL_RATE_HZ: "50"
+      URDF_PATH: /home/dora/teleop_pico/XRoboToolkit-Teleop-Sample-Python/assets/piper/piper.urdf
+      RECORD_DIR: /home/dora/recordings/pico_piper
+      REPO_ID: pico_piper
+      TASK: "teleoperation"
+      USE_VIDEOS: "true"

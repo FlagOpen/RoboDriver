@@ -8,7 +8,7 @@ from rclpy.executors import Executor, MultiThreadedExecutor
 
 import logging_mp
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class ROS2_NodeManager():

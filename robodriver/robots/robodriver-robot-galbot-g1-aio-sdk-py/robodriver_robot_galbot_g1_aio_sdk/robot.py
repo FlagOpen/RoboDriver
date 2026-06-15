@@ -14,7 +14,7 @@ from .config import GALBOTAioRos2RobotConfig
 from .node import GALBOTAioRos2Node
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class GALBOTAioRos2Robot(Robot):

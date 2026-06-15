@@ -14,7 +14,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import PoseStamped
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class AutoTaskTeleoperatorNode(ROS2Node):

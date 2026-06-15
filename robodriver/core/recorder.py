@@ -30,7 +30,7 @@ from robodriver.utils.data_file import (
     validate_session,
 )
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 def sanity_check_dataset_robot_compatibility(

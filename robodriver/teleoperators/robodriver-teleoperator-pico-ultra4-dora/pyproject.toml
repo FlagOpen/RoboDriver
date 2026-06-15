@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver_teleoperator_pico_ultra4_dora"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = {text = "Apache License 2.0"}
+authors = [
+    {name = "RoboDriver Team"},
+]
+keywords = ["robotics", "lerobot", "pico", "vr", "teleoperation"]
+dependencies = [
+    "dora-rs-cli (>=0.4.1,<0.5.0)",
+    "dora-rs (>=0.4.1,<0.5.0)",
+    "logging_mp",
+    "numpy",
+    "pyarrow",
+    "scipy",
+    "opencv-python",
+]
+
+[project.optional-dependencies]
+hardware = [
+    "pyrealsense2",
+    "sb-pyorbbecsdk",
+    "piper_sdk>=0.0.8",
+]
+pico = [
+    "placo",
+    "meshcat",
+    # xrobotoolkit_sdk: 从本地编译好的 .so 安装
+    # pip install /home/dora/teleop_pico/XRoboToolkit-Teleop-Sample-Python/dependencies/XRoboToolkit-PC-Service-Pybind/
+    # xrobotoolkit_teleop: 可编辑模式安装
+    # pip install -e /home/dora/teleop_pico/XRoboToolkit-Teleop-Sample-Python/
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_teleoperator_pico_ultra4_dora*",
+    "lerobot_teleoperator_pico_ultra4_dora*",
+]
