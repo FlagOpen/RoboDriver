@@ -147,7 +147,7 @@ class Coordinator:
             dataset_path = DOROBOT_DATASET
 
             git_branch_name = get_current_git_branch()
-            target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
+            target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # if "release" in git_branch_name or "main" in git_branch_name:
             #     target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # elif "dev" in git_branch_name:
@@ -287,7 +287,7 @@ class Coordinator:
             # 构建目标目录路径
             dataset_path = DOROBOT_DATASET
             git_branch_name = get_current_git_branch()
-            target_dir = dataset_path / date_str / "dev" / task_dir / repo_id
+            target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # if "release" in git_branch_name or "main" in git_branch_name:
             #     target_dir = dataset_path / date_str / "user" / task_dir / repo_id
             # elif "dev" in git_branch_name:
@@ -392,29 +392,32 @@ class Coordinator:
                 # 解析配置
                 fps = msg.get("fps", 30)
                 prompt = msg.get("prompt", "default_task")
-                print(prompt)
+                print("prompt: ", prompt)
 
                 # 支持从 data_channel 提取完整 URL 信息
                 data_channel = msg.get("data_channel", {})
                 # policy_host = "localhost"
                 # policy_host = "192.168.19.2"
-                policy_host = "106.63.14.88"
+                # policy_host = "10.1.15.165"
+                # policy_host = "106.63.14.88"
                 # policy_port = 8087
-                policy_port = 8003
+                # policy_port = 8003
                 # policy_path = "/inference"
                 policy_path = ""
+                policy_headers = data_channel.get("headers",None)
+                print(policy_headers)
 
-                # if data_channel.get("url"):
-                #     # 解析 ws://host:port/path 格式
-                #     import re
-                #     url_match = re.match(r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"])
-                #     if url_match:
-                #         policy_host = url_match.group(1)
-                #         policy_port = int(url_match.group(2))
-                #         if url_match.group(3):
-                #             policy_path = url_match.group(3)
-                #     else:
-                #         logger.warning(f"Could not parse data_channel URL: {data_channel['url']}")
+                if data_channel.get("url"):
+                    # 解析 ws://host:port/path 格式
+                    import re
+                    url_match = re.match(r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"])
+                    if url_match:
+                        policy_host = url_match.group(1)
+                        policy_port = int(url_match.group(2))
+                        if url_match.group(3):
+                            policy_path = url_match.group(3)
+                    else:
+                        logger.warning(f"Could not parse data_channel URL: {data_channel['url']}")
 
                 # 策略类型：支持 "flagscale"（默认）、"openpi"、"bc"
                 # "bc" 使用 bc_robodriver 风格的推理路径（直接观察提取 + msgpack WebSocket）
@@ -433,6 +436,7 @@ class Coordinator:
                     prompt=prompt,
                     fps=fps,
                     policy_type=policy_type,
+                    headers=policy_headers
                 )
 
                 # 创建 inferencer

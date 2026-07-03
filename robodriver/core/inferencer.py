@@ -31,6 +31,7 @@ class InferenceConfig:
     policy_host: str = "localhost"
     policy_port: int = 8087
     policy_path: str = "/inference"
+    headers: dict[str] | None = None
     api_key: Optional[str] = None
 
     # 推理服务类型: "flagscale" (默认), "openpi", 或 "bc"
@@ -113,6 +114,7 @@ class Inferencer:
             port=self.infer_cfg.policy_port,
             path=self.infer_cfg.policy_path,
             api_key=self.infer_cfg.api_key,
+            headers=self.infer_cfg.headers,
         )
         # "bc" 策略需要 robot_type 用于观察提取
         if self.infer_cfg.policy_type == "bc":
@@ -287,7 +289,9 @@ class Inferencer:
                 if hasattr(img, "numpy"):
                     img = img.numpy()
                 img = np.asarray(img)
-                # uint8 → float32 [0, 1]
+
+                # ===================== pi05 端侧 resize 开始 =====================
+                # # uint8 → float32 [0, 1]
                 if img.dtype == np.uint8:
                     img = img.astype(np.float32) / 255.0
                 # letterbox resize 到 224x224（保持宽高比，黑边填充），与模型内部 resize_with_pad_torch 逻辑一致
@@ -304,6 +308,26 @@ class Inferencer:
                 padded[pad_top:pad_top + new_h, pad_left:pad_left + new_w] = resized
                 chw = np.transpose(padded, (2, 0, 1))  # HWC → CHW (C, H, W)
                 images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
+                # ===================== pi05 端侧 resize 结束 =====================
+
+                # ===================== GR00T 端侧 resize 开始 =====================
+                # # 输入：RGB, HWC, uint8；输出：RGB, HWC, uint8, 224x224
+                # from PIL import Image as PILImage
+                # if img.dtype != np.uint8:
+                #     img = img.clip(0, 255).astype(np.uint8)
+                # h, w = img.shape[:2]
+                # side = max(h, w)
+                # canvas = np.zeros((side, side, 3), dtype=np.uint8)
+                # top  = (side - h) // 2
+                # left = (side - w) // 2
+                # canvas[top:top + h, left:left + w] = img
+                # resized = PILImage.fromarray(canvas, mode="RGB").resize((224, 224), PILImage.BILINEAR)
+                # img = np.asarray(resized, dtype=np.uint8)
+                # # uint8 → float32 [0, 1]，转 CHW
+                # img_f = img.astype(np.float32) / 255.0
+                # chw = np.transpose(img_f, (2, 0, 1))  # HWC → CHW (C, H, W)
+                # images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
+                # ===================== GR00T 端侧 resize 结束 =====================
 
             logger.debug(f"BC images: {list(images.keys())}")
 

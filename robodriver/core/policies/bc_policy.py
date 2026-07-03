@@ -165,6 +165,7 @@ class BCPolicy(BasePolicy):
         host: str = "localhost",
         port: int = 8087,
         path: str = "",
+        headers = None,
         api_key: Optional[str] = None,
         robot_type: Optional[str] = None,
         timeout: float = 15.0,
@@ -184,6 +185,7 @@ class BCPolicy(BasePolicy):
         self._path = path
         self._timeout = timeout
         self._robot_type = robot_type
+        self.headers = headers
 
         self._ws = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -204,13 +206,13 @@ class BCPolicy(BasePolicy):
         if self._loop is None:
             self._loop = asyncio.new_event_loop()
 
-        self._loop.run_until_complete(self._connect_async(uri))
+        self._loop.run_until_complete(self._connect_async(uri, self.headers))
         self._connected = True
         logger.info(f"BC policy client connected: {uri}")
 
-    async def _connect_async(self, uri: str):
+    async def _connect_async(self, uri: str, headers=None):
         self._ws = await websockets.connect(
-            uri, open_timeout=self._timeout, max_size=None
+            uri, open_timeout=self._timeout, max_size=None, additional_headers=headers
         )
         # 读取服务器元数据（握手消息）
         metadata_raw = await self._ws.recv()
