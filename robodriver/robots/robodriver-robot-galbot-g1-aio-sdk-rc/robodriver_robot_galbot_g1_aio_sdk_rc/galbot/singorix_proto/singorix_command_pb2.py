@@ -13,6 +13,7 @@ _sym_db = _symbol_database.Default()
 
 from galbot.core_proto import time_pb2 as galbot_dot_core__proto_dot_time__pb2
 from galbot.core_proto import header_pb2 as galbot_dot_core__proto_dot_header__pb2
+from galbot.core_proto import wrapper_pb2 as galbot_dot_core__proto_dot_wrapper__pb2
 from galbot.spatial_proto import frame_pb2 as galbot_dot_spatial__proto_dot_frame__pb2
 
 
@@ -22,12 +23,50 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n,galbot/singorix_proto/singorix_command.proto\x12\x15galbot.singorix_proto\x1a\x1cgalbot/core_proto/time.proto\x1a\x1egalbot/core_proto/header.proto\x1a galbot/spatial_proto/frame.proto\"\x83\x01\n\x0cJointCommand\x12)\n\x06header\x18\x01 \x01(\x0b\x32\x19.galbot.core_proto.Header\x12\x10\n\x08position\x18\x02 \x01(\x01\x12\x10\n\x08velocity\x18\x03 \x01(\x01\x12\x14\n\x0c\x61\x63\x63\x65leration\x18\x04 \x01(\x01\x12\x0e\n\x06\x65\x66\x66ort\x18\x05 \x01(\x01\"\x81\x01\n\x0cGroupCommand\x12\x34\n\x0ftime_from_start\x18\x01 \x01(\x0b\x32\x1b.galbot.core_proto.Duration\x12;\n\x0ejoint_commands\x18\x02 \x03(\x0b\x32#.galbot.singorix_proto.JointCommand\"\x7f\n\x0bTaskCommand\x12\x34\n\x0ftime_from_start\x18\x01 \x01(\x0b\x32\x1b.galbot.core_proto.Duration\x12:\n\x10subtask_commands\x18\x02 \x03(\x0b\x32 .galbot.spatial_proto.FrameTriadb\x06proto3'
+  serialized_pb=b'\n,galbot/singorix_proto/singorix_command.proto\x12\x15galbot.singorix_proto\x1a\x1cgalbot/core_proto/time.proto\x1a\x1egalbot/core_proto/header.proto\x1a\x1fgalbot/core_proto/wrapper.proto\x1a galbot/spatial_proto/frame.proto\"\xad\x02\n\x0cJointCommand\x12)\n\x06header\x18\x01 \x01(\x0b\x32\x19.galbot.core_proto.Header\x12\x10\n\x08position\x18\x02 \x01(\x01\x12\x10\n\x08velocity\x18\x03 \x01(\x01\x12\x14\n\x0c\x61\x63\x63\x65leration\x18\x04 \x01(\x01\x12\x0e\n\x06\x65\x66\x66ort\x18\x05 \x01(\x01\x12U\n\x12\x63ustom_command_map\x18\x06 \x03(\x0b\x32\x39.galbot.singorix_proto.JointCommand.CustomCommandMapEntry\x1aQ\n\x15\x43ustomCommandMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\'\n\x05value\x18\x02 \x01(\x0b\x32\x18.galbot.core_proto.Value:\x02\x38\x01\"\x81\x01\n\x0cGroupCommand\x12\x34\n\x0ftime_from_start\x18\x01 \x01(\x0b\x32\x1b.galbot.core_proto.Duration\x12;\n\x0ejoint_commands\x18\x02 \x03(\x0b\x32#.galbot.singorix_proto.JointCommand\"\x7f\n\x0bTaskCommand\x12\x34\n\x0ftime_from_start\x18\x01 \x01(\x0b\x32\x1b.galbot.core_proto.Duration\x12:\n\x10subtask_commands\x18\x02 \x03(\x0b\x32 .galbot.spatial_proto.FrameTriadb\x06proto3'
   ,
-  dependencies=[galbot_dot_core__proto_dot_time__pb2.DESCRIPTOR,galbot_dot_core__proto_dot_header__pb2.DESCRIPTOR,galbot_dot_spatial__proto_dot_frame__pb2.DESCRIPTOR,])
+  dependencies=[galbot_dot_core__proto_dot_time__pb2.DESCRIPTOR,galbot_dot_core__proto_dot_header__pb2.DESCRIPTOR,galbot_dot_core__proto_dot_wrapper__pb2.DESCRIPTOR,galbot_dot_spatial__proto_dot_frame__pb2.DESCRIPTOR,])
 
 
 
+
+_JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY = _descriptor.Descriptor(
+  name='CustomCommandMapEntry',
+  full_name='galbot.singorix_proto.JointCommand.CustomCommandMapEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='galbot.singorix_proto.JointCommand.CustomCommandMapEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='galbot.singorix_proto.JointCommand.CustomCommandMapEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=b'8\001',
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=421,
+  serialized_end=502,
+)
 
 _JOINTCOMMAND = _descriptor.Descriptor(
   name='JointCommand',
@@ -72,10 +111,17 @@ _JOINTCOMMAND = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='custom_command_map', full_name='galbot.singorix_proto.JointCommand.custom_command_map', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
-  nested_types=[],
+  nested_types=[_JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -84,8 +130,8 @@ _JOINTCOMMAND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=168,
-  serialized_end=299,
+  serialized_start=201,
+  serialized_end=502,
 )
 
 
@@ -123,8 +169,8 @@ _GROUPCOMMAND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=302,
-  serialized_end=431,
+  serialized_start=505,
+  serialized_end=634,
 )
 
 
@@ -162,11 +208,14 @@ _TASKCOMMAND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=433,
-  serialized_end=560,
+  serialized_start=636,
+  serialized_end=763,
 )
 
+_JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY.fields_by_name['value'].message_type = galbot_dot_core__proto_dot_wrapper__pb2._VALUE
+_JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY.containing_type = _JOINTCOMMAND
 _JOINTCOMMAND.fields_by_name['header'].message_type = galbot_dot_core__proto_dot_header__pb2._HEADER
+_JOINTCOMMAND.fields_by_name['custom_command_map'].message_type = _JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY
 _GROUPCOMMAND.fields_by_name['time_from_start'].message_type = galbot_dot_core__proto_dot_time__pb2._DURATION
 _GROUPCOMMAND.fields_by_name['joint_commands'].message_type = _JOINTCOMMAND
 _TASKCOMMAND.fields_by_name['time_from_start'].message_type = galbot_dot_core__proto_dot_time__pb2._DURATION
@@ -177,11 +226,19 @@ DESCRIPTOR.message_types_by_name['TaskCommand'] = _TASKCOMMAND
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 JointCommand = _reflection.GeneratedProtocolMessageType('JointCommand', (_message.Message,), {
+
+  'CustomCommandMapEntry' : _reflection.GeneratedProtocolMessageType('CustomCommandMapEntry', (_message.Message,), {
+    'DESCRIPTOR' : _JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY,
+    '__module__' : 'galbot.singorix_proto.singorix_command_pb2'
+    # @@protoc_insertion_point(class_scope:galbot.singorix_proto.JointCommand.CustomCommandMapEntry)
+    })
+  ,
   'DESCRIPTOR' : _JOINTCOMMAND,
   '__module__' : 'galbot.singorix_proto.singorix_command_pb2'
   # @@protoc_insertion_point(class_scope:galbot.singorix_proto.JointCommand)
   })
 _sym_db.RegisterMessage(JointCommand)
+_sym_db.RegisterMessage(JointCommand.CustomCommandMapEntry)
 
 GroupCommand = _reflection.GeneratedProtocolMessageType('GroupCommand', (_message.Message,), {
   'DESCRIPTOR' : _GROUPCOMMAND,
@@ -198,4 +255,5 @@ TaskCommand = _reflection.GeneratedProtocolMessageType('TaskCommand', (_message.
 _sym_db.RegisterMessage(TaskCommand)
 
 
+_JOINTCOMMAND_CUSTOMCOMMANDMAPENTRY._options = None
 # @@protoc_insertion_point(module_scope)

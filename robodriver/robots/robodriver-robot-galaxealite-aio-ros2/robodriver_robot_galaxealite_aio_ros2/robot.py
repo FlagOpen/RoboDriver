@@ -13,7 +13,7 @@ import rclpy
 
 from .config import GALAXEALITEAIORos2RobotConfig
 from .status import GALAXEALITEAIORos2RobotStatus
-from .node import GALAXEALITEAIORos2RobotNode, ros_spin_thread
+from .node import GALAXEALITEAIORos2RobotNode
 
 
 logger = logging_mp.get_logger(__name__)
@@ -38,15 +38,15 @@ class GALAXEALITEAIORos2Robot(Robot):
         self.connect_excluded_cameras = ["image_pika_pose"]
 
         self.status = GALAXEALITEAIORos2RobotStatus()
-        if not rclpy.ok():
-            rclpy.init()
+        # if not rclpy.ok():
+        #     rclpy.init()
         self.robot_ros2_node = GALAXEALITEAIORos2RobotNode()  # 创建节点实例
-        self.ros_spin_thread = threading.Thread(
-            target=ros_spin_thread, 
-            args=(self.robot_ros2_node,), 
-            daemon=True
-        )
-        self.ros_spin_thread.start()
+        # self.ros_spin_thread = threading.Thread(
+        #     target=ros_spin_thread, 
+        #     args=(self.robot_ros2_node,), 
+        #     daemon=True
+        # )
+        # self.ros_spin_thread.start()
 
         self.connected = False
         self.logs = {}
@@ -306,10 +306,12 @@ class GALAXEALITEAIORos2Robot(Robot):
                 "KochRobot is not connected. You need to run `robot.connect()`."
             )
         goal_joint = [ val for key, val in action.items()]
-        goal_joint_numpy = np.array([t.item() for t in goal_joint], dtype=np.float32)
+        goal_joint_numpy = np.array(
+            [t.item() if hasattr(t, 'item') else t for t in goal_joint], dtype=np.float32
+        )
         try:
-            if goal_joint_numpy.shape != (38,):
-                raise ValueError(f"Action vector must be 38-dimensional, got {goal_joint_numpy.shape[0]}")
+            if goal_joint_numpy.shape == (0,):
+                raise ValueError(f"Action vector got {goal_joint_numpy.shape[0]}")
             
             # 调用ROS2节点的ros_replay方法发布动作
             self.robot_ros2_node.ros_replay(goal_joint_numpy)
@@ -363,3 +365,6 @@ class GALAXEALITEAIORos2Robot(Robot):
                 self.disconnect()
         except Exception:
             pass
+
+    def get_node(self):
+        return self.robot_ros2_node

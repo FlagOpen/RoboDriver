@@ -14,13 +14,15 @@ from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import numpy as np
 
-from pygalbot import GalbotRobot, ControlStatus, Trajectory, TrajectoryPoint, JointCommand
+from galbot_sdk.g1 import GalbotRobot, ControlStatus, Trajectory, TrajectoryPoint, JointCommand
 # from chassis_kinematics import FourOmniWheelKinematics
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
+GRIPPER_VALUE_TO_WIDTH_M = 0.01
 
 def to_list(x: Any) -> List[float]:
     """
@@ -47,12 +49,12 @@ def to_list(x: Any) -> List[float]:
     raise TypeError(f"不支持的动作类型: {type(x)}")
 
 
-def split_action_31(action: List[float]) -> Dict[str, List[float]]:
+def split_action_38(action: List[float]) -> Dict[str, List[float]]:
     """
-    将 31 维动作向量拆分为各个部分
+    将 38 维动作向量拆分为各个部分
     
     Args:
-        action: 31 维动作向量
+        action: 38 维动作向量
         
     Returns:
         Dict[str, List[float]]: 拆分后的动作部分
@@ -60,8 +62,8 @@ def split_action_31(action: List[float]) -> Dict[str, List[float]]:
     Raises:
         ValueError: 当动作维度不正确时
     """
-    if len(action) != 31:
-        raise ValueError(f"期望 31 维动作，实际得到 {len(action)} 维")
+    if len(action) != 38:
+        raise ValueError(f"期望 38 维动作，实际得到 {len(action)} 维")
     
     return {
         "right_arm": action[0:7],
@@ -71,24 +73,29 @@ def split_action_31(action: List[float]) -> Dict[str, List[float]]:
         "leg": action[16:21],
         "head": action[21:23],
         "chassis_vel": action[27:31],
+        #后面的维度是odom的
     }
 
 
 def generate_trajectory_point(
     parts: Dict[str, List[float]], 
     time_from_start_second: float, 
-    gripper_scale: float = 100.0
+    gripper_scale: float = 100.0,
+    # 新增夹爪专用参数（可根据需要调整默认值）
+    gripper_acceleration: float = 30,    # 夹爪加速度 (rad/s²)
+    gripper_effort: float = 50.0,          # 夹爪力矩 (N·m)
+    gripper_velocity: float = 100         # 夹爪速度 (rad/s)
 ) -> TrajectoryPoint:
     """
-    生成单个轨迹点
+    生成单个轨迹点（扩展夹爪参数支持）
     
     Args:
         parts: 拆分后的动作部分
         time_from_start_second: 从轨迹开始的时间（秒）
         gripper_scale: 夹爪缩放比例
-        
-    Returns:
-        TrajectoryPoint: 轨迹点对象
+        gripper_acceleration: 夹爪关节加速度
+        gripper_effort: 夹爪关节力矩
+        gripper_velocity: 夹爪关节速度
     """
     # 构建关节位置向量，按照机器人要求的顺序
     joint_pos_vec = []
@@ -98,22 +105,42 @@ def generate_trajectory_point(
     joint_pos_vec.extend(parts["head"])
     joint_pos_vec.extend(parts["left_arm"])
     joint_pos_vec.extend(parts["right_arm"])
-    joint_pos_vec.append(parts["left_gripper"][0] * gripper_scale / 1000)
-    joint_pos_vec.append(parts["right_gripper"][0] * gripper_scale / 1000)
+    # 夹爪位置值（应用缩放比例）
+    left_gripper_pos = parts["left_gripper"][0] * gripper_scale / 100.0
+    right_gripper_pos = parts["right_gripper"][0] * gripper_scale / 100.0
+    joint_pos_vec.append(left_gripper_pos)
+    joint_pos_vec.append(right_gripper_pos)
     
     # 创建轨迹点
     trajectory_point = TrajectoryPoint()
     trajectory_point.time_from_start_second = time_from_start_second
     
-    # 创建关节命令
+    # 创建关节命令（区分普通关节和夹爪关节）
     joint_command_vec = []
-    for pos in joint_pos_vec:
+    joint_count = len(joint_pos_vec)
+    
+    for i in range(joint_count):
         joint_cmd = JointCommand()
-        joint_cmd.position = pos
+        # 1. 设置位置（所有关节都需要）
+        joint_cmd.position = joint_pos_vec[i]
+        
+        # 2. 判断是否是夹爪关节（最后两个）
+        is_gripper_joint = i >= joint_count - 2
+        
+        if is_gripper_joint:
+            # 为夹爪设置专属的加速度、力矩、速度
+            # joint_cmd.acceleration = gripper_acceleration
+            joint_cmd.effort = gripper_effort
+            joint_cmd.velocity = gripper_velocity * GRIPPER_VALUE_TO_WIDTH_M
+            logger.debug(f"夹爪关节 {i} 设置: pos={joint_pos_vec[i]:.3f}, "
+                         f"acc={gripper_acceleration}, effort={gripper_effort}, "
+                         f"vel={gripper_velocity}")
+        
         joint_command_vec.append(joint_cmd)
     
     trajectory_point.joint_command_vec = joint_command_vec
     return trajectory_point
+
 
 class FourOmniWheelKinematics:
     """
@@ -510,8 +537,10 @@ def replay_parquet(
     
     # 初始化机器人
     robot = GalbotRobot.get_instance()
-    robot.init()
+    ok = robot.init()
     time.sleep(1.5)  # 增加初始化等待时间
+    if not ok:
+        raise RuntimeError("GalbotRobot.init() failed")
     logger.info("机器人初始化完成")
     
     # 读取数据
@@ -526,7 +555,23 @@ def replay_parquet(
     
     # 构建轨迹点 + 底盘速度数据（同步存储）
     traj = Trajectory()
-    traj.joint_groups = ["leg", "head", "left_arm", "right_arm", "left_gripper", "right_gripper"]
+    traj.joint_groups = []
+    # traj.joint_groups = ["head", "leg", "left_arm", "right_arm", "left_gripper", "right_gripper"]
+    # traj.joint_names = ["leg", "head", "left_arm", "right_arm", "left_gripper", "right_gripper"]
+
+    JOINT_GROUP_ORDER = [
+        "leg",
+        "head",
+        "left_arm",
+        "right_arm",
+        "left_gripper",
+        "right_gripper",
+    ]
+    expanded_joint_names: list[str] = []
+    for group_name in JOINT_GROUP_ORDER:
+        expanded_joint_names.extend(robot.get_joint_names(True, [group_name]))
+
+    traj.joint_names = expanded_joint_names
     # traj.points = []
     point_list=[]
     
@@ -535,7 +580,7 @@ def replay_parquet(
     for i, row in df.iterrows():
         try:
             action = to_list(row["action"])
-            parts = split_action_31(action)
+            parts = split_action_38(action)
             timestamp = float(row["timestamp"])
             
             # 生成轨迹点

@@ -99,7 +99,7 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
             torso_pos = np.array(torso.position, dtype=np.float32)
             torso_pos = torso_pos[:-1]
            
-            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos, torso_pos])
+            merged_data = np.concatenate([left_arm_data, gripper_left_pos, right_arm_data, gripper_right_pos])
             with self.lock:
                 self.recv_follower['follower_arms'] = merged_data
                 self.recv_follower_status['follower_arms'] = CONNECT_TIMEOUT_FRAME
@@ -110,21 +110,19 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
     def _init_message_main_filters(self):
         sub_joint_left = Subscriber(self, JointState, '/motion_target/target_joint_state_arm_left', qos_profile=self.qos_best_effort)
         sub_joint_right = Subscriber(self, JointState, '/motion_target/target_joint_state_arm_right', qos_profile=self.qos_best_effort)
-        sub_joint_torso = Subscriber(self, JointState, '/motion_target/target_joint_state_torso', qos_profile=self.qos_best_effort)
-        sub_pose_left = Subscriber(self, PoseStamped, '/motion_target/target_pose_arm_left', qos_profile=self.qos_best_effort)
-        sub_pose_right = Subscriber(self, PoseStamped, '/motion_target/target_pose_arm_right', qos_profile=self.qos_best_effort)
-        sub_torso = Subscriber(self, PoseStamped, '/motion_target/target_pose_torso', qos_profile=self.qos_best_effort)
+        sub_pose_left = Subscriber(self, PoseStamped, '/motion_control/pose_ee_arm_left', qos_profile=self.qos_best_effort)
+        sub_pose_right = Subscriber(self, PoseStamped, '/motion_control/pose_ee_arm_right', qos_profile=self.qos_best_effort)
         sub_gripper_left = Subscriber(self, JointState, '/motion_target/target_position_gripper_left', qos_profile=self.qos_best_effort)
         sub_gripper_right = Subscriber(self, JointState, '/motion_target/target_position_gripper_right', qos_profile=self.qos_best_effort)
 
         self.pose_sync = ApproximateTimeSynchronizer(
-            [sub_joint_left, sub_joint_right, sub_joint_torso, sub_pose_left, sub_pose_right, sub_torso, sub_gripper_left, sub_gripper_right],
+            [sub_joint_left, sub_joint_right, sub_pose_left, sub_pose_right, sub_gripper_left, sub_gripper_right],
             queue_size=50,
             slop=0.01
         )
         self.pose_sync.registerCallback(self.synchronized_main_callback)
  
-    def synchronized_main_callback(self, joint_left, joint_right, joint_torso, pose_left, pose_right, torso, gripper_left, gripper_right):
+    def synchronized_main_callback(self, joint_left, joint_right, pose_left, pose_right, gripper_left, gripper_right):
         try:
             current_time_ns = time.time_ns()
             if (current_time_ns - self.last_main_send_time_ns) < self.min_interval_ns:
@@ -136,7 +134,6 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
  
             gripper_left_pose = np.array(gripper_left.position, dtype=np.float32)
             gripper_right_pose = np.array(gripper_right.position, dtype=np.float32)
-            torso_joint = np.array(joint_torso.position, dtype=np.float32)
 
             left_pos = np.array([
                 pose_left.pose.position.x, pose_left.pose.position.y, pose_left.pose.position.z,
@@ -148,12 +145,8 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
                 pose_right.pose.orientation.x, pose_right.pose.orientation.y, pose_right.pose.orientation.z, pose_right.pose.orientation.w
             ], dtype=np.float32)
 
-            torso_pose = np.array([
-                torso.pose.position.x, torso.pose.position.y, torso.pose.position.z,
-                torso.pose.orientation.x, torso.pose.orientation.y, torso.pose.orientation.z, torso.pose.orientation.w
-            ], dtype=np.float32)
 
-            merged_data = np.concatenate([left_joint, gripper_left_pose, right_joint, gripper_right_pose, torso_joint, left_pos, right_pos, torso_pose])
+            merged_data = np.concatenate([left_joint, gripper_left_pose, right_joint, gripper_right_pose, left_pos, right_pos])
             with self.lock:
                 self.recv_leader['leader_arms'] = merged_data
                 self.recv_leader_status['leader_arms'] = CONNECT_TIMEOUT_FRAME
@@ -222,7 +215,7 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
             left_gripper = [normalize_precision(v) for v in array[6:7]]
             right_arm = [normalize_precision(v) for v in array[7:13]]
             right_gripper = [normalize_precision(v) for v in array[13:14]]
-            torso = [normalize_precision(v) for v in array[14:17]]
+            # torso = [normalize_precision(v) for v in array[14:17]]
     
             msg = JointState()
             msg.position = left_arm 
@@ -240,9 +233,9 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
             msg.position = right_gripper
             self.publisher_right_gripper.publish(msg)
 
-            msg = JointState()
-            msg.position = torso  
-            self.publisher_state_torso.publish(msg)
+            # msg = JointState()
+            # msg.position = torso  
+            # self.publisher_state_torso.publish(msg)
 
         except Exception as e:
             self.get_logger().error(f"Error during replay at frame: {e}")
@@ -271,20 +264,23 @@ class GALAXEALITEAIORos2RobotNode(ROS2Node):
             lambda msg: self.get_logger().info(f"独立订阅-左夹爪: position={msg.position}"),
             self.qos_best_effort
         )
-        self.create_subscription(
-            PoseStamped,
-            '/motion_target/target_pose_torso',
-            lambda msg: self.get_logger().info(f"独立订阅-躯干pose: x={msg.pose.position.x}"),
-            self.qos_best_effort
-        )
-        self.create_subscription(
-            JointState,
-            '/motion_target/target_joint_state_torso',
-            lambda msg: self.get_logger().info(f"独立订阅-躯干joint: position={msg.position}"),
-            self.qos_best_effort
-        )
+        # self.create_subscription(
+        #     PoseStamped,
+        #     '/motion_target/target_pose_torso',
+        #     lambda msg: self.get_logger().info(f"独立订阅-躯干pose: x={msg.pose.position.x}"),
+        #     self.qos_best_effort
+        # )
+        # self.create_subscription(
+        #     JointState,
+        #     '/motion_target/target_joint_state_torso',
+        #     lambda msg: self.get_logger().info(f"独立订阅-躯干joint: position={msg.position}"),
+        #     self.qos_best_effort
+        # )
 
-# 保留ros_spin_thread函数（供外部调用）
-def ros_spin_thread(node):
-    while rclpy.ok() and not getattr(node, "stop_spin", False):
-        rclpy.spin_once(node, timeout_sec=0.01)
+    def destroy(self):
+        super().destroy_node()
+
+# # 保留ros_spin_thread函数（供外部调用）
+# def ros_spin_thread(node):
+#     while rclpy.ok() and not getattr(node, "stop_spin", False):
+#         rclpy.spin_once(node, timeout_sec=0.01)

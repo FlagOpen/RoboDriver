@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver-teleoperator-keyboard"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache License 2.0"}
+authors = [
+    {name = "Xiang Yang", email = "yangxiang@baai.ac.cn"},
+]
+keywords = ["robotics", "lerobot"]
+dependencies = [
+    "logging_mp"
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_teleoperator_keyboard",
+    "lerobot_teleoperator_keyboard",
+]

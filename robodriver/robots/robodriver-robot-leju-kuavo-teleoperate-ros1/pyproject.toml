@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver_robot_leju_kuavo_teleop_ros1"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "Hanyu Feng", email = "dearronfeng0520@163.com"},
+]
+keywords = ["robotics", "lerobot", "LEJU"]
+dependencies = [
+
+    "logging_mp==0.1.6",
+    "opencv-python",
+    "rospkg",
+    "kuavo-humanoid-sdk"
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "lerobot_robot_leju_kuavo_teleop_ros1",
+    "robodriver_robot_leju_kuavo_teleop_ros1"
+]

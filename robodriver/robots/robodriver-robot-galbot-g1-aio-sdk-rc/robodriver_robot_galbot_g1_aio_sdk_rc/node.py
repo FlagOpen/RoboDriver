@@ -24,6 +24,7 @@ from galbot.spatial_proto import twist_pb2, pose_pb2
 from galbot.singorix_proto import singorix_command_pb2, singorix_sensor_pb2, singorix_error_pb2, singorix_target_pb2
 from galbot.sensor_proto import imu_pb2, image_pb2, camera_pb2, joy_pb2
 from galbot.tf2_proto import tf2_message_pb2
+from galbot.navigation_proto import odometry_pb2
 
 
 logger = logging_mp.get_logger(__name__)
@@ -107,6 +108,10 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
         self.recv_follower_head: list[float] = []
         self.recv_follower_chassis: list[float] = []
         self.recv_follower_chassis_velocity: list[float] = []
+        self.recv_follower_odom_pose_position: list[float] = []
+        self.recv_follower_odom_pose_orientation: list[float] = []
+        self.recv_follower_odom_twist_linear: list[float] = []
+        self.recv_follower_odom_twist_angular: list[float] = []
 
         # Protobuf 类型映射
         self.protobuf_type_map = {
@@ -116,7 +121,8 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
             "galbot.singorix_proto.SingoriXError": singorix_error_pb2.SingoriXError,
             "galbot.singorix_proto.SingoriXTarget": singorix_target_pb2.SingoriXTarget,
             "galbot.tf2_proto.TF2Message": tf2_message_pb2.TF2Message,
-            "galbot.sensor_proto.Joy": joy_pb2.Joy
+            "galbot.sensor_proto.Joy": joy_pb2.Joy,
+            "galbot.navigation_proto.Odometry": odometry_pb2.Odometry,
         }
 
         # 异步任务控制
@@ -209,7 +215,7 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
                 np_arr = np.frombuffer(pb_message.data, np.uint8)
                 image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 if image is not None:
-                    image = cv2.resize(image, (640, 480))
+                    image = cv2.resize(image, (960, 720))
                     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     with self.image_lock:
                         if "right" in topic and "head" in topic:
@@ -223,7 +229,10 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
 
             # 处理传感器数据
             elif "singorix/wbcs/sensor" in topic:
-                self._parse_and_store_joint_data(pb_message)
+                self._parse_joint_data_from_proto(pb_message)
+
+            elif "/odom/base_link" in topic:
+                self._parse_odom_from_proto(pb_message)
 
             # 通用状态存储
             with self.state_lock:
@@ -244,7 +253,7 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
         error_msg = message.get("msg", "未知错误")
         logger.error(f"❗ 错误消息: {error_msg}")
 
-    def _parse_and_store_joint_data(self, sensor_msg):
+    def _parse_joint_data_from_proto(self, sensor_msg):
         """解析 SingoriXSensor 消息，提取并存储 arm 和 gripper 数据"""
         if not sensor_msg.joint_sensor_map:
             return
@@ -275,6 +284,17 @@ class GalbotG1AIOSDKRCRobotNode(SocketRobotNode):
                     self.recv_follower_chassis_velocity = joint_sensor.velocity
 
                 # logger.info(f"Group: {group_name}, Data: {joint_data}")
+    
+    def _parse_odom_from_proto(self, odom_msg):
+        if not odom_msg.pose or not odom_msg.twist:
+            return
+        
+        with self.state_lock:
+            self.recv_follower_odom_pose_position = [odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y]
+            self.recv_follower_odom_pose_orientation = [odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w]
+            self.recv_follower_odom_twist_linear = [odom_msg.twist.twist.linear.x, odom_msg.twist.twist.linear.y]
+            self.recv_follower_odom_twist_angular = [odom_msg.twist.twist.angular.z]
+
 
     def shutdown(self):
         """关闭连接"""

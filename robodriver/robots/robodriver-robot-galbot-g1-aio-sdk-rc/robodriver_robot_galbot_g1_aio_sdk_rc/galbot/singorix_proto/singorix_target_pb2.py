@@ -12,6 +12,7 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
+from galbot.core_proto import time_pb2 as galbot_dot_core__proto_dot_time__pb2
 from galbot.core_proto import header_pb2 as galbot_dot_core__proto_dot_header__pb2
 from galbot.singorix_proto import singorix_command_pb2 as galbot_dot_singorix__proto_dot_singorix__command__pb2
 
@@ -22,9 +23,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n+galbot/singorix_proto/singorix_target.proto\x12\x15galbot.singorix_proto\x1a\x1egalbot/core_proto/header.proto\x1a,galbot/singorix_proto/singorix_command.proto\"\x91\x01\n\x0cTargetConfig\x12\x13\n\x0btarget_data\x18\x01 \x01(\x05\x12\x13\n\x0btarget_type\x18\x02 \x01(\x05\x12>\n\x0ftarget_sampling\x18\x03 \x01(\x0e\x32%.galbot.singorix_proto.TargetSampling\x12\x17\n\x0ftarget_priority\x18\x04 \x01(\x05\"\xa5\x01\n\x15TargetGroupTrajectory\x12:\n\rtarget_config\x18\x01 \x01(\x0b\x32#.galbot.singorix_proto.TargetConfig\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t\x12;\n\x0egroup_commands\x18\x03 \x03(\x0b\x32#.galbot.singorix_proto.GroupCommand\"\xce\x01\n\x14TargetTaskTrajectory\x12:\n\rtarget_config\x18\x01 \x01(\x0b\x32#.galbot.singorix_proto.TargetConfig\x12\x13\n\x0bgroup_names\x18\x02 \x03(\t\x12\x13\n\x0bjoint_names\x18\x03 \x03(\t\x12\x15\n\rsubtask_names\x18\x04 \x03(\t\x12\x39\n\rtask_commands\x18\x05 \x03(\x0b\x32\".galbot.singorix_proto.TaskCommand\"\xe9\x03\n\x0eSingoriXTarget\x12)\n\x06header\x18\x01 \x01(\x0b\x32\x19.galbot.core_proto.Header\x12h\n\x1btarget_group_trajectory_map\x18\x02 \x03(\x0b\x32\x43.galbot.singorix_proto.SingoriXTarget.TargetGroupTrajectoryMapEntry\x12\x66\n\x1atarget_task_trajectory_map\x18\x03 \x03(\x0b\x32\x42.galbot.singorix_proto.SingoriXTarget.TargetTaskTrajectoryMapEntry\x1am\n\x1dTargetGroupTrajectoryMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12;\n\x05value\x18\x02 \x01(\x0b\x32,.galbot.singorix_proto.TargetGroupTrajectory:\x02\x38\x01\x1ak\n\x1cTargetTaskTrajectoryMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12:\n\x05value\x18\x02 \x01(\x0b\x32+.galbot.singorix_proto.TargetTaskTrajectory:\x02\x38\x01*\xff\x01\n\nTargetData\x12\x14\n\x10TARGET_DATA_NONE\x10\x00\x12\x19\n\x15TARGET_DATA_JOINT_POS\x10\x01\x12\x19\n\x15TARGET_DATA_JOINT_VEL\x10\x02\x12\x19\n\x15TARGET_DATA_JOINT_ACC\x10\x04\x12\x19\n\x15TARGET_DATA_JOINT_EFF\x10\x08\x12\x1a\n\x16TARGET_DATA_FRAME_POSE\x10\x10\x12\x1b\n\x17TARGET_DATA_FRAME_TWIST\x10 \x12\x1c\n\x18TARGET_DATA_FRAME_WRENCH\x10@\x12\x18\n\x13TARGET_DATA_DEFAULT\x10\xff\x01*\xd4\x01\n\nTargetType\x12\x14\n\x10TARGET_TYPE_NONE\x10\x00\x12\x15\n\x11TARGET_TYPE_TOUCH\x10\x01\x12\x15\n\x11TARGET_TYPE_CLEAR\x10\x02\x12\x1a\n\x16TARGET_TYPE_PREPENDNOW\x10\x04\x12\x16\n\x12TARGET_TYPE_APPEND\x10\x08\x12\x18\n\x14TARGET_TYPE_OVERRIDE\x10\n\x12\x1a\n\x16TARGET_TYPE_PROVERRIDE\x10\x0e\x12\x18\n\x13TARGET_TYPE_DEFAULT\x10\xff\x01*\xab\x02\n\x0eTargetSampling\x12\x1b\n\x17TARGET_SAMPLING_DEFAULT\x10\x00\x12\x1f\n\x1bTARGET_SAMPLING_DIRECT_PASS\x10\x01\x12&\n\"TARGET_SAMPLING_LINEAR_INTERPOLATE\x10\x02\x12\'\n#TARGET_SAMPLING_TRAPEZOIDAL_PROFILE\x10\x03\x12#\n\x1fTARGET_SAMPLING_S_CURVE_PROFILE\x10\x04\x12!\n\x1dTARGET_SAMPLING_CUBIC_SPLINES\x10\x05\x12#\n\x1fTARGET_SAMPLING_QUINTIC_SPLINES\x10\x06\x12\x1d\n\x19TARGET_SAMPLING_B_SPLINES\x10\x07\x62\x06proto3'
+  serialized_pb=b'\n+galbot/singorix_proto/singorix_target.proto\x12\x15galbot.singorix_proto\x1a\x1cgalbot/core_proto/time.proto\x1a\x1egalbot/core_proto/header.proto\x1a,galbot/singorix_proto/singorix_command.proto\"\xd5\x01\n\x0cTargetConfig\x12\x13\n\x0btarget_data\x18\x01 \x01(\x05\x12\x13\n\x0btarget_type\x18\x02 \x01(\x05\x12>\n\x0ftarget_sampling\x18\x03 \x01(\x0e\x32%.galbot.singorix_proto.TargetSampling\x12\x17\n\x0ftarget_priority\x18\x04 \x01(\x05\x12\x11\n\ttarget_id\x18\x0e \x01(\t\x12/\n\ttarget_ts\x18\x0f \x01(\x0b\x32\x1c.galbot.core_proto.Timestamp\"\xa5\x01\n\x15TargetGroupTrajectory\x12:\n\rtarget_config\x18\x01 \x01(\x0b\x32#.galbot.singorix_proto.TargetConfig\x12\x13\n\x0bjoint_names\x18\x02 \x03(\t\x12;\n\x0egroup_commands\x18\x03 \x03(\x0b\x32#.galbot.singorix_proto.GroupCommand\"\xce\x01\n\x14TargetTaskTrajectory\x12:\n\rtarget_config\x18\x01 \x01(\x0b\x32#.galbot.singorix_proto.TargetConfig\x12\x13\n\x0bgroup_names\x18\x02 \x03(\t\x12\x13\n\x0bjoint_names\x18\x03 \x03(\t\x12\x15\n\rsubtask_names\x18\x04 \x03(\t\x12\x39\n\rtask_commands\x18\x05 \x03(\x0b\x32\".galbot.singorix_proto.TaskCommand\"\xe9\x03\n\x0eSingoriXTarget\x12)\n\x06header\x18\x01 \x01(\x0b\x32\x19.galbot.core_proto.Header\x12h\n\x1btarget_group_trajectory_map\x18\x02 \x03(\x0b\x32\x43.galbot.singorix_proto.SingoriXTarget.TargetGroupTrajectoryMapEntry\x12\x66\n\x1atarget_task_trajectory_map\x18\x03 \x03(\x0b\x32\x42.galbot.singorix_proto.SingoriXTarget.TargetTaskTrajectoryMapEntry\x1am\n\x1dTargetGroupTrajectoryMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12;\n\x05value\x18\x02 \x01(\x0b\x32,.galbot.singorix_proto.TargetGroupTrajectory:\x02\x38\x01\x1ak\n\x1cTargetTaskTrajectoryMapEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12:\n\x05value\x18\x02 \x01(\x0b\x32+.galbot.singorix_proto.TargetTaskTrajectory:\x02\x38\x01*\xff\x01\n\nTargetData\x12\x14\n\x10TARGET_DATA_NONE\x10\x00\x12\x19\n\x15TARGET_DATA_JOINT_POS\x10\x01\x12\x19\n\x15TARGET_DATA_JOINT_VEL\x10\x02\x12\x19\n\x15TARGET_DATA_JOINT_ACC\x10\x04\x12\x19\n\x15TARGET_DATA_JOINT_EFF\x10\x08\x12\x1a\n\x16TARGET_DATA_FRAME_POSE\x10\x10\x12\x1b\n\x17TARGET_DATA_FRAME_TWIST\x10 \x12\x1c\n\x18TARGET_DATA_FRAME_WRENCH\x10@\x12\x18\n\x13TARGET_DATA_DEFAULT\x10\xff\x01*\xd4\x01\n\nTargetType\x12\x14\n\x10TARGET_TYPE_NONE\x10\x00\x12\x15\n\x11TARGET_TYPE_TOUCH\x10\x01\x12\x15\n\x11TARGET_TYPE_CLEAR\x10\x02\x12\x1a\n\x16TARGET_TYPE_PREPENDNOW\x10\x04\x12\x16\n\x12TARGET_TYPE_APPEND\x10\x08\x12\x18\n\x14TARGET_TYPE_OVERRIDE\x10\n\x12\x1a\n\x16TARGET_TYPE_PROVERRIDE\x10\x0e\x12\x18\n\x13TARGET_TYPE_DEFAULT\x10\xff\x01*\xc7\x02\n\x0eTargetSampling\x12\x1b\n\x17TARGET_SAMPLING_DEFAULT\x10\x00\x12\x1f\n\x1bTARGET_SAMPLING_DIRECT_PASS\x10\x01\x12&\n\"TARGET_SAMPLING_LINEAR_INTERPOLATE\x10\x02\x12\'\n#TARGET_SAMPLING_TRAPEZOIDAL_PROFILE\x10\x03\x12#\n\x1fTARGET_SAMPLING_S_CURVE_PROFILE\x10\x04\x12!\n\x1dTARGET_SAMPLING_CUBIC_SPLINES\x10\x05\x12#\n\x1fTARGET_SAMPLING_QUINTIC_SPLINES\x10\x06\x12\x1d\n\x19TARGET_SAMPLING_B_SPLINES\x10\x07\x12\x1a\n\x16TARGET_SAMPLING_CUSTOM\x10\x0f\x62\x06proto3'
   ,
-  dependencies=[galbot_dot_core__proto_dot_header__pb2.DESCRIPTOR,galbot_dot_singorix__proto_dot_singorix__command__pb2.DESCRIPTOR,])
+  dependencies=[galbot_dot_core__proto_dot_time__pb2.DESCRIPTOR,galbot_dot_core__proto_dot_header__pb2.DESCRIPTOR,galbot_dot_singorix__proto_dot_singorix__command__pb2.DESCRIPTOR,])
 
 _TARGETDATA = _descriptor.EnumDescriptor(
   name='TargetData',
@@ -81,8 +82,8 @@ _TARGETDATA = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1166,
-  serialized_end=1421,
+  serialized_start=1264,
+  serialized_end=1519,
 )
 _sym_db.RegisterEnumDescriptor(_TARGETDATA)
 
@@ -137,8 +138,8 @@ _TARGETTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1424,
-  serialized_end=1636,
+  serialized_start=1522,
+  serialized_end=1734,
 )
 _sym_db.RegisterEnumDescriptor(_TARGETTYPE)
 
@@ -190,11 +191,16 @@ _TARGETSAMPLING = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='TARGET_SAMPLING_CUSTOM', index=8, number=15,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1639,
-  serialized_end=1938,
+  serialized_start=1737,
+  serialized_end=2064,
 )
 _sym_db.RegisterEnumDescriptor(_TARGETSAMPLING)
 
@@ -224,6 +230,7 @@ TARGET_SAMPLING_S_CURVE_PROFILE = 4
 TARGET_SAMPLING_CUBIC_SPLINES = 5
 TARGET_SAMPLING_QUINTIC_SPLINES = 6
 TARGET_SAMPLING_B_SPLINES = 7
+TARGET_SAMPLING_CUSTOM = 15
 
 
 
@@ -263,6 +270,20 @@ _TARGETCONFIG = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='target_id', full_name='galbot.singorix_proto.TargetConfig.target_id', index=4,
+      number=14, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='target_ts', full_name='galbot.singorix_proto.TargetConfig.target_ts', index=5,
+      number=15, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -275,8 +296,8 @@ _TARGETCONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=149,
-  serialized_end=294,
+  serialized_start=179,
+  serialized_end=392,
 )
 
 
@@ -321,8 +342,8 @@ _TARGETGROUPTRAJECTORY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=297,
-  serialized_end=462,
+  serialized_start=395,
+  serialized_end=560,
 )
 
 
@@ -381,8 +402,8 @@ _TARGETTASKTRAJECTORY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=465,
-  serialized_end=671,
+  serialized_start=563,
+  serialized_end=769,
 )
 
 
@@ -420,8 +441,8 @@ _SINGORIXTARGET_TARGETGROUPTRAJECTORYMAPENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=945,
-  serialized_end=1054,
+  serialized_start=1043,
+  serialized_end=1152,
 )
 
 _SINGORIXTARGET_TARGETTASKTRAJECTORYMAPENTRY = _descriptor.Descriptor(
@@ -458,8 +479,8 @@ _SINGORIXTARGET_TARGETTASKTRAJECTORYMAPENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1056,
-  serialized_end=1163,
+  serialized_start=1154,
+  serialized_end=1261,
 )
 
 _SINGORIXTARGET = _descriptor.Descriptor(
@@ -503,11 +524,12 @@ _SINGORIXTARGET = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=674,
-  serialized_end=1163,
+  serialized_start=772,
+  serialized_end=1261,
 )
 
 _TARGETCONFIG.fields_by_name['target_sampling'].enum_type = _TARGETSAMPLING
+_TARGETCONFIG.fields_by_name['target_ts'].message_type = galbot_dot_core__proto_dot_time__pb2._TIMESTAMP
 _TARGETGROUPTRAJECTORY.fields_by_name['target_config'].message_type = _TARGETCONFIG
 _TARGETGROUPTRAJECTORY.fields_by_name['group_commands'].message_type = galbot_dot_singorix__proto_dot_singorix__command__pb2._GROUPCOMMAND
 _TARGETTASKTRAJECTORY.fields_by_name['target_config'].message_type = _TARGETCONFIG

@@ -22,6 +22,7 @@ RoboDriver documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver
 
 ## Latest News
 
+- [2025-12-16] RoboDriver-Simulation and AutoDriver officially released
 - [2025-12-01] RoboDriver project open sourced
 
 ## Table of Contents
@@ -46,6 +47,41 @@ RoboDriver documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver
 
 Please refer to the project documentation: [RoboDriver-Doc](https://flagopen.github.io/RoboDriver-Doc)
 
+Quick installation:
+
+First, clone the RoboDriver repository and enter the project directory:
+
+```bash
+git clone https://github.com/FlagOpen/RoboDriver.git && cd RoboDriver
+```
+
+Install `uv` without activating any environment:
+
+```bash
+pip install uv
+```
+
+Create a uv environment:
+
+```bash
+uv venv -p 3.10
+```
+
+Install the project:
+
+```bash
+uv pip install -e .
+```
+
+Usage:
+
+```bash
+source .venv/bin/activate
+robodriver-run -h
+```
+
+To use a specific robot, install the corresponding robot package and follow its documentation to complete deployment and startup. Path: `robodriver/robots/robodriver-robot-xxx-xxx-xxx/README.md`
+
 ## Simulation Examples
 
 Considering the various uncertainties of robots in real-world environments, we recommend that you first try using `RoboDriver` with the `simulation examples` we provide.
@@ -64,20 +100,35 @@ RoboDriver has completed adaptation for multiple mainstream robots. Examples by 
 ### 🔌 ROS1 Integration
 | Robot Model | Description | Code Link | Contributor |
 |------------|------|--------------|------------------------|
+| DeepRobotics X30 | DeepRobotics X30 quadruped robot, contributed by Inspur Cloud Information Technology Co., Ltd. | [robodriver/robots/robodriver-robot-deeprobotics-x30-ros1](./robodriver/robots/robodriver-robot-deeprobotics-x30-ros1) | [<img src="https://avatars.githubusercontent.com/jiangjb01" width="50" height="50">](https://github.com/jiangjb01) [<img src="https://avatars.githubusercontent.com/wangqi951002" width="50" height="50">](https://github.com/wangqi951002) |
+| GALAXEALITE | Based on Galaxealite, dual-arm 6DOF+end gripper, ROS1 integration | [robodriver/robots/robodriver-robot-galaxealite-aio-ros1](./robodriver/robots/robodriver-robot-galaxealite-aio-ros1) | [<img src="https://avatars.githubusercontent.com/liuyou" width="50" height="50">](https://github.com/liuyou) |
 | Realman Robot Arm | Based on Realman, 6DOF+force control module, 3*RealSense cameras | [robodriver/robots/robodriver-robot-realman-aio-ros1](./robodriver/robots/robodriver-robot-realman-aio-ros1) | [<img src="https://avatars.githubusercontent.com/zhanglei-web" width="50" height="50">](https://github.com/zhanglei-web) |
+| Leju Kuavo 4 Pro | Leju Kuavo 4 Pro robot data collection program | [robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1](./robodriver/robots/robodriver-robot-leju-kuavo-teleoperate-ros1) | [<img src="https://avatars.githubusercontent.com/dirk656" width="50" height="50">](https://github.com/dirk656) |
 
 ### 🔌 ROS2 Integration
 | Robot Model | Description | Code Link | Contributor |
 |--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
 | GALAXEALITE | Based on Galaxealite, dual-arm 6DOF+end gripper, 4*RealSense cameras | [robodriver/robots/robodriver-robot-galaxealite-aio-ros2](./robodriver/robots/robodriver-robot-galaxealite-aio-ros2) | [![liuyou1103](https://avatars.githubusercontent.com/liuyou1103?s=50)](https://github.com/liuyou1103) |
+| Galbot G1 | Galbot G1 AIO ROS2 DDS integration example | [robodriver/robots/robodriver-robot-galbot-g1-aio-ros2-dds](./robodriver/robots/robodriver-robot-galbot-g1-aio-ros2-dds) | [<img src="https://avatars.githubusercontent.com/Ryu-Yang" width="50" height="50">](https://github.com/Ryu-Yang) |
 | SO101 Robot Arm | Open-source lightweight robot arm, 6DOF+end gripper, 1*RealSense camera, 1*RGB camera module | [robodriver/robots/robodriver-robot-so101-aio-ros2](./robodriver/robots/robodriver-robot-so101-aio-ros2) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
+| Dobot Nova2 | Dobot Nova2 robot arm ROS2 integration example, contributed by Inspur Cloud Information Technology Co., Ltd. | [robodriver/robots/robodriver-robot-dobot-nova2-ros2](./robodriver/robots/robodriver-robot-dobot-nova2-ros2) | [<img src="https://avatars.githubusercontent.com/jiangjb01" width="50" height="50">](https://github.com/jiangjb01) [<img src="https://avatars.githubusercontent.com/wangqi951002" width="50" height="50">](https://github.com/wangqi951002) |
+| OpenArm | OpenArm dual-arm teleoperation ROS2 integration example | [robodriver/robots/robodriver-robot-openarm-teleoperate-ros2](./robodriver/robots/robodriver-robot-openarm-teleoperate-ros2) | Hanyu Feng |
 
 ### 🔌 Dora (SDK) Integration
 | Robot Model | Description | Code Link | Contributor |
 |--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| AgileX Aloha | AgileX Aloha dual-arm robot AIO Dora integration example | [robodriver/robots/robodriver-robot-agilex-aloha-aio-dora](./robodriver/robots/robodriver-robot-agilex-aloha-aio-dora) | [<img src="https://avatars.githubusercontent.com/Ryu-Yang" width="50" height="50">](https://github.com/Ryu-Yang) |
 | Realman Robot Arm | Based on Realman, 6DOF+force control module, 3*RealSense cameras | [robodriver/robots/robodriver-robot-realman1-aio-dora](./robodriver/robots/robodriver-robot-realman1-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
 | SO101 Robot Arm | Open-source lightweight robot arm, 6DOF+end gripper, 1*RealSense camera, 1*RGB camera module | [robodriver/robots/robodriver-robot-so101-aio-dora](./robodriver/robots/robodriver-robot-so101-aio-dora) | [![Ryu-Yang](https://avatars.githubusercontent.com/Ryu-Yang?s=50)](https://github.com/Ryu-Yang) |
 | Franka | Industrial-grade robot arm, 6DOF+end gripper, 1*RealSense camera | [robodriver/robots/robodriver-robot-franka-aio-dora](./robodriver/robots/robodriver-robot-franka-aio-dora) | [![XuRuntian](https://avatars.githubusercontent.com/XuRuntian?s=50)](https://github.com/XuRuntian) |
+
+### 🔌 SDK Integration
+
+| Robot Model | Description | Code Link | Contributor |
+|--------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| Galbot G1 | Galbot G1 AIO SDK Python integration example | [robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-py](./robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-py) | [<img src="https://avatars.githubusercontent.com/Ryu-Yang" width="50" height="50">](https://github.com/Ryu-Yang) |
+| Galbot G1 | Galbot G1 AIO SDK RC integration example | [robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-rc](./robodriver/robots/robodriver-robot-galbot-g1-aio-sdk-rc) | [<img src="https://avatars.githubusercontent.com/Ryu-Yang" width="50" height="50">](https://github.com/Ryu-Yang) |
+| Unitree G1 | Unitree humanoid robot G1, contributed by Inspur Cloud Information Technology Co., Ltd. | [robodriver/robots/robodriver-robot-unitree-g1-sdk-py](./robodriver/robots/robodriver-robot-unitree-g1-sdk-py) | [<img src="https://avatars.githubusercontent.com/hixiaobo" width="50" height="50">](https://github.com/hixiaobo) |
 
 > ✨ Notes:
 > 1. Integration method naming convention: `robodriver-robot-[robot model]-[teleoperation method]-[integration type]` (e.g., `aio`/`follower`/`teleoperate`, `ros2`/`dora`);

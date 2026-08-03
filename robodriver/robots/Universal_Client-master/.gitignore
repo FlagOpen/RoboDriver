@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.env
+venv/
+*.egg-info/
+
+# ROS 
+build/
+devel/
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+repomix-output.xml

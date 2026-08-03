@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x1egalbot/core_proto/header.proto\x12\x11galbot.core_proto\x1a\x1cgalbot/core_proto/time.proto\"K\n\x06Header\x12/\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1c.galbot.core_proto.Timestamp\x12\x10\n\x08\x66rame_id\x18\x02 \x01(\tb\x06proto3'
+  serialized_pb=b'\n\x1egalbot/core_proto/header.proto\x12\x11galbot.core_proto\x1a\x1cgalbot/core_proto/time.proto\"X\n\x06Header\x12/\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1c.galbot.core_proto.Timestamp\x12\x10\n\x08\x66rame_id\x18\x02 \x01(\t\x12\x0b\n\x03seq\x18\x03 \x01(\rb\x06proto3'
   ,
   dependencies=[galbot_dot_core__proto_dot_time__pb2.DESCRIPTOR,])
 
@@ -49,6 +49,13 @@ _HEADER = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='seq', full_name='galbot.core_proto.Header.seq', index=2,
+      number=3, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -62,7 +69,7 @@ _HEADER = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=83,
-  serialized_end=158,
+  serialized_end=171,
 )
 
 _HEADER.fields_by_name['timestamp'].message_type = galbot_dot_core__proto_dot_time__pb2._TIMESTAMP

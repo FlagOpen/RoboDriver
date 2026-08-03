@@ -36,7 +36,7 @@ nodes:
       DEVICE_SERIAL: CC1635300FK
 
   - id: piper_right
-    build: pip install dora-arm-piper
+    build: pip install dora-arm-piper==0.0.5
     path: dora-arm-piper
     inputs:
       tick: dora/timer/millis/20
@@ -52,7 +52,7 @@ nodes:
       TEACH_MODE: True
 
   - id: piper_left
-    build: pip install dora-arm-piper
+    build: pip install dora-arm-piper==0.0.5
     path: dora-arm-piper
     inputs:
       tick: dora/timer/millis/20

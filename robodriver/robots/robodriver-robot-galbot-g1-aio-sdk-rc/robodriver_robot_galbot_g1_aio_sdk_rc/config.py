@@ -53,6 +53,15 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
             "chassis_vel2": Motor(29, "galbot-motor", norm_mode_body),
             "chassis_vel3": Motor(30, "galbot-motor", norm_mode_body),
             "chassis_vel4": Motor(31, "galbot-motor", norm_mode_body),
+
+            "odom_pose_position_x": Motor(32, "galbot-odom", norm_mode_body),
+            "odom_pose_position_y": Motor(33, "galbot-odom", norm_mode_body),
+            "odom_pose_orientation_z": Motor(34, "galbot-odom", norm_mode_body),
+            "odom_pose_orientation_w": Motor(35, "galbot-odom", norm_mode_body),
+
+            "odom_twist_linear_x": Motor(36, "galbot-odom", norm_mode_body),
+            "odom_twist_linear_y": Motor(37, "galbot-odom", norm_mode_body),
+            "odom_twist_angular_z": Motor(38, "galbot-odom", norm_mode_body),
         }
     )
 
@@ -94,6 +103,15 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
             "chassis_vel2": Motor(29, "galbot-motor", norm_mode_body),
             "chassis_vel3": Motor(30, "galbot-motor", norm_mode_body),
             "chassis_vel4": Motor(31, "galbot-motor", norm_mode_body),
+
+            "odom_pose_position_x": Motor(32, "galbot-odom", norm_mode_body),
+            "odom_pose_position_y": Motor(33, "galbot-odom", norm_mode_body),
+            "odom_pose_orientation_z": Motor(34, "galbot-odom", norm_mode_body),
+            "odom_pose_orientation_w": Motor(35, "galbot-odom", norm_mode_body),
+
+            "odom_twist_linear_x": Motor(36, "galbot-odom", norm_mode_body),
+            "odom_twist_linear_y": Motor(37, "galbot-odom", norm_mode_body),
+            "odom_twist_angular_z": Motor(38, "galbot-odom", norm_mode_body),
         }
     )
 
@@ -102,26 +120,26 @@ class GalbotG1AIOSDKRCRobotConfig(RobotConfig):
             "image_head_right": OpenCVCameraConfig(
                 index_or_path=1,
                 fps=30,
-                width=640,
-                height=480,
+                width=960,
+                height=720,
             ),
             "image_head_left": OpenCVCameraConfig(
                 index_or_path=2,
                 fps=30,
-                width=640,
-                height=480,
+                width=960,
+                height=720,
             ),
             "image_arm_right": OpenCVCameraConfig(
                 index_or_path=3,
                 fps=30,
-                width=640,
-                height=480,
+                width=960,
+                height=720,
             ),
             "image_arm_left": OpenCVCameraConfig(
                 index_or_path=4,
                 fps=30,
-                width=640,
-                height=480,
+                width=960,
+                height=720,
             ),
         }
     )
