@@ -138,6 +138,11 @@ class AgilexAlohaAIODoraRobotNode(DoraRobotNode):
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             elif encoding == "rgb8":
                 frame = data.reshape((height, width, 3))
+            elif encoding == "mono16":
+                # Dataset image features currently require HWC data. Keep the
+                # original uint16 depth values and repeat the channel; the
+                # depth image writer stores the first channel as 16-bit PNG.
+                frame = data.reshape((height, width, 1)).repeat(3, axis=-1)
             elif encoding in ["jpeg", "jpg", "jpe", "bmp", "webp", "png"]:
                 frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
         except Exception as e:
