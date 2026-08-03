@@ -9,6 +9,7 @@ from lerobot.robots import RobotConfig
 from lerobot.teleoperators import TeleoperatorConfig
 
 from robodriver.core.coordinator import Coordinator
+from robodriver.core.disturbance import ActionDisturbance, DisturbanceConfig
 from robodriver.core.monitor import Monitor
 from robodriver.core.simulator import SimulatorConfig
 from robodriver.core.simulator import Simulator
@@ -63,6 +64,9 @@ async def async_main(cfg: ControlPipelineConfig):
 
     daemon = Daemon(cfg.robot, fps=DEFAULT_FPS)
 
+    disturbance_config = getattr(cfg.robot, "disturbance", DisturbanceConfig())
+    disturbance = ActionDisturbance(disturbance_config)
+
     monitor = Monitor(daemon)
     monitor.start()
 
@@ -82,6 +86,7 @@ async def async_main(cfg: ControlPipelineConfig):
         ros2_manager.start()
     
     daemon.start()
+    disturbance.start()
     if teleop is not None:
         teleop.connect()
         
@@ -92,11 +97,18 @@ async def async_main(cfg: ControlPipelineConfig):
 
             if teleop is not None:
                 action = teleop.get_action()
+                action = disturbance.apply(action)
                 daemon.set_obs_action(action)
                 daemon.set_pre_action(action)
             else:
                 action = daemon.robot.get_action()
+                action = disturbance.apply(action)
                 daemon.set_obs_action(action)
+                # AIO robots normally mirror their leader in hardware and must
+                # not receive actions from RoboDriver. Only send while an
+                # explicit disturbance is active.
+                if disturbance.is_active:
+                    daemon.robot.send_action(action)
 
             if sim is not None:
                 sim.send_action(action, prefix="leader_", suffix=".pos")
@@ -134,6 +146,7 @@ async def async_main(cfg: ControlPipelineConfig):
         logger.info("coordinator and daemon stop")
     finally:
         daemon.stop()
+        disturbance.stop()
         if sim is not None:
             sim.stop()
         if ros2_manager is not None:

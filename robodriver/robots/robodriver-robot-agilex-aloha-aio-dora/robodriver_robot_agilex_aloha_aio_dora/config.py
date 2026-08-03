@@ -5,6 +5,20 @@ from lerobot.robots.config import RobotConfig
 from lerobot.cameras import CameraConfig
 from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.motors import Motor, MotorNormMode
+from robodriver.core.disturbance import DisturbanceConfig
+
+
+@dataclass
+class AgilexAlohaDisturbanceConfig(DisturbanceConfig):
+    """Default disturbance action for the Agilex Aloha grippers."""
+
+    enabled: bool = False
+    action_overrides: Dict[str, float] = field(
+        default_factory=lambda: {
+            "leader_gripper_right.pos": 10.0,
+            "leader_gripper_left.pos": 10.0,
+        }
+    )
 
 
 @RobotConfig.register_subclass("agilex_aloha_aio_dora")
@@ -88,10 +102,26 @@ class AgilexAlohaAIODoraRobotConfig(RobotConfig):
                 width=640,
                 height=480,
             ),
-            # Depth cameras are handled by dora-camera-orbbec-v1 nodes
-            # "image_depth_top": OpenCVCameraConfig(...),
-            # "image_depth_right": OpenCVCameraConfig(...),
-            # "image_depth_left": OpenCVCameraConfig(...),
+            # Depth frames are aligned to the corresponding RGB stream by the
+            # RealSense Dora nodes and transported as mono16 images.
+            "image_depth_top": OpenCVCameraConfig(
+                index_or_path=1,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "image_depth_right": OpenCVCameraConfig(
+                index_or_path=2,
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "image_depth_left": OpenCVCameraConfig(
+                index_or_path=3,
+                fps=30,
+                width=640,
+                height=480,
+            ),
         }
     )
 
@@ -105,3 +135,9 @@ class AgilexAlohaAIODoraRobotConfig(RobotConfig):
     # Additional configuration for CAN bus ports
     can_right_port: str = "can_right"
     can_left_port: str = "can_left"
+
+    # Pressing the foot pedal (which emits "s") temporarily opens both grippers.
+    # The shared DisturbanceConfig can also be added to other robot configs.
+    disturbance: AgilexAlohaDisturbanceConfig = field(
+        default_factory=AgilexAlohaDisturbanceConfig
+    )

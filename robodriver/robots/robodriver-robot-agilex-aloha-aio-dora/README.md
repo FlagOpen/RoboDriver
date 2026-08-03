@@ -239,6 +239,26 @@ robodriver-run \
     --sim.from_unit=rad
 ```
 
+干扰触发功能默认关闭。如需使用脚踏板，请增加
+`--robot.disturbance.enabled=true`。运行期间踩下映射为 `s` 键的脚踏板，
+会同时将左右夹爪设置为张开值 `100`，默认保持 0.5 秒。该功能只修改夹爪动作，
+不影响双臂关节动作。
+
+如需同时启用随机触发（下例为每隔 10～30 秒随机触发一次）：
+
+```bash
+robodriver-run \
+    --robot.type=agilex_aloha_aio_dora \
+    --sim.xml_path=descriptions/agilex_aloha/scene.xml \
+    --sim.from_unit=rad \
+    --robot.disturbance.enabled=true \
+    --robot.disturbance.random_enabled=true \
+    --robot.disturbance.random_min_interval_s=10 \
+    --robot.disturbance.random_max_interval_s=30
+```
+
+可通过 `--robot.disturbance.duration_s=1.0` 修改夹爪张开的保持时间。
+
 ## TODO
 
 - 完善校准程序
