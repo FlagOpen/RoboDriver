@@ -13,7 +13,7 @@ from .config import GalbotG1AIOSDKRCRobotConfig
 from .node import GalbotG1AIOSDKRCRobotNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class GalbotG1AIOSDKRCRobot(Robot):

@@ -10,7 +10,7 @@ from dora import Node
 from typing import Any, Dict
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 CONNECT_TIMEOUT_FRAME = 10
 
 

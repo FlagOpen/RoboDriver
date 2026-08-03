@@ -8,7 +8,7 @@ from lerobot.robots import Robot, RobotConfig
 from robodriver.robots.statuses import RobotStatus
 from robodriver.utils.import_utils import make_device_from_device_class
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 def busy_wait(seconds):

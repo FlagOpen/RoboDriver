@@ -11,8 +11,8 @@ from robodriver.dataset.dorobot_dataset import DoRobotDataset
 from robodriver.robot.robots.utils import Robot, busy_wait
 from robodriver.utils.utils import log_say
 
-logging_mp.basic_config(level=logging_mp.INFO)
-logger = logging_mp.get_logger(__name__)
+logging_mp.basicConfig(level=logging_mp.INFO)
+logger = logging_mp.getLogger(__name__)
 
 
 @dataclass

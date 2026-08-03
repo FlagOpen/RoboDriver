@@ -14,7 +14,7 @@ from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
 from typing import Dict, Any
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 # 尝试导入厂家自定义消息
 try:

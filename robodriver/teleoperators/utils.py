@@ -5,7 +5,7 @@ from lerobot.teleoperators import Teleoperator, TeleoperatorConfig
 
 from robodriver.utils.import_utils import make_device_from_device_class
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 def make_teleoperator_from_config(config: TeleoperatorConfig) -> Teleoperator:

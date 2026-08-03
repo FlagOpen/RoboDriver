@@ -16,7 +16,7 @@ from .status import FrankaAioDoraRobotStatus
 from .node import FrankaAioDoraRobotNode
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class FrankaAioDoraRobot(Robot):

@@ -68,7 +68,7 @@ LEROBOT_DATASET_VERSION = "v2.1"
 DOROBOT_DATASET_VERSION = "v1.0"
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 class DoRobotDatasetMetadata:

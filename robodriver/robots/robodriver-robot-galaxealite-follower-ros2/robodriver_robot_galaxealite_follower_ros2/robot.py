@@ -16,7 +16,7 @@ from .status import GALAXEALITEFollowerRos2RobotStatus
 from .node import GALAXEALITEFollowerRos2RobotNode, ros_spin_thread
 
 
-logger = logging_mp.get_logger(__name__)
+logger = logging_mp.getLogger(__name__)
 
 
 
