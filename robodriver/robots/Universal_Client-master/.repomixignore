@@ -1,0 +1,9 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+.git/
+.venv/
+__pycache__/
+*.egg-info/
+uv.lock
