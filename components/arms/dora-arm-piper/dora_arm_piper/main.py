@@ -13,6 +13,15 @@ from scipy.spatial.transform import Rotation as R
 
 TEACH_MODE = os.getenv("TEACH_MODE", "False") in ["True", "true"]
 CAN_BUS = os.getenv("CAN_BUS", "can0")
+# 机械臂类型:
+#   aio(默认): 主从都有, 既能被控制、返回状态, 也读取控制数据
+#   leader:    只读, 只读取控制数据(leader_jointstate), 不使能、不响应控制指令
+#   follower:  可被控制(action_*), 并返回状态数据(follower_jointstate/follower_endpose)
+ARM_TYPE = os.getenv("ARM_TYPE", "aio")
+if ARM_TYPE not in ("aio", "leader", "follower"):
+    raise ValueError(
+        f"无效的 ARM_TYPE: {ARM_TYPE!r}, 取值必须为 'aio' / 'leader' / 'follower'"
+    )
 LOG_STATUS = os.getenv("LOG_STATUS", "False") in ["True", "true"]
 EEPOSE_MODE = os.getenv("EEPOSE_MODE", "False") in ["True", "true"]
 URDF_PATH = os.getenv("URDF_PATH", "urdf/piper.urdf")
@@ -477,10 +486,15 @@ def main():
     elapsed_time = time.time()
     piper = C_PiperInterface(CAN_BUS)
     piper.ConnectPort()
-    if EEPOSE_MODE:
+
+    has_leader = ARM_TYPE in ("aio", "leader")      # 是否读取主臂控制数据
+    has_follower = ARM_TYPE in ("aio", "follower")  # 是否可被控制并返回关节状态
+
+    if EEPOSE_MODE and has_follower:
         arm_ik = Arm_IK(URDF_PATH)
 
-    if not TEACH_MODE:
+    # leader 只读取控制数据, 不需要使能
+    if not TEACH_MODE and has_follower:
         enable_fun(piper)
 
     factor = 57295.779578552  # 1000*180/3.14159265
@@ -493,6 +507,8 @@ def main():
             # if "action" in event["id"]:
             #     enable_fun(piper)
             if event["id"] == "action_joint":
+                if not has_follower:
+                    continue
                 # Do not push to many commands to fast. Limiting it to 50Hz
                 if time.time() - elapsed_time > 0.02:
                     elapsed_time = time.time()
@@ -517,6 +533,8 @@ def main():
                     piper.GripperCtrl(int(abs(position[6] * 1000 * 100)), 1000, 0x01, 0)
 
             elif event["id"] == "action_endpose":
+                if not has_follower:
+                    continue
                 # Do not push to many commands to fast. Limiting it to 50Hz
                 if time.time() - elapsed_time > 0.005 and EEPOSE_MODE:
                     elapsed_time = time.time()
@@ -555,6 +573,8 @@ def main():
             
             
             elif event["id"] == "action_gripper":
+                if not has_follower:
+                    continue
                 # Do not push to many commands to fast. Limiting it to 50Hz
                 # if time.time() - elapsed_time > 0.02:
                 #     elapsed_time = time.time()
@@ -569,59 +589,60 @@ def main():
                 # piper.MotionCtrl_2(0x01, 0x01, 50, 0x00)
 
             elif event["id"] == "tick":
-                # Slave Arm
-                joint = piper.GetArmJointMsgs()
+                if has_follower:
+                    # Slave Arm (follower): 返回实际关节状态
+                    joint = piper.GetArmJointMsgs()
 
-                joint_value = []
-                joint_value += [joint.joint_state.joint_1.real / factor]
-                joint_value += [joint.joint_state.joint_2.real / factor]
-                joint_value += [joint.joint_state.joint_3.real / factor]
-                joint_value += [joint.joint_state.joint_4.real / factor]
-                joint_value += [joint.joint_state.joint_5.real / factor]
-                joint_value += [joint.joint_state.joint_6.real / factor]
+                    joint_value = []
+                    joint_value += [joint.joint_state.joint_1.real / factor]
+                    joint_value += [joint.joint_state.joint_2.real / factor]
+                    joint_value += [joint.joint_state.joint_3.real / factor]
+                    joint_value += [joint.joint_state.joint_4.real / factor]
+                    joint_value += [joint.joint_state.joint_5.real / factor]
+                    joint_value += [joint.joint_state.joint_6.real / factor]
 
-                gripper = piper.GetArmGripperMsgs()
-                joint_value += [gripper.gripper_state.grippers_angle / 1000 / 100]
+                    gripper = piper.GetArmGripperMsgs()
+                    joint_value += [gripper.gripper_state.grippers_angle / 1000 / 100]
 
-                node.send_output("follower_jointstate", pa.array(joint_value, type=pa.float32()))
+                    node.send_output("follower_jointstate", pa.array(joint_value, type=pa.float32()))
 
-                # position = piper.GetArmEndPoseMsgs()
-                # ori_rot = [
-                #     position.end_pose.RX_axis * 0.001,
-                #     position.end_pose.RY_axis * 0.001,
-                #     position.end_pose.RZ_axis * 0.001
-                # ]
-                # cvt_rot = convert_pose_2(ori_rot, 'C_to_D', 'ZYX', 'ZYX', degrees=True)
+                    # position = piper.GetArmEndPoseMsgs()
+                    # ori_rot = [
+                    #     position.end_pose.RX_axis * 0.001,
+                    #     position.end_pose.RY_axis * 0.001,
+                    #     position.end_pose.RZ_axis * 0.001
+                    # ]
+                    # cvt_rot = convert_pose_2(ori_rot, 'C_to_D', 'ZYX', 'ZYX', degrees=True)
 
-                # position_value = []
-                # position_value += [position.end_pose.X_axis * 0.001 * 0.001]
-                # position_value += [position.end_pose.Y_axis * 0.001 * 0.001]
-                # position_value += [position.end_pose.Z_axis * 0.001 * 0.001]
-                # position_value += [cvt_rot[0] / 180 * np.pi]
-                # position_value += [cvt_rot[1] / 180 * np.pi]
-                # position_value += [cvt_rot[2] / 180 * np.pi]
-                if EEPOSE_MODE:
-                    position_value = arm_ik.get_fk(np.array(joint_value[:6]))
+                    # position_value = []
+                    # position_value += [position.end_pose.X_axis * 0.001 * 0.001]
+                    # position_value += [position.end_pose.Y_axis * 0.001 * 0.001]
+                    # position_value += [position.end_pose.Z_axis * 0.001 * 0.001]
+                    # position_value += [cvt_rot[0] / 180 * np.pi]
+                    # position_value += [cvt_rot[1] / 180 * np.pi]
+                    # position_value += [cvt_rot[2] / 180 * np.pi]
+                    if EEPOSE_MODE:
+                        position_value = arm_ik.get_fk(np.array(joint_value[:6]))
 
+                        if position_value is not None:
+                            node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
 
-                    if position_value is not None:
-                        node.send_output("follower_endpose", pa.array(position_value, type=pa.float32()))
+                if has_leader:
+                    # Master Arm (leader): 只读取控制数据
+                    joint = piper.GetArmJointCtrl()
 
-                # Master Arm
-                joint = piper.GetArmJointCtrl()
+                    joint_value = []
+                    joint_value += [joint.joint_ctrl.joint_1.real / factor]
+                    joint_value += [joint.joint_ctrl.joint_2.real / factor]
+                    joint_value += [joint.joint_ctrl.joint_3.real / factor]
+                    joint_value += [joint.joint_ctrl.joint_4.real / factor]
+                    joint_value += [joint.joint_ctrl.joint_5.real / factor]
+                    joint_value += [joint.joint_ctrl.joint_6.real / factor]
 
-                joint_value = []
-                joint_value += [joint.joint_ctrl.joint_1.real / factor]
-                joint_value += [joint.joint_ctrl.joint_2.real / factor]
-                joint_value += [joint.joint_ctrl.joint_3.real / factor]
-                joint_value += [joint.joint_ctrl.joint_4.real / factor]
-                joint_value += [joint.joint_ctrl.joint_5.real / factor]
-                joint_value += [joint.joint_ctrl.joint_6.real / factor]
+                    gripper = piper.GetArmGripperCtrl()
+                    joint_value += [gripper.gripper_ctrl.grippers_angle / 1000 / 100]
 
-                gripper = piper.GetArmGripperCtrl()
-                joint_value += [gripper.gripper_ctrl.grippers_angle / 1000 / 100]
-
-                node.send_output("leader_jointstate", pa.array(joint_value, type=pa.float32()))
+                    node.send_output("leader_jointstate", pa.array(joint_value, type=pa.float32()))
 
                 if LOG_STATUS:
                     print_arm_status(piper)
