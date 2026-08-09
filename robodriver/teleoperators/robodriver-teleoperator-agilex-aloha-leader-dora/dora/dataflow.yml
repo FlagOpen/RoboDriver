@@ -1,0 +1,33 @@
+nodes:
+  - id: piper_leader_right
+    build: pip install dora-arm-piper>=0.0.16
+    path: dora-arm-piper
+    inputs:
+      tick: dora/timer/millis/20
+    outputs:
+      - leader_jointstate
+    env:
+      VIRTUAL_ENV: arm.venv
+      CAN_BUS: can_leader_right
+      ARM_TYPE: leader
+      TEACH_MODE: True
+
+  - id: piper_leader_left
+    build: pip install dora-arm-piper>=0.0.16
+    path: dora-arm-piper
+    inputs:
+      tick: dora/timer/millis/20
+    outputs:
+      - leader_jointstate
+    env:
+      VIRTUAL_ENV: arm.venv
+      CAN_BUS: can_leader_left
+      ARM_TYPE: leader
+      TEACH_MODE: True
+
+  - id: agilex_aloha_leader_dora
+    path: dynamic
+    inputs: 
+      leader_jointstate_right: piper_leader_right/leader_jointstate
+      leader_jointstate_left: piper_leader_left/leader_jointstate
+
