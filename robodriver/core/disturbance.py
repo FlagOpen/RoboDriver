@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import queue
 import random
@@ -236,6 +237,32 @@ class ActionDisturbance:
         )
         return True
 
+    def _discover_evdev_device_paths(self) -> list[str]:
+        """Discover candidate /dev/input devices when evdev's list_devices() is empty."""
+        candidate_dirs = [
+            "/dev/input",
+            "/dev/input/by-id",
+            "/dev/input/by-path",
+        ]
+        paths: list[str] = []
+        seen: set[str] = set()
+
+        for directory in candidate_dirs:
+            if not os.path.isdir(directory):
+                continue
+            for pattern in [
+                os.path.join(directory, "event*"),
+                os.path.join(directory, "mouse*"),
+                os.path.join(directory, "js*"),
+                os.path.join(directory, "*"),
+            ]:
+                for path in glob.glob(pattern):
+                    if os.path.exists(path) and path not in seen:
+                        seen.add(path)
+                        paths.append(path)
+
+        return paths
+
     def _open_evdev_devices(
         self, InputDevice: Any, ecodes: Any, list_devices: Any, target_code: int
     ) -> list[Any]:
@@ -243,7 +270,13 @@ class ActionDisturbance:
         if self.config.manual_device:
             paths = [self.config.manual_device]
         else:
-            paths = list_devices()
+            try:
+                paths = list_devices()
+            except Exception:
+                paths = []
+
+            if not paths:
+                paths = self._discover_evdev_device_paths()
 
         devices = []
         for path in paths:
