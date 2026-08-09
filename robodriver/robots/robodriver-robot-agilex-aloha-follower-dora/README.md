@@ -244,6 +244,17 @@ robodriver-run \
 会同时将左右夹爪设置为张开值 `100`，默认保持 0.5 秒。该功能只修改夹爪动作，
 不影响双臂关节动作。
 
+按键监听通过 `evdev` 直接读取系统输入设备，程序在后台或其它终端运行时同样生效，
+无需聚焦本终端。需要当前用户对 `/dev/input` 有读权限，如没有请执行后重新登录：
+
+```bash
+sudo usermod -aG input $USER
+```
+
+如果自动识别不到脚踏板，可用 `ls /dev/input/by-id`（或 `sudo evtest`）找到设备，
+再用 `--robot.disturbance.manual_device=/dev/input/eventX` 指定。evdev 不可用时
+自动回退到终端按键监听（此时仅在终端聚焦时有效）。
+
 如需同时启用随机触发（下例为每隔 10～30 秒随机触发一次）：
 
 ```bash
