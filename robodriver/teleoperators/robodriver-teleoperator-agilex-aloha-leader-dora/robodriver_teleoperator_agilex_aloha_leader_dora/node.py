@@ -22,7 +22,7 @@ class DoraTeleoperatorNode(TeleoperatorNode):
 
 class AgilexAlohaLeaderDoraTeleoperatorNode(DoraTeleoperatorNode):
     def __init__(self):
-        self.node = Node("agilex_aloha_aio_dora")
+        self.node = Node("agilex_aloha_leader_dora")
         
         # Update dictionaries to match Agilex Aloha hardware
         self.send_queue = queue.Queue(maxsize=100)
