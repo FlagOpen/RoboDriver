@@ -64,13 +64,13 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
         # 定义所有需要等待的条件及其错误信息
         conditions = [
             (
-                lambda: len(self.robot_dora_node.recv_leader_joint_right) > 0,
-                lambda: [] if len(self.robot_dora_node.recv_leader_joint_right) > 0 else ["recv_leader_joint_right"],
+                lambda: len(self.teleoperator_dora_node.recv_leader_joint_right) > 0,
+                lambda: [] if len(self.teleoperator_dora_node.recv_leader_joint_right) > 0 else ["recv_leader_joint_right"],
                 "等待主臂右臂关节角度超时",
             ),
             (
-                lambda: len(self.robot_dora_node.recv_leader_joint_left) > 0,
-                lambda: [] if len(self.robot_dora_node.recv_leader_joint_left) > 0 else ["recv_leader_joint_left"],
+                lambda: len(self.teleoperator_dora_node.recv_leader_joint_left) > 0,
+                lambda: [] if len(self.teleoperator_dora_node.recv_leader_joint_left) > 0 else ["recv_leader_joint_left"],
                 "等待主臂左臂关节角度超时",
             ),
         ]
@@ -109,9 +109,9 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
                             continue
 
                         if i == 0:  # 右臂关节角度
-                            data_source = self.robot_dora_node.recv_leader_joint_right
+                            data_source = self.teleoperator_dora_node.recv_leader_joint_right
                         else:  # 左臂关节角度
-                            data_source = self.robot_dora_node.recv_leader_joint_left
+                            data_source = self.teleoperator_dora_node.recv_leader_joint_left
                         
                         received_count = len(data_source)
                         msg = f"{base_msg}: 未收到数据; 已收到 {received_count} 个数据点"
@@ -135,12 +135,12 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
         # 右臂关节角度状态
         if conditions[0][0]():
             # 检查recv_leader_joint_right字典中实际接收到的键
-            success_messages.append(f"右臂关节角度: 已接收 ({len(self.robot_dora_node.recv_leader_joint_right)}个数据点)")
+            success_messages.append(f"右臂关节角度: 已接收 ({len(self.teleoperator_dora_node.recv_leader_joint_right)}个数据点)")
 
         # 左臂关节角度状态
         if conditions[1][0]():
             # 检查recv_leader_joint_left字典中实际接收到的键
-            success_messages.append(f"左臂关节角度: 已接收 ({len(self.robot_dora_node.recv_leader_joint_left)}个数据点)")
+            success_messages.append(f"左臂关节角度: 已接收 ({len(self.teleoperator_dora_node.recv_leader_joint_left)}个数据点)")
 
         log_message = "\n[连接成功] 所有设备已就绪:\n"
         log_message += "\n".join(f"  - {msg}" for msg in success_messages)
@@ -180,8 +180,8 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
 
-        self.robot_dora_node.recv_leader_joint_right_status = max(0, self.robot_dora_node.recv_leader_joint_right_status - 1)
-        self.robot_dora_node.recv_leader_joint_left_status = max(0, self.robot_dora_node.recv_leader_joint_left_status - 1)
+        self.teleoperator_dora_node.recv_leader_joint_right_status = max(0, self.teleoperator_dora_node.recv_leader_joint_right_status - 1)
+        self.teleoperator_dora_node.recv_leader_joint_left_status = max(0, self.teleoperator_dora_node.recv_leader_joint_left_status - 1)
         
         # Read arm position
         start = time.perf_counter()
@@ -191,14 +191,14 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
         # Add right arm positions
         for i, motor in enumerate(self.leader_motors):
             if "joint" in motor and "right" in motor:
-                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
+                act_dict[f"leader_{motor}.pos"] = self.teleoperator_dora_node.recv_leader_joint_right[i]
             if "gripper" in motor and "right" in motor:
-                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_right[i]
+                act_dict[f"leader_{motor}.pos"] = self.teleoperator_dora_node.recv_leader_joint_right[i]
 
             if "joint" in motor and "left" in motor:
-                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-7]
+                act_dict[f"leader_{motor}.pos"] = self.teleoperator_dora_node.recv_leader_joint_left[i-7]
             if "gripper" in motor and "left" in motor:
-                act_dict[f"leader_{motor}.pos"] = self.robot_dora_node.recv_leader_joint_left[i-7]
+                act_dict[f"leader_{motor}.pos"] = self.teleoperator_dora_node.recv_leader_joint_left[i-7]
         
         
         dt_ms = (time.perf_counter() - start) * 1e3
@@ -209,17 +209,17 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
     def update_status(self) -> str:
         for i in range(self.status.specifications.camera.number):
             match_name = self.status.specifications.camera.information[i].name
-            for name in self.robot_dora_node.recv_images_status:
+            for name in self.teleoperator_dora_node.recv_images_status:
                 if match_name in name:
                     self.status.specifications.camera.information[i].is_connect = (
-                        True if self.robot_dora_node.recv_images_status[name] > 0 else False
+                        True if self.teleoperator_dora_node.recv_images_status[name] > 0 else False
                     )
 
         self.status.specifications.arm.information[0].is_connect = (
-            True if self.robot_dora_node.recv_leader_joint_right_status > 0 else False
+            True if self.teleoperator_dora_node.recv_leader_joint_right_status > 0 else False
         )
         self.status.specifications.arm.information[1].is_connect = (
-            True if self.robot_dora_node.recv_leader_joint_left_status > 0 else False
+            True if self.teleoperator_dora_node.recv_leader_joint_left_status > 0 else False
         )
 
         return self.status.to_json()
@@ -230,8 +230,8 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
                 "Agilex Aloha is not connected. You need to run `robot.connect()` before disconnecting."
             )
 
-        self.robot_dora_node.running = False
-        self.robot_dora_node.stop()
+        self.teleoperator_dora_node.running = False
+        self.teleoperator_dora_node.stop()
 
         self.connected = False
 
