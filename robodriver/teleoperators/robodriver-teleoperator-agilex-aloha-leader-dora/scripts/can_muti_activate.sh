@@ -1,8 +1,8 @@
 #!/bin/bash
 declare -A USB_PORTS
 
-USB_PORTS["1-1:1.0"]="can_leader_right:1000000"
-USB_PORTS["1-2:1.0"]="can_leader_left:1000000"
+USB_PORTS["1-6:1.0"]="can_l_right:1000000"
+USB_PORTS["1-3:1.0"]="can_l_left:1000000"
 
 # Whether to ignore CAN quantity check (default false)
 IGNORE_CHECK=false

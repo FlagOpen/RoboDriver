@@ -1,6 +1,6 @@
 nodes:
   - id: camera_top
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
@@ -9,10 +9,11 @@ nodes:
       - image_depth
     env:
       VIRTUAL_ENV: camera.venv
-      DEVICE_SERIAL: CC1T35300CF
+      DEVICE_SERIAL: 342622301132
+      ENABLE_DEPTH: "true"
 
   - id: camera_right
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
@@ -21,10 +22,11 @@ nodes:
       - image_depth
     env:
       VIRTUAL_ENV: camera.venv
-      DEVICE_SERIAL: CC1635300DB
+      DEVICE_SERIAL: 346522075761
+      ENABLE_DEPTH: "true"
 
   - id: camera_left
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
@@ -33,7 +35,8 @@ nodes:
       - image_depth
     env:
       VIRTUAL_ENV: camera.venv
-      DEVICE_SERIAL: CC1635300FK
+      DEVICE_SERIAL: 346122071261
+      ENABLE_DEPTH: "true"
 
   - id: piper_follower_right
     build: pip install dora-arm-piper>=0.0.16
@@ -47,7 +50,7 @@ nodes:
       - follower_endpose
     env:
       VIRTUAL_ENV: arm.venv
-      CAN_BUS: can_follower_right
+      CAN_BUS: can_f_right
       ARM_TYPE: follower
       TEACH_MODE: True
 
@@ -63,7 +66,7 @@ nodes:
       - follower_endpose
     env:
       VIRTUAL_ENV: arm.venv
-      CAN_BUS: can_follower_left
+      CAN_BUS: can_f_left
       ARM_TYPE: follower
       TEACH_MODE: True
 
@@ -71,11 +74,11 @@ nodes:
     path: dynamic
     inputs: 
       image_top: camera_top/image
-      # image_depth_top: camera_top/image_depth
+      image_depth_top: camera_top/image_depth
       image_right: camera_right/image
-      # image_depth_right: camera_right/image_depth
+      image_depth_right: camera_right/image_depth
       image_left: camera_left/image
-      # image_depth_left: camera_left/image_depth
+      image_depth_left: camera_left/image_depth
       follower_jointstate_right: piper_follower_right/follower_jointstate
       follower_jointstate_left: piper_follower_left/follower_jointstate
       follower_endpose_right: piper_follower_right/follower_endpose

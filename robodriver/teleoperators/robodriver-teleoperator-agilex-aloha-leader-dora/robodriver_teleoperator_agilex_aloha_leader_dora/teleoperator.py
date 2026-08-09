@@ -25,13 +25,9 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
     def __init__(self, config: AgilexAlohaLeaderDoraTeleoperatorConfig):
         super().__init__(config)
         self.config = config
-        self.robot_type = self.config.type
-        self.use_videos = self.config.use_videos
-        self.microphones = self.config.microphones
+        self.teleoperator_type = self.config.type
 
         self.leader_motors = config.leader_motors
-        self.follower_motors = config.follower_motors
-        self.cameras = make_cameras_from_configs(self.config.cameras)
 
         self.connect_excluded_cameras = ["image_pika_pose"]
 
@@ -49,6 +45,10 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
     @cached_property
     def action_features(self) -> dict[str, type]:
         return {**self._leader_motors_ft}
+
+    @property
+    def feedback_features(self) -> dict[str, type]:
+        return {}
     
     @property
     def is_connected(self) -> bool:
@@ -205,6 +205,15 @@ class AgilexAlohaLeaderDoraTeleoperator(Teleoperator):
         logger.debug(f"{self} read action: {dt_ms:.1f} ms")
 
         return act_dict
+
+    def send_feedback(self, feedback: dict[str, Any]) -> None:
+        if not self.connected:
+            raise DeviceNotConnectedError(
+                f"{self} is not connected. You need to run `robot.connect()`."
+            )
+        
+        logger.critical(f"{self}: send_feedback() not implemented.")
+        raise NotImplementedError
 
     def update_status(self) -> str:
         for i in range(self.status.specifications.camera.number):
