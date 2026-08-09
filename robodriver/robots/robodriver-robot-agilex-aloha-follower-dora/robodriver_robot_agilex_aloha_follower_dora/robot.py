@@ -234,15 +234,15 @@ class AgilexAlohaFollowerDoraRobot(Robot):
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
             elif "gripper" in motor and "right" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_right[i]
-            elif "pose" in motor and "right" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-7]
+            # elif "pose" in motor and "right" in motor:
+            #     obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_right[i-7]
 
             elif "joint" in motor and "left" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
             elif "gripper" in motor and "left" in motor:
                 obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_joint_left[i-13]
-            elif "pose" in motor and "left" in motor:
-                obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-20]
+            # elif "pose" in motor and "left" in motor:
+            #     obs_dict[f"follower_{motor}.pos"] = self.robot_dora_node.recv_follower_endpose_left[i-20]
         
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read state: {dt_ms:.1f} ms")

@@ -1,6 +1,6 @@
 nodes:
   - id: camera_top
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
@@ -13,7 +13,7 @@ nodes:
       ENABLE_DEPTH: "true"
 
   - id: camera_right
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
@@ -26,7 +26,7 @@ nodes:
       ENABLE_DEPTH: "true"
 
   - id: camera_left
-    build: pip install dora-camera-realsense
+    build: pip install dora-camera-realsense>=0.0.2
     path: dora-camera-realsense
     inputs:
       tick: dora/timer/millis/33
