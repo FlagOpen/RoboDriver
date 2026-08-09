@@ -43,7 +43,7 @@ cd RoboDriver/
 进入到 `robodriver-teleoperator-agilex-aloha-leader-dora/` 目录。
 
 ```bash
-cd robodriver/teleoperators/robodriver-robot-agilex-aloha-leader-dora/
+cd robodriver/teleoperators/robodriver-teleoperator-agilex-aloha-leader-dora/
 ```
 
 进入到 `dora/` 目录。

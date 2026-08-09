@@ -29,7 +29,6 @@ class AgilexAlohaFollowerDoraRobot(Robot):
         self.use_videos = self.config.use_videos
         self.microphones = self.config.microphones
 
-        self.leader_motors = config.leader_motors
         self.follower_motors = config.follower_motors
         self.cameras = make_cameras_from_configs(self.config.cameras)
 

@@ -8,7 +8,7 @@ nodes:
       - leader_jointstate
     env:
       VIRTUAL_ENV: arm.venv
-      CAN_BUS: can_leader_right
+      CAN_BUS: can_l_right
       ARM_TYPE: leader
       TEACH_MODE: True
 
@@ -21,7 +21,7 @@ nodes:
       - leader_jointstate
     env:
       VIRTUAL_ENV: arm.venv
-      CAN_BUS: can_leader_left
+      CAN_BUS: can_l_left
       ARM_TYPE: leader
       TEACH_MODE: True
 
