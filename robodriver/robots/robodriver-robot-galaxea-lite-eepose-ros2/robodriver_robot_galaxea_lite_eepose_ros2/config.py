@@ -11,7 +11,7 @@ from lerobot.motors import Motor, MotorNormMode
 class Actuator:
     id: int
 
-@RobotConfig.register_subclass("galaxea-lite-eepose-ros2")
+@RobotConfig.register_subclass("galaxea_lite_eepose_ros2")
 @dataclass
 class GalaxeaLiteEEposeROS2RobotConfig(RobotConfig):
     use_degrees = True
@@ -38,27 +38,43 @@ class GalaxeaLiteEEposeROS2RobotConfig(RobotConfig):
             "torso_joint_1":Motor(15, "sts3215", norm_mode_body),
             "torso_joint_2":Motor(16, "sts3215", norm_mode_body),
             "torso_joint_3":Motor(17, "sts3215", norm_mode_body),
+            "left_arm_pos_x_m": Motor(18, "sts3215", norm_mode_body),
+            "left_arm_pos_y_m": Motor(19, "sts3215", norm_mode_body),
+            "left_arm_pos_z_m": Motor(20, "sts3215", norm_mode_body),
+            "left_arm_quat_w": Motor(21, "sts3215", norm_mode_body),
+            "left_arm_quat_x": Motor(22, "sts3215", norm_mode_body),
+            "left_arm_quat_y": Motor(23, "sts3215", norm_mode_body),
+            "left_arm_quat_z": Motor(24, "sts3215", norm_mode_body),
+            "right_arm_pos_x_m": Motor(25, "sts3215", norm_mode_body),
+            "right_arm_pos_y_m": Motor(26, "sts3215", norm_mode_body),
+            "right_arm_pos_z_m": Motor(27, "sts3215", norm_mode_body),
+            "right_arm_quat_w": Motor(28, "sts3215", norm_mode_body),
+            "right_arm_quat_x": Motor(29, "sts3215", norm_mode_body),
+            "right_arm_quat_y": Motor(30, "sts3215", norm_mode_body),
+            "right_arm_quat_z": Motor(31, "sts3215", norm_mode_body),
         }
     )
 
     actuators: Dict[str, Actuator] = field(
         default_factory=lambda: {
-            "left_arm_pos_x": Actuator(1),
-            "left_arm_pos_y": Actuator(2),
-            "left_arm_pos_z": Actuator(3),
-            "left_arm_quat_x": Actuator(4),
-            "left_arm_quat_y": Actuator(5),
-            "left_arm_quat_z": Actuator(6),
-            "left_arm_quat_w": Actuator(7),
-            "right_arm_pos_x": Actuator(8),
-            "right_arm_pos_y": Actuator(9),
-            "right_arm_pos_z": Actuator(10),
-            "right_arm_quat_x": Actuator(11),
-            "right_arm_quat_y": Actuator(12),
-            "right_arm_quat_z": Actuator(13),
-            "right_arm_quat_w": Actuator(14),
-            "left_gripper_degree_mm": Actuator(15),
-            "right_gripper_degree_mm": Actuator(16),
+            "left_arm_pos_x_m": Actuator(1),
+            "left_arm_pos_y_m": Actuator(2),
+            "left_arm_pos_z_m": Actuator(3),
+            "left_arm_quat_w": Actuator(4),
+            "left_arm_quat_x": Actuator(5),
+            "left_arm_quat_y": Actuator(6),
+            "left_arm_quat_z": Actuator(7),
+
+            "right_arm_pos_x_m": Actuator(8),
+            "right_arm_pos_y_m": Actuator(9),
+            "right_arm_pos_z_m": Actuator(10),
+            "right_arm_quat_w": Actuator(11),
+            "right_arm_quat_x": Actuator(12),
+            "right_arm_quat_y": Actuator(13),
+            "right_arm_quat_z": Actuator(14),
+
+            "left_gripper_percent": Actuator(15),
+            "right_gripper_percent": Actuator(16),
         }
     )
 
