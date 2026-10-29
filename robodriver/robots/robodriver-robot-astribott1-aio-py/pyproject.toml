@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver_robot_astribott1_aio_py"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+    {name = "RoboDriver Community"},
+]
+keywords = ["robotics", "lerobot", "astribot"]
+dependencies = [
+    "logging_mp",
+    "numpy",
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_robot_astribott1_aio_py",
+    "lerobot_robot_astribott1_aio_py",
+]
