@@ -118,15 +118,34 @@ scripts/                     # shell 包装脚本
 
 ## 版本发布流程
 
-主包版本以 `pyproject.toml` 的 `version` 为准，遵循 SemVer。发布步骤：
+本项目采用简化版 Git Flow：`main` 存放已发布代码，`dev` 为开发集成分支，`feature/*` 从 `dev` 拉出并合回 `dev`（合并用 `--no-ff`）。主包版本以 `pyproject.toml` 的 `version` 为准，遵循 SemVer。
 
-1. 在 `main` 上更新 `pyproject.toml` 版本号，并同步更新 `CHANGELOG.md`（新增对应版本小节）。
-2. 提交（如 `chore: bump version to x.y.z`）并推送 `main`。
-3. 创建 annotated tag 并推送：`git tag -a v<x.y.z> -m "Release version <x.y.z>" && git push origin v<x.y.z>`。
-4. 推送 tag 会触发 `.github/workflows/release.yml`：校验 tag 与 `pyproject.toml` 版本一致、`uv build` 构建 sdist/wheel、自动创建 GitHub Release 并附加构建产物（发布说明由 PR/提交自动生成，必要时手动编辑补充）。
-5. 各插件子包（`robodriver/robots/`、`robodriver/teleoperators/`、`components/` 下）版本独立维护，不随主包 tag 发布；需要时在其目录内单独 bump 版本。
+### 正常发布（release 分支）
 
-注意：tag 一旦推送即触发发布，推送前确认 `main` 处于可发布状态（测试通过、CHANGELOG 已更新）。
+1. 从 `dev` 拉出发布分支：`git checkout -b release/v<x.y.z> dev`（分支名带 `v`，与 tag 命名一致）。
+2. 在 release 分支上收尾：bump `pyproject.toml` 版本号、更新 `CHANGELOG.md`、跑测试、修小问题（只做修复，不加新功能）。
+3. 合入 `main` 并打 tag：
+   ```bash
+   git checkout main && git merge --no-ff release/v<x.y.z>
+   git tag -a v<x.y.z> -m "Release version <x.y.z>"
+   git push origin main v<x.y.z>
+   ```
+4. 合回 `dev` 并删除 release 分支：`git checkout dev && git merge --no-ff release/v<x.y.z> && git push origin dev && git branch -d release/v<x.y.z>`。
+5. 推送 tag 会触发 `.github/workflows/release.yml`：校验 tag 与 `pyproject.toml` 版本一致、`uv build` 构建 sdist/wheel、自动创建 GitHub Release 并附加构建产物（发布说明由 PR/提交自动生成，必要时手动编辑补充）。
+
+注意：tag 一旦推送即触发发布，推送前确认 release 分支处于可发布状态（测试通过、CHANGELOG 已更新）。
+
+### 紧急修复（hotfix 分支）
+
+线上版本需要紧急修复时：
+
+1. 从 `main`（即当前发布 tag）拉出：`git checkout -b hotfix/v<x.y.z+1> main`。
+2. 修复并 bump 补丁版本号、更新 `CHANGELOG.md`。
+3. 合回 `main` 打新 tag 发布，同时合回 `dev`，删除 hotfix 分支（命令序列同 release 流程的第 3-4 步）。
+
+### 插件子包
+
+各插件子包（`robodriver/robots/`、`robodriver/teleoperators/`、`components/` 下）版本独立维护，不随主包 tag 发布；需要时在其目录内单独 bump 版本。
 
 ## 安全注意事项
 
