@@ -2,14 +2,16 @@
 from robodriver.core.policies.base_policy import BasePolicy
 from robodriver.core.policies.openpi_policy import OpenPIPolicy
 from robodriver.core.policies.flagscale_policy import FlagScalePolicy
+from robodriver.core.policies.bc_policy import BCPolicy
 
 # 策略注册表，用于根据名称创建策略
 POLICY_REGISTRY = {
     "openpi": OpenPIPolicy,
     "flagscale": FlagScalePolicy,
+    "bc": BCPolicy,
 }
 
-__all__ = ["BasePolicy", "OpenPIPolicy", "FlagScalePolicy", "POLICY_REGISTRY", "create_policy"]
+__all__ = ["BasePolicy", "OpenPIPolicy", "FlagScalePolicy", "BCPolicy", "POLICY_REGISTRY", "create_policy"]
 
 
 def create_policy(policy_type: str = "flagscale", **kwargs):

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robodriver-robot-agilex-aloha-follower-dora"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "Xiang Yang", email = "yangxiang@baai.ac.cn"},
+]
+keywords = ["robotics", "lerobot", "agilex", "aloha"]
+dependencies = [
+    "dora-rs<0.4.0",
+    "logging_mp",
+    "opencv-python",
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "robodriver_robot_agilex_aloha_follower_dora",
+    "lerobot_robot_agilex_aloha_follower_dora"
+]

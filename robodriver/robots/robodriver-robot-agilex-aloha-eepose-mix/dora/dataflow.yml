@@ -1,0 +1,95 @@
+nodes:
+  - id: camera_top
+    build: pip install dora-camera-orbbec-v1
+    path: dora-camera-orbbec-v1
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      VIRTUAL_ENV: camera.venv
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1T35300CF
+
+  - id: camera_right
+    build: pip install dora-camera-orbbec-v1
+    path: dora-camera-orbbec-v1
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      VIRTUAL_ENV: camera.venv
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1635300DB
+
+  - id: camera_left
+    build: pip install dora-camera-orbbec-v1
+    path: dora-camera-orbbec-v1
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+      - image_depth
+    env:
+      VIRTUAL_ENV: camera.venv
+      GET_DEVICE_FROM: SN
+      DEVICE_SN: CC1635300FK
+
+  - id: piper_right
+    build: pip install dora-arm-piper
+    path: dora-arm-piper
+    inputs:
+      tick: dora/timer/millis/20
+      action_joint: agilex_aloha_aio_dora/action_joint_right
+      action_gripper: agilex_aloha_aio_dora/action_gripper_right
+    outputs:
+      - leader_jointstate
+      - follower_jointstate
+      - follower_endpose
+    env:
+      VIRTUAL_ENV: arm.venv
+      CAN_BUS: can_right
+      TEACH_MODE: True
+
+  - id: piper_left
+    build: pip install dora-arm-piper
+    path: dora-arm-piper
+    inputs:
+      tick: dora/timer/millis/20
+      action_joint: agilex_aloha_aio_dora/action_joint_left
+      action_gripper: agilex_aloha_aio_dora/action_gripper_left
+    outputs:
+      - leader_jointstate
+      - follower_jointstate
+      - follower_endpose
+    env:
+      VIRTUAL_ENV: arm.venv
+      CAN_BUS: can_left
+      TEACH_MODE: True
+
+  - id: agilex_aloha_aio_dora
+    path: dynamic
+    inputs: 
+      image_top: camera_top/image
+      # image_depth_top: camera_top/image_depth
+      image_right: camera_right/image
+      # image_depth_right: camera_right/image_depth
+      image_left: camera_left/image
+      # image_depth_left: camera_left/image_depth
+      leader_jointstate_right: piper_right/leader_jointstate
+      leader_jointstate_left: piper_left/leader_jointstate
+      follower_jointstate_right: piper_right/follower_jointstate
+      follower_jointstate_left: piper_left/follower_jointstate
+      follower_endpose_right: piper_right/follower_endpose
+      follower_endpose_left: piper_left/follower_endpose
+    outputs:
+      - action_joint_right
+      - action_joint_left
+      - action_gripper_right
+      - action_gripper_left
+      - action_endpose_right
+      - action_endpose_left
+      

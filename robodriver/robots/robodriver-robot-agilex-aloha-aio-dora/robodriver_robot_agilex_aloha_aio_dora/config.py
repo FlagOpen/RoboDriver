@@ -15,8 +15,8 @@ class AgilexAlohaDisturbanceConfig(DisturbanceConfig):
     enabled: bool = False
     action_overrides: Dict[str, float] = field(
         default_factory=lambda: {
-            "leader_gripper_right.pos": 10.0,
-            "leader_gripper_left.pos": 10.0,
+            "leader_gripper_right.pos": 1.0,
+            "leader_gripper_left.pos": 1.0,
         }
     )
 

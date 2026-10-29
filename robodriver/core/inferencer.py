@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+import cv2
 import logging_mp
 import numpy as np
 import rerun as rr
@@ -30,17 +31,23 @@ class InferenceConfig:
     policy_host: str = "localhost"
     policy_port: int = 8087
     policy_path: str = "/inference"
+    headers: dict[str] | None = None
     api_key: Optional[str] = None
-    
-    # 推理服务类型: "flagscale" (默认) 或 "openpi"
+
+    # 推理服务类型: "flagscale" (默认), "openpi", 或 "bc"
+    # "bc" 使用 bc_robodriver 风格的推理路径：直接从 robot.get_observation()
+    # 提取图像和状态，使用异步 WebSocket + msgpack 通信，不经过 build_dataset_frame
     policy_type: str = "flagscale"
-    
+
+    # 机器人类型，policy_type="bc" 时透传给 BCPolicy 用于观察提取
+    robot_type: Optional[str] = None
+
     # 推理参数
     prompt: str = "default_task"
     max_iterations: int = -1  # -1表示无限循环
     fps: int = 30
     action_chunk_sleep: float = 0.03  # 动作块执行间隔
-    
+
     # Rerun 可视化
     use_rerun: bool = True
 
@@ -101,13 +108,22 @@ class Inferencer:
     def connect(self):
         """主动连接策略服务器"""
         logger.info(f"Creating policy client of type: {self.infer_cfg.policy_type}")
-        
-        self.policy_client = create_policy(
-            policy_type=self.infer_cfg.policy_type,
+
+        kwargs = dict(
             host=self.infer_cfg.policy_host,
             port=self.infer_cfg.policy_port,
             path=self.infer_cfg.policy_path,
             api_key=self.infer_cfg.api_key,
+            headers=self.infer_cfg.headers,
+        )
+        # "bc" 策略需要 robot_type 用于观察提取
+        if self.infer_cfg.policy_type == "bc":
+            robot_type = self.infer_cfg.robot_type or getattr(self.robot, "robot_type", None)
+            kwargs["robot_type"] = robot_type
+
+        self.policy_client = create_policy(
+            policy_type=self.infer_cfg.policy_type,
+            **kwargs,
         )
         logger.info(f"Policy client created: {self.infer_cfg.policy_type}")
 
@@ -158,45 +174,63 @@ class Inferencer:
             logger.info("Policy client disconnected")
 
     def _inference_loop(self):
-        """核心推理循环"""
+        """核心推理循环
+
+        根据 policy_type 选择观察提取方式：
+        - "bc"：使用 BCRobotUtil 直接从 robot.get_observation() 提取图像和状态，
+          不经过 LeRobot 的 build_dataset_frame，动作通过 BCRobotUtil.zip_action 还原为 dict。
+        - 其他（"flagscale", "openpi"）：使用 build_dataset_frame 构建结构化观察帧。
+        """
         logger.info("Starting inference loop...")
-        
+
+        use_bc = self.infer_cfg.policy_type == "bc"
+        if use_bc:
+            from robodriver.core.policies.bc_policy import BCRobotUtil, format_image_for_bc
+            logger.info("BC inference path: using BCRobotUtil for observation extraction")
+
         while self.running:
             try:
                 # 检查是否达到最大迭代次数
                 if 0 < self.infer_cfg.max_iterations <= self.iteration:
                     logger.info(f"Reached max iterations ({self.infer_cfg.max_iterations})")
                     break
-                
+
                 logger.info(f"Inference iteration: {self.iteration}")
-                
+
                 # 获取观察
                 observation = self._get_observation()
-                observation_frame = build_dataset_frame(
-                    self.dataset_features, observation, prefix=OBS_STR
-                )
-                observation_frame["prompt"] = self.infer_cfg.prompt
-                
-                # 记录 observation 到 rerun
-                if self.infer_cfg.use_rerun:
-                    self._log_observation_to_rerun(observation_frame, self.iteration)
-                
-                # 推理获取动作块
-                actions = self._infer(observation_frame)
-                
+
+                if use_bc:
+                    # BC 路径：直接提取图像+状态，构造请求字典
+                    actions = self._infer_bc(observation, self.infer_cfg.prompt)
+                else:
+                    # 默认路径：通过 build_dataset_frame 构建结构化观察帧
+                    observation_frame = build_dataset_frame(
+                        self.dataset_features, observation, prefix=OBS_STR
+                    )
+                    observation_frame["prompt"] = self.infer_cfg.prompt
+
+                    # 记录 observation 到 rerun
+                    if self.infer_cfg.use_rerun:
+                        self._log_observation_to_rerun(observation_frame, self.iteration)
+
+                    actions = self._infer(observation_frame)
+
                 if actions is not None:
-                    # 执行动作块
-                    self._execute_action_chunk(actions, self.iteration)
-                
+                    if use_bc:
+                        self._execute_action_chunk_bc(actions, self.iteration)
+                    else:
+                        self._execute_action_chunk(actions, self.iteration)
+
                 self.iteration += 1
-                
+
                 # 控制推理频率
                 time.sleep(1.0 / self.infer_cfg.fps)
-                
+
             except Exception as e:
                 logger.error(f"Error during inference at iteration {self.iteration}: {e}")
                 time.sleep(0.5)  # 错误后短暂等待
-        
+
         logger.info("Inference loop ended")
 
     def _get_observation(self) -> dict:
@@ -205,6 +239,158 @@ class Inferencer:
             return self.daemon.get_observation()
         else:
             return self.robot.get_observation()
+
+    def _infer_bc(self, observation: dict, prompt: str) -> Optional[dict]:
+        """BC 路径推理
+
+        从原始观察中提取图像和状态，按 FlagScale 服务器期望的格式构造请求：
+        {
+            "images": {
+                "cam_top_left":   [[R_channel], [G_channel], [B_channel]],  # (C, H, W) 列表
+                "cam_top_right":  ...,
+                "cam_wrist_left": ...,
+                "cam_wrist_right":...,
+            },
+            "state":  [float, ...],   # 14 个关节值
+            "prompt": str,
+        }
+
+        Args:
+            observation: robot.get_observation() 返回的原始观察字典
+            prompt: 任务描述字符串
+
+        Returns:
+            策略服务器返回的动作字典，通常包含 "actions" 键；失败返回 None
+        """
+        if self.policy_client is None:
+            logger.error("Policy client not connected")
+            return None
+
+        from robodriver.core.policies.bc_policy import BCRobotUtil
+
+        try:
+            state = BCRobotUtil.extract_state(observation)
+            logger.debug(f"BC state shape: {state.shape}, values: {state}")
+
+            # 图像键映射：obs key → FlagScale 相机名
+            image_key_to_flagscale = {
+                "image_top_left":    "cam_top_left",
+                "image_top_right":   "cam_top_right",
+                "image_wrist_left":  "cam_wrist_left",
+                "image_wrist_right": "cam_wrist_right",
+            }
+
+            images = {}
+            for obs_key, cam_name in image_key_to_flagscale.items():
+                if obs_key not in observation:
+                    logger.warning(f"BC: image key '{obs_key}' not found in observation")
+                    continue
+                img = observation[obs_key]
+                if hasattr(img, "numpy"):
+                    img = img.numpy()
+                img = np.asarray(img)
+
+                # ===================== pi05 端侧 resize 开始 =====================
+                # # uint8 → float32 [0, 1]
+                if img.dtype == np.uint8:
+                    img = img.astype(np.float32) / 255.0
+                # letterbox resize 到 224x224（保持宽高比，黑边填充），与模型内部 resize_with_pad_torch 逻辑一致
+                target_h, target_w = 224, 224
+                cur_h, cur_w = img.shape[:2]
+                ratio = max(cur_w / target_w, cur_h / target_h)
+                new_w = int(cur_w / ratio)
+                new_h = int(cur_h / ratio)
+                resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                # 黑边填充到 224x224
+                pad_top  = (target_h - new_h) // 2
+                pad_left = (target_w - new_w) // 2
+                padded = np.zeros((target_h, target_w, img.shape[2]), dtype=np.float32)
+                padded[pad_top:pad_top + new_h, pad_left:pad_left + new_w] = resized
+                chw = np.transpose(padded, (2, 0, 1))  # HWC → CHW (C, H, W)
+                images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
+                # ===================== pi05 端侧 resize 结束 =====================
+
+                # ===================== GR00T 端侧 resize 开始 =====================
+                # # 输入：RGB, HWC, uint8；输出：RGB, HWC, uint8, 224x224
+                # from PIL import Image as PILImage
+                # if img.dtype != np.uint8:
+                #     img = img.clip(0, 255).astype(np.uint8)
+                # h, w = img.shape[:2]
+                # side = max(h, w)
+                # canvas = np.zeros((side, side, 3), dtype=np.uint8)
+                # top  = (side - h) // 2
+                # left = (side - w) // 2
+                # canvas[top:top + h, left:left + w] = img
+                # resized = PILImage.fromarray(canvas, mode="RGB").resize((224, 224), PILImage.BILINEAR)
+                # img = np.asarray(resized, dtype=np.uint8)
+                # # uint8 → float32 [0, 1]，转 CHW
+                # img_f = img.astype(np.float32) / 255.0
+                # chw = np.transpose(img_f, (2, 0, 1))  # HWC → CHW (C, H, W)
+                # images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
+                # ===================== GR00T 端侧 resize 结束 =====================
+
+            logger.debug(f"BC images: {list(images.keys())}")
+
+            request_data = {
+                "images": images,
+                "state":  state.tolist(),
+                "prompt": prompt,
+            }
+
+            return self.policy_client.infer(request_data)
+        except Exception as e:
+            logger.error(f"BC policy inference failed: {e}")
+            return None
+
+    def _execute_action_chunk_bc(self, action_dict: dict, step: int = 0):
+        """执行 BC 策略返回的动作块
+
+        BC 策略返回 {"actions": ndarray(ACTION_HORIZON, N)}，
+        使用 BCRobotUtil.zip_action 将每行动作与 robot.action_features 的 key 对应，
+        逐步发送给机器人。
+
+        Args:
+            action_dict: BCPolicy.infer() 返回的字典，包含 "actions" 键
+            step: 当前推理步数（用于 rerun 记录）
+        """
+        if action_dict is None:
+            logger.warning("Received None action dict (BC)")
+            return
+
+        from robodriver.core.policies.bc_policy import BCRobotUtil
+
+        actions = action_dict.get("actions")
+        if actions is None:
+            logger.warning("No 'actions' key in BC response dict")
+            return
+
+        if not isinstance(actions, np.ndarray):
+            actions = np.asarray(actions)
+
+        # 确保是 2D 数组
+        if actions.ndim == 1:
+            actions = actions.reshape(1, -1)
+
+        action_features = self.robot.action_features
+        chunk_size = min(actions.shape[0], self.policy_client.ACTION_HORIZON)
+        logger.info(f"BC: executing action chunk with {chunk_size} steps")
+
+        for i in range(chunk_size):
+            if not self.running:
+                logger.info("Stop signal received, aborting BC action chunk execution")
+                break
+
+            action_dict_step = BCRobotUtil.zip_action(actions[i], action_features)
+            logger.debug(f"BC action step {i}: {action_dict_step}")
+
+            # 记录到 rerun
+            if self.infer_cfg.use_rerun:
+                self._log_action_to_rerun(action_dict_step, step + i)
+
+            if action_dict_step:
+                self.robot.send_action(action_dict_step)
+
+            time.sleep(self.infer_cfg.action_chunk_sleep)
 
     def _infer(self, observation_frame: dict) -> Optional[dict]:
         """执行推理"""
