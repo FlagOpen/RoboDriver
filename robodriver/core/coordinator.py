@@ -11,9 +11,9 @@ import logging_mp
 import socketio
 from lerobot.teleoperators import Teleoperator
 
+from robodriver.core.inferencer import InferenceConfig, Inferencer
 from robodriver.core.recorder import Record, RecordConfig
 from robodriver.core.replayer import DatasetReplayConfig, ReplayConfig, replay
-from robodriver.core.inferencer import InferenceConfig, Inferencer
 from robodriver.dataset.dorobot_dataset import *
 from robodriver.dataset.visual.visual_dataset import visualize_dataset
 from robodriver.robots.daemon import Daemon
@@ -373,21 +373,27 @@ class Coordinator:
         elif data.get("cmd") == "start_inference":
             logger.info("处理开始推理命令...")
             msg = data.get("msg")
-            
+
             # 检查是否有其他任务在运行
             if self.recording:
                 logger.warning("Recording is running, cannot start inference.")
-                await self.send_response("start_inference", "Recording is running, cannot start inference")
+                await self.send_response(
+                    "start_inference", "Recording is running, cannot start inference"
+                )
                 return
             if self.replaying:
                 logger.warning("Replay is running, cannot start inference.")
-                await self.send_response("start_inference", "Replay is running, cannot start inference")
+                await self.send_response(
+                    "start_inference", "Replay is running, cannot start inference"
+                )
                 return
             if self.inferring:
                 logger.warning("Inference is already running.")
-                await self.send_response("start_inference", "Inference is already running")
+                await self.send_response(
+                    "start_inference", "Inference is already running"
+                )
                 return
-            
+
             try:
                 # 解析配置
                 fps = msg.get("fps", 30)
@@ -404,20 +410,25 @@ class Coordinator:
                 # policy_port = 8003
                 # policy_path = "/inference"
                 policy_path = ""
-                policy_headers = data_channel.get("headers",None)
+                policy_headers = data_channel.get("headers", None)
                 print(policy_headers)
 
                 if data_channel.get("url"):
                     # 解析 ws://host:port/path 格式
                     import re
-                    url_match = re.match(r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"])
+
+                    url_match = re.match(
+                        r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"]
+                    )
                     if url_match:
                         policy_host = url_match.group(1)
                         policy_port = int(url_match.group(2))
                         if url_match.group(3):
                             policy_path = url_match.group(3)
                     else:
-                        logger.warning(f"Could not parse data_channel URL: {data_channel['url']}")
+                        logger.warning(
+                            f"Could not parse data_channel URL: {data_channel['url']}"
+                        )
 
                 # 策略类型：支持 "flagscale"（默认）、"openpi"、"bc"
                 # "bc" 使用 bc_robodriver 风格的推理路径（直接观察提取 + msgpack WebSocket）
@@ -436,7 +447,7 @@ class Coordinator:
                     prompt=prompt,
                     fps=fps,
                     policy_type=policy_type,
-                    headers=policy_headers
+                    headers=policy_headers,
                 )
 
                 # 创建 inferencer
@@ -468,34 +479,40 @@ class Coordinator:
             # 复位时 gripper 的目标值，默认为 100（RANGE_0_100 归一化下为完全张开，
             # 用于松开工件）；gripper 非 0-100 归一化的机器人可通过消息覆盖
             gripper_reset_value = msg.get("gripper_reset_value", 100)
-            
+
             # 检查是否有其他任务在运行
             if self.recording:
                 logger.warning("Recording is running, cannot reset pose.")
-                await self.send_response("reset_pose", "Recording is running, cannot reset pose")
+                await self.send_response(
+                    "reset_pose", "Recording is running, cannot reset pose"
+                )
                 return
             if self.replaying:
                 logger.warning("Replay is running, cannot reset pose.")
-                await self.send_response("reset_pose", "Replay is running, cannot reset pose")
+                await self.send_response(
+                    "reset_pose", "Replay is running, cannot reset pose"
+                )
                 return
             if self.inferring:
                 logger.warning("Inference is running, cannot reset pose.")
-                await self.send_response("reset_pose", "Inference is running, cannot reset pose")
+                await self.send_response(
+                    "reset_pose", "Inference is running, cannot reset pose"
+                )
                 return
-            
+
             try:
                 robot = self.daemon.robot
                 action_features = robot.action_features
-                
+
                 # 读取当前 observation 获取关节位置
                 observation = self.daemon.get_observation()
                 if observation is None:
                     observation = robot.get_observation()
-                
+
                 # 构建起始位置和目标位置
                 start_pose = {}
                 target_pose = {}
-                
+
                 for key in action_features.keys():
                     # 将 leader_ 替换为 follower_ 去 observation 中查找当前值
                     obs_key = key.replace("leader_", "follower_")
@@ -503,59 +520,65 @@ class Coordinator:
                         start_pose[key] = float(observation[obs_key])
                     else:
                         # 兜底：如果找不到对应字段，使用 0
-                        logger.warning(f"Could not find {obs_key} in observation, using 0 as start value")
+                        logger.warning(
+                            f"Could not find {obs_key} in observation, using 0 as start value"
+                        )
                         start_pose[key] = 0.0
-                    
+
                     # 目标值：gripper 复位到 gripper_reset_value（默认完全张开），
                     # 其他关节复位到 0
                     if "gripper" in key:
                         target_pose[key] = gripper_reset_value
                     else:
                         target_pose[key] = 0.0  # 关节归零
-                
+
                 # 规划匀速轨迹（1.5秒）
                 num_steps = int(1.5 * DEFAULT_FPS)  # 约 45 步 @ 30fps
-                logger.info(f"Planning reset trajectory: {num_steps} steps, duration: 1.5s")
+                logger.info(
+                    f"Planning reset trajectory: {num_steps} steps, duration: 1.5s"
+                )
                 logger.info(f"Start pose: {start_pose}")
                 logger.info(f"Target pose: {target_pose}")
-                
+
                 # 逐步发送插值动作
                 for i in range(1, num_steps + 1):
                     if not self.running:
                         logger.warning("Client disconnected, aborting reset trajectory")
                         break
-                    
+
                     t = i / num_steps  # 插值系数 0 -> 1
                     action = {}
                     for key in action_features.keys():
                         # 线性插值: start + (target - start) * t
-                        action[key] = start_pose[key] + (target_pose[key] - start_pose[key]) * t
-                    
+                        action[key] = (
+                            start_pose[key] + (target_pose[key] - start_pose[key]) * t
+                        )
+
                     robot.send_action(action)
                     time.sleep(1.0 / DEFAULT_FPS)
-                
+
                 logger.info("Reset pose completed successfully")
                 await self.send_response("reset_pose", "success")
-                
+
             except Exception as e:
                 logger.error(f"Failed to reset pose: {e}")
                 await self.send_response("reset_pose", str(e))
 
         elif data.get("cmd") == "stop_inference":
             logger.info("处理停止推理命令...")
-            
+
             if not self.inferring:
                 logger.warning("Inference is not running")
                 await self.send_response("stop_inference", "success")
                 return
-            
+
             try:
                 if self.inferencer is not None:
                     self.inferencer.stop()
                 self.inferring = False
                 logger.info("Inference stopped successfully")
                 await self.send_response("stop_inference", "success")
-                
+
             except Exception as e:
                 logger.error(f"Failed to stop inference: {e}")
                 self.inferring = False
@@ -597,17 +620,17 @@ class Coordinator:
 
     def stream_info_add(self, camera_name: str, camera_id: int):
         """添加或更新单个摄像头的流信息
-        
+
         Args:
             camera_name: 摄像头名字
             camera_id: 摄像头编号
         """
-        if not hasattr(self, 'cameras'):
+        if not hasattr(self, "cameras"):
             self.cameras = {}
-        
+
         self.cameras[camera_name] = camera_id
         logger.info(f"添加摄像头 {camera_name} 编号: {camera_id}")
-        
+
         # 可选：返回更新后的总流数
         return sum(self.cameras.values())
 

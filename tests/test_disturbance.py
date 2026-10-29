@@ -176,11 +176,15 @@ class EvdevDeviceSelectionTest(unittest.TestCase):
             patch("robodriver.core.disturbance.os.path.isdir", return_value=True),
             patch(
                 "robodriver.core.disturbance.glob.glob",
-                side_effect=lambda pattern: ["/dev/input/event0"]
-                if pattern.endswith("event*")
-                else ["/dev/input/event0", "/dev/input/mouse0"]
-                if pattern.endswith("*")
-                else [],
+                side_effect=lambda pattern: (
+                    ["/dev/input/event0"]
+                    if pattern.endswith("event*")
+                    else (
+                        ["/dev/input/event0", "/dev/input/mouse0"]
+                        if pattern.endswith("*")
+                        else []
+                    )
+                ),
             ),
         ):
             paths = self.disturbance._discover_evdev_device_paths()
@@ -188,9 +192,7 @@ class EvdevDeviceSelectionTest(unittest.TestCase):
         self.assertEqual(paths, ["/dev/input/event0", "/dev/input/mouse0"])
 
     def test_unmapped_manual_key_disables_evdev_listener(self):
-        disturbance = ActionDisturbance(
-            DisturbanceConfig(enabled=True, manual_key="?")
-        )
+        disturbance = ActionDisturbance(DisturbanceConfig(enabled=True, manual_key="?"))
 
         self.assertFalse(disturbance._start_evdev_listener())
         self.assertEqual(disturbance._evdev_threads, [])
