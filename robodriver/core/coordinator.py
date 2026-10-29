@@ -464,6 +464,10 @@ class Coordinator:
 
         elif data.get("cmd") == "reset_pose":
             logger.info("处理重置位姿命令...")
+            msg = data.get("msg") or {}
+            # 复位时 gripper 的目标值，默认为 100（RANGE_0_100 归一化下为完全张开，
+            # 用于松开工件）；gripper 非 0-100 归一化的机器人可通过消息覆盖
+            gripper_reset_value = msg.get("gripper_reset_value", 100)
             
             # 检查是否有其他任务在运行
             if self.recording:
@@ -502,10 +506,10 @@ class Coordinator:
                         logger.warning(f"Could not find {obs_key} in observation, using 0 as start value")
                         start_pose[key] = 0.0
                     
-                    # 目标值：gripper 复位到 100（RANGE_0_100 归一化下为完全张开，
-                    # 用于松开工件），其他关节复位到 0
+                    # 目标值：gripper 复位到 gripper_reset_value（默认完全张开），
+                    # 其他关节复位到 0
                     if "gripper" in key:
-                        target_pose[key] = 100
+                        target_pose[key] = gripper_reset_value
                     else:
                         target_pose[key] = 0.0  # 关节归零
                 
