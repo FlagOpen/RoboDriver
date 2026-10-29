@@ -502,7 +502,8 @@ class Coordinator:
                         logger.warning(f"Could not find {obs_key} in observation, using 0 as start value")
                         start_pose[key] = 0.0
                     
-                    # 目标值：gripper 保持当前值不调整，其他关节复位到 0
+                    # 目标值：gripper 复位到 100（RANGE_0_100 归一化下为完全张开，
+                    # 用于松开工件），其他关节复位到 0
                     if "gripper" in key:
                         target_pose[key] = 100
                     else:
