@@ -116,6 +116,18 @@ scripts/                     # shell 包装脚本
 - PR 目标分支为 **`dev`**（README 贡献指南明确要求）。
 - 部分源自 LeRobot 的文件保留 Apache 2.0 版权头，修改时予以保留。
 
+## 版本发布流程
+
+主包版本以 `pyproject.toml` 的 `version` 为准，遵循 SemVer。发布步骤：
+
+1. 在 `main` 上更新 `pyproject.toml` 版本号，并同步更新 `CHANGELOG.md`（新增对应版本小节）。
+2. 提交（如 `chore: bump version to x.y.z`）并推送 `main`。
+3. 创建 annotated tag 并推送：`git tag -a v<x.y.z> -m "Release version <x.y.z>" && git push origin v<x.y.z>`。
+4. 推送 tag 会触发 `.github/workflows/release.yml`：校验 tag 与 `pyproject.toml` 版本一致、`uv build` 构建 sdist/wheel、自动创建 GitHub Release 并附加构建产物（发布说明由 PR/提交自动生成，必要时手动编辑补充）。
+5. 各插件子包（`robodriver/robots/`、`robodriver/teleoperators/`、`components/` 下）版本独立维护，不随主包 tag 发布；需要时在其目录内单独 bump 版本。
+
+注意：tag 一旦推送即触发发布，推送前确认 `main` 处于可发布状态（测试通过、CHANGELOG 已更新）。
+
 ## 安全注意事项
 
 - 不要提交任何密钥/凭据（pre-commit 已配置 `detect-private-key`）。
