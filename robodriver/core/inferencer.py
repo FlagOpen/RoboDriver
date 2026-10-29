@@ -7,7 +7,6 @@ import cv2
 import logging_mp
 import numpy as np
 import rerun as rr
-
 from lerobot.datasets.pipeline_features import (
     aggregate_pipeline_dataset_features,
     create_initial_features,
@@ -18,8 +17,8 @@ from lerobot.robots import Robot
 from lerobot.teleoperators import Teleoperator
 from lerobot.utils.constants import ACTION, OBS_STR
 
+from robodriver.core.policies import BasePolicy, create_policy
 from robodriver.robots.daemon import Daemon
-from robodriver.core.policies import create_policy, BasePolicy
 
 logger = logging_mp.get_logger(__name__)
 
@@ -27,6 +26,7 @@ logger = logging_mp.get_logger(__name__)
 @dataclass
 class InferenceConfig:
     """推理配置"""
+
     # Policy server 配置
     policy_host: str = "localhost"
     policy_port: int = 8087
@@ -54,7 +54,7 @@ class InferenceConfig:
 
 class Inferencer:
     """推理器类，负责连接策略服务器并执行推理"""
-    
+
     def __init__(
         self,
         robot: Robot,
@@ -66,17 +66,17 @@ class Inferencer:
         self.daemon = daemon
         self.teleop = teleop
         self.infer_cfg = infer_cfg or InferenceConfig()
-        
+
         # 内部状态
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.policy_client = None
         self.dataset_features = None
         self.iteration = 0
-        
+
         # 初始化 processors 和 dataset_features
         self._init_processors_and_features()
-        
+
     def _init_processors_and_features(self):
         """初始化 processors 和 dataset features"""
         teleop_action_processor, robot_action_processor, robot_observation_processor = (
@@ -84,8 +84,8 @@ class Inferencer:
         )
 
         action_features = (
-            self.teleop.action_features 
-            if self.teleop is not None 
+            self.teleop.action_features
+            if self.teleop is not None
             else self.robot.action_features
         )
 
@@ -103,7 +103,9 @@ class Inferencer:
                 use_videos=False,
             ),
         )
-        logger.info(f"Dataset features initialized: {list(self.dataset_features.keys())}")
+        logger.info(
+            f"Dataset features initialized: {list(self.dataset_features.keys())}"
+        )
 
     def connect(self):
         """主动连接策略服务器"""
@@ -118,7 +120,9 @@ class Inferencer:
         )
         # "bc" 策略需要 robot_type 用于观察提取
         if self.infer_cfg.policy_type == "bc":
-            robot_type = self.infer_cfg.robot_type or getattr(self.robot, "robot_type", None)
+            robot_type = self.infer_cfg.robot_type or getattr(
+                self.robot, "robot_type", None
+            )
             kwargs["robot_type"] = robot_type
 
         self.policy_client = create_policy(
@@ -132,7 +136,7 @@ class Inferencer:
         if self.running:
             logger.warning("Inferencer is already running")
             return
-        
+
         self.running = True
         self.iteration = 0
         self.thread = threading.Thread(
@@ -148,16 +152,16 @@ class Inferencer:
         if not self.running:
             logger.warning("Inferencer is not running")
             return
-        
+
         self.running = False
         if self.thread is not None:
             self.thread.join(timeout=5.0)
             if self.thread.is_alive():
                 logger.warning("Warning: Inferencer thread did not exit cleanly")
-        
+
         # 关闭 policy client
         self.disconnect()
-        
+
         logger.info("Inferencer stopped")
 
     def disconnect(self):
@@ -185,14 +189,22 @@ class Inferencer:
 
         use_bc = self.infer_cfg.policy_type == "bc"
         if use_bc:
-            from robodriver.core.policies.bc_policy import BCRobotUtil, format_image_for_bc
-            logger.info("BC inference path: using BCRobotUtil for observation extraction")
+            from robodriver.core.policies.bc_policy import (
+                BCRobotUtil,
+                format_image_for_bc,
+            )
+
+            logger.info(
+                "BC inference path: using BCRobotUtil for observation extraction"
+            )
 
         while self.running:
             try:
                 # 检查是否达到最大迭代次数
                 if 0 < self.infer_cfg.max_iterations <= self.iteration:
-                    logger.info(f"Reached max iterations ({self.infer_cfg.max_iterations})")
+                    logger.info(
+                        f"Reached max iterations ({self.infer_cfg.max_iterations})"
+                    )
                     break
 
                 logger.info(f"Inference iteration: {self.iteration}")
@@ -212,7 +224,9 @@ class Inferencer:
 
                     # 记录 observation 到 rerun
                     if self.infer_cfg.use_rerun:
-                        self._log_observation_to_rerun(observation_frame, self.iteration)
+                        self._log_observation_to_rerun(
+                            observation_frame, self.iteration
+                        )
 
                     actions = self._infer(observation_frame)
 
@@ -228,7 +242,9 @@ class Inferencer:
                 time.sleep(1.0 / self.infer_cfg.fps)
 
             except Exception as e:
-                logger.error(f"Error during inference at iteration {self.iteration}: {e}")
+                logger.error(
+                    f"Error during inference at iteration {self.iteration}: {e}"
+                )
                 time.sleep(0.5)  # 错误后短暂等待
 
         logger.info("Inference loop ended")
@@ -250,8 +266,9 @@ class Inferencer:
                 "cam_top_right":  ...,
                 "cam_wrist_left": ...,
                 "cam_wrist_right":...,
+                # 单臂（SO101）则为 "cam_top" / "cam_wrist"
             },
-            "state":  [float, ...],   # 14 个关节值
+            "state":  [float, ...],   # 关节值，维度由机器人决定（双臂14维，SO101单臂6维）
             "prompt": str,
         }
 
@@ -273,17 +290,21 @@ class Inferencer:
             logger.debug(f"BC state shape: {state.shape}, values: {state}")
 
             # 图像键映射：obs key → FlagScale 相机名
+            # 双臂（galaxea 等）：cam_top_left/right + cam_wrist_left/right
+            # 单臂（SO101）：cam_top + cam_wrist
             image_key_to_flagscale = {
-                "image_top_left":    "cam_top_left",
-                "image_top_right":   "cam_top_right",
-                "image_wrist_left":  "cam_wrist_left",
+                "image_top_left": "cam_top_left",
+                "image_top_right": "cam_top_right",
+                "image_wrist_left": "cam_wrist_left",
                 "image_wrist_right": "cam_wrist_right",
+                "image_top_rgb": "cam_top",
+                "image_top": "cam_top",
+                "image_wrist": "cam_wrist",
             }
 
             images = {}
             for obs_key, cam_name in image_key_to_flagscale.items():
                 if obs_key not in observation:
-                    logger.warning(f"BC: image key '{obs_key}' not found in observation")
                     continue
                 img = observation[obs_key]
                 if hasattr(img, "numpy"):
@@ -300,12 +321,14 @@ class Inferencer:
                 ratio = max(cur_w / target_w, cur_h / target_h)
                 new_w = int(cur_w / ratio)
                 new_h = int(cur_h / ratio)
-                resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                resized = cv2.resize(
+                    img, (new_w, new_h), interpolation=cv2.INTER_LINEAR
+                )
                 # 黑边填充到 224x224
-                pad_top  = (target_h - new_h) // 2
+                pad_top = (target_h - new_h) // 2
                 pad_left = (target_w - new_w) // 2
                 padded = np.zeros((target_h, target_w, img.shape[2]), dtype=np.float32)
-                padded[pad_top:pad_top + new_h, pad_left:pad_left + new_w] = resized
+                padded[pad_top : pad_top + new_h, pad_left : pad_left + new_w] = resized
                 chw = np.transpose(padded, (2, 0, 1))  # HWC → CHW (C, H, W)
                 images[cam_name] = [chw[0].tolist(), chw[1].tolist(), chw[2].tolist()]
                 # ===================== pi05 端侧 resize 结束 =====================
@@ -330,10 +353,12 @@ class Inferencer:
                 # ===================== GR00T 端侧 resize 结束 =====================
 
             logger.debug(f"BC images: {list(images.keys())}")
+            if not images:
+                logger.warning("BC: no images found in observation")
 
             request_data = {
                 "images": images,
-                "state":  state.tolist(),
+                "state": state.tolist(),
                 "prompt": prompt,
             }
 
@@ -397,7 +422,7 @@ class Inferencer:
         if self.policy_client is None:
             logger.error("Policy client not connected")
             return None
-        
+
         try:
             actions = self.policy_client.infer(observation_frame)
             return actions
@@ -415,6 +440,7 @@ class Inferencer:
             if isinstance(raw_data, str):
                 # Base64 encoded string
                 import base64
+
                 raw_bytes = base64.b64decode(raw_data)
             else:
                 raw_bytes = raw_data
@@ -427,13 +453,13 @@ class Inferencer:
         if action_dict is None:
             logger.warning("Received None action dict")
             return
-        
+
         # 从字典中提取 actions
         actions = action_dict.get("actions")
         if actions is None:
             logger.warning("No 'actions' key in returned dict")
             return
-        
+
         # 转换为 numpy 数组，处理序列化的 ndarray 格式
         if isinstance(actions, dict) and actions.get("__ndarray__"):
             actions = self._decode_serialized_ndarray(actions)
@@ -443,30 +469,30 @@ class Inferencer:
             actions = np.asarray(actions)
 
         logger.info(f"inference get actions:{actions}")
-        
+
         # 确保是 2D 数组
         if actions.ndim == 1:
             actions = actions.reshape(1, -1)
-        
+
         action_features = self.robot.action_features
         chunk_size = actions.shape[0]
         logger.info(f"Executing action chunk with {chunk_size} steps")
-        
+
         for i in range(chunk_size):
             if not self.running:
                 logger.info("Stop signal received, aborting action chunk execution")
                 break
-            
+
             # 将 numpy 数组转换为 dict 格式
             action_array = actions[i]
             action_for_robot = self._numpy_to_action_dict(action_array, action_features)
-            
+
             logger.info(f"inference get action_for_robot:{action_for_robot}")
 
             # 记录到 rerun
             if self.infer_cfg.use_rerun:
                 self._log_action_to_rerun(action_for_robot, step + i)
-            
+
             logger.info(f"will send action_for_robot.")
 
             if action_for_robot:
@@ -481,17 +507,17 @@ class Inferencer:
         """将 numpy 动作数组转换为 robot.send_action 需要的 dict 格式"""
         if action_array is None:
             return None
-        
+
         # 转换为 numpy 数组
         if hasattr(action_array, "numpy"):
             action_array = action_array.numpy()
-        
+
         action_array = np.asarray(action_array)
-        
+
         # 确保是 1D 数组
         if action_array.ndim == 2:
             action_array = action_array.flatten()
-        
+
         # 转换为 dict
         action_keys = list(action_features.keys())
         if len(action_keys) != len(action_array):
@@ -499,22 +525,22 @@ class Inferencer:
                 f"Action array length ({len(action_array)}) doesn't match "
                 f"action_features ({len(action_keys)})"
             )
-        
+
         action_dict = {}
         for key, val in zip(action_keys, action_array):
             action_dict[key] = float(val)
-        
+
         return action_dict
 
     @staticmethod
     def _log_observation_to_rerun(observation_frame: dict, step: int):
         """将 observation 记录到 rerun"""
         rr.set_time("frame_idx", sequence=step)
-        
+
         # 记录 prompt
         if "prompt" in observation_frame:
             rr.log("observation/prompt", rr.TextLog(str(observation_frame["prompt"])))
-        
+
         # 记录图像
         for key, img in observation_frame.items():
             if key.startswith("observation.images."):
@@ -532,24 +558,23 @@ class Inferencer:
         """将 action 记录到 rerun"""
         if action_dict is None:
             return
-        
+
         rr.set_time("frame_idx", sequence=step)
-        
+
         for key, val in action_dict.items():
             # 将 key 中的特殊字符替换为 /
             rr_key = key.replace(".", "/")
             # Use rr.Scalar for single scalar values (accepts float directly)
             rr.log(f"action/{rr_key}", rr.Scalars(float(val)))
 
-
     @staticmethod
     def _log_action_list_to_rerun(action_list: list, step: int):
         """将 action 记录到 rerun"""
         if action_list is None:
             return
-        
+
         rr.set_time("frame_idx", sequence=step)
-        
+
         for i, val in enumerate(action_list):
             # 将 key 中的特殊字符替换为 /
             # rr_key = key.replace(".", "/")

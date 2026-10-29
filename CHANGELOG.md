@@ -2,6 +2,14 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/) 与 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 约定。
 
+## [Unreleased]
+
+### 新增
+
+- BC 推理路径支持 SO101 单臂机器人：`BCRobotUtil.extract_state` 改为按标量类型提取关节状态（维度不再硬编码 14），图像映射新增 `image_top_rgb`/`image_top` → `cam_top`、`image_wrist` → `cam_wrist`。
+- `robodriver-robot-so101-follower-dora` README 新增推理使用说明。
+- 新增 `tests/test_bc_policy.py` 覆盖观察提取与动作打包。
+
 ## [0.0.4] - 2026-10-29
 
 ### 新增

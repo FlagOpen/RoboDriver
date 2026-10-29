@@ -3,8 +3,10 @@
 参考 bc_robodriver/RoboDriver/robodriver/infer_script/policy_pi_flag_platform.py
 使用 BCRobotUtil 进行机器人特定的观察提取，使用异步 WebSocket + msgpack 通信。
 """
+
 import asyncio
 import logging
+import numbers
 from typing import Any, Dict, List, Optional
 
 import msgpack
@@ -31,7 +33,9 @@ def _encode_ndarray(obj):
 def _decode_ndarray(obj):
     """解码 msgpack 格式的 numpy 数组"""
     if isinstance(obj, dict) and obj.get("__ndarray__"):
-        return np.frombuffer(obj["data"], dtype=np.dtype(obj["dtype"])).reshape(obj["shape"])
+        return np.frombuffer(obj["data"], dtype=np.dtype(obj["dtype"])).reshape(
+            obj["shape"]
+        )
     return obj
 
 
@@ -46,6 +50,7 @@ def _unpack(data):
 def format_image_for_bc(img: np.ndarray) -> np.ndarray:
     """将图像从 (H, W, C) uint8 转换为 (C, H, W) float32，并 resize 到 224x224."""
     import cv2
+
     img = cv2.resize(img, (224, 224), interpolation=cv2.INTER_LINEAR)
     img = np.transpose(img, (2, 0, 1))
     img = img.astype(np.float32) / 255.0
@@ -61,6 +66,7 @@ class BCRobotUtil:
     CAM_TOP = "top"
     CAM_TOP_LEFT = "top_left"
     CAM_TOP_RIGHT = "top_right"
+    CAM_WRIST = "wrist"
     CAM_WRIST_LEFT = "wrist_left"
     CAM_WRIST_RIGHT = "wrist_right"
 
@@ -68,22 +74,17 @@ class BCRobotUtil:
     def extract_state(obs: dict) -> np.ndarray:
         """从观察中提取关节状态数据
 
-        参考 bc_robodriver 原始实现：直接取 obs.values() 的前 14 个值，
-        对应 follower 左臂 7 个关节 + 右臂 7 个关节（关节角 + 夹爪）。
-
-        get_observation() 的字段顺序为：
-          follower_left_arm_joint_1_rad.pos ~ follower_right_gripper_degree_mm.pos (14个)
-          image_top_left, image_top_right, image_wrist_left, image_wrist_right
+        取 obs 中所有标量值（关节角、夹爪等），跳过 ndarray 图像，
+        维度由机器人决定：galaxea 双臂为 14 维（左臂7 + 右臂7），
+        SO101 单臂为 6 维（5 关节 + 夹爪）。
 
         Args:
             obs: robot.get_observation() 返回的原始观察字典
 
         Returns:
-            float32 状态数组，shape (14,)
+            float32 状态数组，shape (N,)，N 为关节状态维度
         """
-        vals = list(obs.values())
-        # 前 14 个值为关节状态（左臂7 + 右臂7），后面是图像
-        state = [float(v) for v in vals[:14]]
+        state = [float(v) for v in obs.values() if isinstance(v, numbers.Real)]
         return np.asarray(state, dtype=np.float32)
 
     @staticmethod
@@ -91,10 +92,12 @@ class BCRobotUtil:
         """从观察中提取图像数据，映射到标准相机位置名称
 
         直接按 obs 中的 image_* 键查找，映射规则：
-          image_top_left   → top_left
-          image_top_right  → top_right
-          image_wrist_left → wrist_left
-          image_wrist_right→ wrist_right
+          双臂：image_top_left   → top_left
+                image_top_right  → top_right
+                image_wrist_left → wrist_left
+                image_wrist_right→ wrist_right
+          单臂（SO101）：image_top_rgb / image_top → top
+                image_wrist      → wrist
 
         Args:
             obs: robot.get_observation() 返回的原始观察字典
@@ -105,10 +108,13 @@ class BCRobotUtil:
         """
         # image key → 标准相机名映射
         key_to_cam = {
-            "image_top_left":    BCRobotUtil.CAM_TOP_LEFT,
-            "image_top_right":   BCRobotUtil.CAM_TOP_RIGHT,
-            "image_wrist_left":  BCRobotUtil.CAM_WRIST_LEFT,
+            "image_top_left": BCRobotUtil.CAM_TOP_LEFT,
+            "image_top_right": BCRobotUtil.CAM_TOP_RIGHT,
+            "image_wrist_left": BCRobotUtil.CAM_WRIST_LEFT,
             "image_wrist_right": BCRobotUtil.CAM_WRIST_RIGHT,
+            "image_top_rgb": BCRobotUtil.CAM_TOP,
+            "image_top": BCRobotUtil.CAM_TOP,
+            "image_wrist": BCRobotUtil.CAM_WRIST,
         }
         images = {}
         for key, cam_name in key_to_cam.items():
@@ -165,7 +171,7 @@ class BCPolicy(BasePolicy):
         host: str = "localhost",
         port: int = 8087,
         path: str = "",
-        headers = None,
+        headers=None,
         api_key: Optional[str] = None,
         robot_type: Optional[str] = None,
         timeout: float = 15.0,
