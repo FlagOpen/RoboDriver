@@ -57,7 +57,7 @@ robodriver/                  # 主 Python 包
 │   ├── disturbance.py       # 动作扰动注入（有单测覆盖）
 │   ├── simulator.py         # 仿真封装（mujoco）
 │   ├── ros2thread.py        # ROS2 节点线程管理（robot/teleop type 含 "ros2"/"mix" 时启用）
-│   └── policies/            # 推理策略：bc / flagscale / openpi
+│   └── policies/            # 推理策略：bc / flagscale / openpi / lerobot
 ├── robots/                  # 机器人插件目录 + Daemon/configs/statuses 基础设施
 │   └── robodriver-robot-*   # 每个机器人适配是一个独立的可安装子包
 ├── teleoperators/           # 遥操插件（leader 臂、键盘、autotask）

@@ -34,13 +34,17 @@ class InferenceConfig:
     headers: dict[str] | None = None
     api_key: Optional[str] = None
 
-    # 推理服务类型: "flagscale" (默认), "openpi", 或 "bc"
+    # 推理服务类型: "flagscale" (默认), "openpi", "bc" 或 "lerobot"
     # "bc" 使用 bc_robodriver 风格的推理路径：直接从 robot.get_observation()
     # 提取图像和状态，使用异步 WebSocket + msgpack 通信，不经过 build_dataset_frame
+    # "lerobot" 使用 LeRobot WebSocket 服务，保留完整观察键名并发送 HWC uint8 图像
     policy_type: str = "flagscale"
 
     # 机器人类型，policy_type="bc" 时透传给 BCPolicy 用于观察提取
     robot_type: Optional[str] = None
+
+    # LeRobot 驱动观察键到 checkpoint 特征键的映射
+    camera_mapping: dict[str, str] | None = None
 
     # 推理参数
     prompt: str = "default_task"
@@ -124,6 +128,8 @@ class Inferencer:
                 self.robot, "robot_type", None
             )
             kwargs["robot_type"] = robot_type
+        elif self.infer_cfg.policy_type == "lerobot":
+            kwargs["camera_mapping"] = self.infer_cfg.camera_mapping
 
         self.policy_client = create_policy(
             policy_type=self.infer_cfg.policy_type,
@@ -183,7 +189,7 @@ class Inferencer:
         根据 policy_type 选择观察提取方式：
         - "bc"：使用 BCRobotUtil 直接从 robot.get_observation() 提取图像和状态，
           不经过 LeRobot 的 build_dataset_frame，动作通过 BCRobotUtil.zip_action 还原为 dict。
-        - 其他（"flagscale", "openpi"）：使用 build_dataset_frame 构建结构化观察帧。
+        - 其他（"flagscale", "openpi", "lerobot"）：使用 build_dataset_frame 构建结构化观察帧。
         """
         logger.info("Starting inference loop...")
 
@@ -476,6 +482,10 @@ class Inferencer:
 
         action_features = self.robot.action_features
         chunk_size = actions.shape[0]
+        action_sleep = self.infer_cfg.action_chunk_sleep
+        action_fps = action_dict.get("action_fps")
+        if action_fps is not None and float(action_fps) > 0:
+            action_sleep = 1.0 / float(action_fps)
         logger.info(f"Executing action chunk with {chunk_size} steps")
 
         for i in range(chunk_size):
@@ -500,7 +510,7 @@ class Inferencer:
 
             logger.info(f"send action_for_robot success.")
 
-            time.sleep(self.infer_cfg.action_chunk_sleep)
+            time.sleep(action_sleep)
 
     @staticmethod
     def _numpy_to_action_dict(action_array, action_features) -> Optional[dict]:

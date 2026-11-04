@@ -1,10 +1,10 @@
-from typing import Dict
 from dataclasses import dataclass, field
+from typing import Dict
 
-from lerobot.robots.config import RobotConfig
 from lerobot.cameras import CameraConfig
 from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.motors import Motor, MotorNormMode
+from lerobot.robots.config import RobotConfig
 
 
 @RobotConfig.register_subclass("so101_aio_dora")
@@ -62,5 +62,6 @@ class SO101AIODoraRobotConfig(RobotConfig):
 
     use_videos: bool = False
 
-    microphones: Dict[str, int] = field(default_factory=lambda: {})
+    require_leader: bool = True
 
+    microphones: Dict[str, int] = field(default_factory=lambda: {})

@@ -137,6 +137,18 @@ uv pip install -e .
 robodriver-run --robot.type=so101_aio_dora
 ```
 
+## LeRobot 推理
+
+AIO 插件也可以用于 LeRobot 推理。如果不需要主臂参与，可跳过 RoboDriver 对主臂关节数据的等待：
+
+```bash
+robodriver-run --robot.type=so101_aio_dora --robot.require_leader=false
+```
+
+然后在平台发送 `start_inference`，设置 `policy_type=lerobot`、`data_channel.url=ws://10.1.2.74:8003` 和任务 `prompt`。当前 ACT 模型直接使用 AIO 的 `observation.images.image_top` 和 `observation.images.image_wrist`，不需要额外相机映射。
+
+`require_leader=false` 只跳过 RoboDriver 的主臂数据检查，`dora/dataflow.yml` 中仍保留主臂节点。推理时可在确保机械臂安全的前提下断开主臂，避免 `arm_so101_leader/all_joint` 继续向从臂发送遥操动作；如果需要从启动时起就完全移除主臂节点，还应同步移除 dataflow 中该节点及其连线。
+
 ## TODO
 
 - 完善校准程序

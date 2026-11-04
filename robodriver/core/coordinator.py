@@ -430,8 +430,9 @@ class Coordinator:
                             f"Could not parse data_channel URL: {data_channel['url']}"
                         )
 
-                # 策略类型：支持 "flagscale"（默认）、"openpi"、"bc"
+                # 策略类型：支持 "flagscale"、"openpi"、"bc"（默认）和 "lerobot"
                 # "bc" 使用 bc_robodriver 风格的推理路径（直接观察提取 + msgpack WebSocket）
+                # "lerobot" 使用平台部署的 LeRobot WebSocket 推理服务
                 policy_type = msg.get("policy_type", "bc")
 
                 logger.info(
@@ -448,6 +449,7 @@ class Coordinator:
                     fps=fps,
                     policy_type=policy_type,
                     headers=policy_headers,
+                    camera_mapping=msg.get("camera_mapping"),
                 )
 
                 # 创建 inferencer
