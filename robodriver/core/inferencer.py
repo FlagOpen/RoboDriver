@@ -1,7 +1,7 @@
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Dict, Optional
 
 import cv2
 import logging_mp
@@ -31,7 +31,7 @@ class InferenceConfig:
     policy_host: str = "localhost"
     policy_port: int = 8087
     policy_path: str = "/inference"
-    headers: dict[str] | None = None
+    headers: Optional[Dict[str, str]] = None
     api_key: Optional[str] = None
 
     # 推理服务类型: "flagscale" (默认), "openpi", "bc" 或 "lerobot"
@@ -44,7 +44,7 @@ class InferenceConfig:
     robot_type: Optional[str] = None
 
     # LeRobot 驱动观察键到 checkpoint 特征键的映射
-    camera_mapping: dict[str, str] | None = None
+    camera_mapping: Optional[Dict[str, str]] = None
 
     # 推理参数
     prompt: str = "default_task"
@@ -157,7 +157,6 @@ class Inferencer:
         """停止推理"""
         if not self.running:
             logger.warning("Inferencer is not running")
-            return
 
         self.running = False
         if self.thread is not None:
@@ -253,6 +252,7 @@ class Inferencer:
                 )
                 time.sleep(0.5)  # 错误后短暂等待
 
+        self.running = False
         logger.info("Inference loop ended")
 
     def _get_observation(self) -> dict:

@@ -159,6 +159,24 @@ class LeRobotActionExecutionTest(unittest.TestCase):
 
         self.assertEqual(sleep.call_args_list, [call(0.05), call(0.05)])
 
+    def test_max_iterations_stops_loop_and_closes_policy(self):
+        inferencer = object.__new__(Inferencer)
+        inferencer.infer_cfg = SimpleNamespace(
+            policy_type="lerobot",
+            max_iterations=1,
+        )
+        inferencer.iteration = 1
+        inferencer.running = True
+        inferencer.thread = None
+        inferencer.policy_client = LeRobotPolicy()
+
+        inferencer._inference_loop()
+        self.assertFalse(inferencer.running)
+
+        with patch.object(inferencer.policy_client, "close") as close:
+            inferencer.stop()
+            close.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()
