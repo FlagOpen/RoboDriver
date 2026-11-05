@@ -52,6 +52,7 @@ class FlagScalePolicy(BasePolicy):
         port: int = 8087,
         path: str = "/inference",
         api_key: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
         camera_mapping: Optional[Dict[str, str]] = None,
     ):
         """初始化 FlagScale 策略客户端
@@ -61,12 +62,15 @@ class FlagScalePolicy(BasePolicy):
             port: 服务器端口
             path: API 路径
             api_key: API 认证密钥
+            headers: 自定义 WebSocket 请求头
             camera_mapping: 自定义相机名称映射，如果为 None 则使用默认映射
         """
         self._host = host
         self._port = port
         self._path = path
-        self._api_key = api_key
+        self._headers = dict(headers) if headers else {}
+        if api_key and "Authorization" not in self._headers:
+            self._headers["Authorization"] = f"Api-Key {api_key}"
         self._camera_mapping = camera_mapping or CAMERA_NAME_MAPPING
         self._client = None
         self._packer = None
@@ -100,14 +104,12 @@ class FlagScalePolicy(BasePolicy):
         """等待服务器可用并建立连接"""
         while True:
             try:
-                headers = {"Authorization": f"Api-Key {self._api_key}"} if self._api_key else None
-                
                 logger.info(f"Trying to connect server at {url}...")
                 self._client = websockets.sync.client.connect(
                     url,
                     compression=None,
                     max_size=None,
-                    additional_headers=headers
+                    additional_headers=self._headers or None,
                 )
                 logger.info(f"Connect server {url} success.")
                 

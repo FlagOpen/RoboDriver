@@ -27,6 +27,7 @@ class OpenPIPolicy(BasePolicy):
         port: int = 8087,
         path: str = "/inference",
         api_key: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
     ):
         """初始化 OpenPI 策略客户端
         
@@ -35,11 +36,13 @@ class OpenPIPolicy(BasePolicy):
             port: 服务器端口
             path: API 路径
             api_key: API 认证密钥
+            headers: 自定义 WebSocket 请求头
         """
         self._host = host
         self._port = port
         self._path = path
         self._api_key = api_key
+        self._headers = dict(headers) if headers else {}
         self._client = None
         
         # 延迟连接，在首次 infer 时连接
@@ -62,7 +65,8 @@ class OpenPIPolicy(BasePolicy):
         self._client = websocket_client_policy.WebsocketClientPolicy(
             host=url,
             port=None,  # URL 已包含端口
-            api_key=self._api_key
+            api_key=self._api_key,
+            headers=self._headers,
         )
         self._connected = True
         logger.info(f"OpenPI client connected: {url}")
