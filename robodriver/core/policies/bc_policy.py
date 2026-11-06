@@ -206,7 +206,10 @@ class BCPolicy(BasePolicy):
         if self._connected and self._ws is not None:
             return
 
-        uri = f"ws://{self._host}:{self._port}{self._path}"
+        if self._host.startswith(("ws://", "wss://")):
+            uri = self._host
+        else:
+            uri = f"ws://{self._host}:{self._port}{self._path}"
         logger.info(f"Connecting to BC policy server: {uri}")
 
         if self._loop is None:

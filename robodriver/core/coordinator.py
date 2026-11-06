@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import asyncio
 import queue
 import threading
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import aiohttp
 import cv2
 import logging_mp
 import socketio
-from lerobot.teleoperators import Teleoperator
 
 from robodriver.core.inferencer import InferenceConfig, Inferencer
 from robodriver.core.recorder import Record, RecordConfig
@@ -25,6 +26,9 @@ from robodriver.utils.constants import (
 )
 from robodriver.utils.data_file import check_disk_space, find_epindex_from_dataid_json
 from robodriver.utils.utils import cameras_to_stream_json, get_current_git_branch
+
+if TYPE_CHECKING:
+    from lerobot.teleoperators import Teleoperator
 
 logger = logging_mp.get_logger(__name__)
 
@@ -45,6 +49,41 @@ def _build_reset_target_pose(
             target_pose[key] = float(gripper_reset_value)
 
     return target_pose
+
+
+def _parse_inference_config(data):
+    from urllib.parse import urlparse
+
+    msg = data.get("msg") or {}
+    if not isinstance(msg, dict):
+        raise ValueError("Inference msg must be an object")
+
+    data_channel = msg.get("data_channel") or {}
+    if not isinstance(data_channel, dict):
+        raise ValueError("Inference data_channel must be an object")
+
+    ws_url = data_channel.get("url")
+    if not ws_url:
+        raise ValueError("Inference WebSocket URL is required")
+
+    parsed_url = urlparse(ws_url)
+    if parsed_url.scheme not in ("ws", "wss") or not parsed_url.hostname:
+        raise ValueError(f"Unsupported inference WebSocket URL: {ws_url}")
+
+    headers = data_channel.get("headers") or {}
+    if not isinstance(headers, dict):
+        raise ValueError("Inference headers must be an object")
+
+    return InferenceConfig(
+        policy_host=ws_url,
+        policy_port=parsed_url.port or (443 if parsed_url.scheme == "wss" else 80),
+        policy_path=parsed_url.path or "",
+        prompt=msg.get("prompt", "default_task"),
+        fps=msg.get("fps", 30),
+        policy_type=msg.get("policy_type", "bc"),
+        headers=dict(headers) or None,
+        camera_mapping=msg.get("camera_mapping"),
+    )
 
 
 class Coordinator:
@@ -112,7 +151,7 @@ class Coordinator:
 
     async def __on_robot_command_handle(self, data):
         """收到机器人命令回调"""
-        logger.info("收到服务器命令:", data)
+        logger.info(f"收到服务器命令: {data.get('cmd')}")
         global task_id
         global task_name
         global task_data_id
@@ -390,7 +429,6 @@ class Coordinator:
 
         elif data.get("cmd") == "start_inference":
             logger.info("处理开始推理命令...")
-            msg = data.get("msg")
 
             # 检查是否有其他任务在运行
             if self.recording:
@@ -413,61 +451,11 @@ class Coordinator:
                 return
 
             try:
-                # 解析配置
-                fps = msg.get("fps", 30)
-                prompt = msg.get("prompt", "default_task")
-                print("prompt: ", prompt)
-
-                # 支持从 data_channel 提取完整 URL 信息
-                data_channel = msg.get("data_channel", {})
-                # policy_host = "localhost"
-                # policy_host = "192.168.19.2"
-                # policy_host = "10.1.15.165"
-                # policy_host = "106.63.14.88"
-                # policy_port = 8087
-                # policy_port = 8003
-                # policy_path = "/inference"
-                policy_path = ""
-                policy_headers = data_channel.get("headers", None)
-                print(policy_headers)
-
-                if data_channel.get("url"):
-                    # 解析 ws://host:port/path 格式
-                    import re
-
-                    url_match = re.match(
-                        r"ws://([^:/]+):(\d+)(/\S*)?", data_channel["url"]
-                    )
-                    if url_match:
-                        policy_host = url_match.group(1)
-                        policy_port = int(url_match.group(2))
-                        if url_match.group(3):
-                            policy_path = url_match.group(3)
-                    else:
-                        logger.warning(
-                            f"Could not parse data_channel URL: {data_channel['url']}"
-                        )
-
-                # 策略类型：支持 "flagscale"、"openpi"、"bc"（默认）和 "lerobot"
-                # "bc" 使用 bc_robodriver 风格的推理路径（直接观察提取 + msgpack WebSocket）
-                # "lerobot" 使用平台部署的 LeRobot WebSocket 推理服务
-                policy_type = msg.get("policy_type", "bc")
-
+                infer_cfg = _parse_inference_config(data)
                 logger.info(
-                    f"Starting inference: policy_type={policy_type}, "
-                    f"host={policy_host}, port={policy_port}, path={policy_path}, fps={fps}"
-                )
-
-                # 创建 inferencer 配置
-                infer_cfg = InferenceConfig(
-                    policy_host=policy_host,
-                    policy_port=policy_port,
-                    policy_path=policy_path,
-                    prompt=prompt,
-                    fps=fps,
-                    policy_type=policy_type,
-                    headers=policy_headers,
-                    camera_mapping=msg.get("camera_mapping"),
+                    f"Starting inference: policy_type={infer_cfg.policy_type}, "
+                    f"host={infer_cfg.policy_host}, port={infer_cfg.policy_port}, "
+                    f"path={infer_cfg.policy_path}, fps={infer_cfg.fps}"
                 )
 
                 # 创建 inferencer
