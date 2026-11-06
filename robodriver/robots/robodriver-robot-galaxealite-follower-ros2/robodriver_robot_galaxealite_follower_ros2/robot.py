@@ -259,8 +259,11 @@ class GALAXEALITEFollowerRos2Robot(Robot):
             for t in goal_joint
         ], dtype=np.float32)
         try:
-            if goal_joint_numpy.shape != (14,):
-                raise ValueError(f"Action vector must be 38-dimensional, got {goal_joint_numpy.shape[0]}")
+            expected_dim = len(self.action_features)
+            if goal_joint_numpy.shape != (expected_dim,):
+                raise ValueError(
+                    f"Action vector must be {expected_dim}-dimensional, got {goal_joint_numpy.shape[0]}"
+                )
             
             # 调用ROS2节点的ros_replay方法发布动作
             self.robot_ros2_node.ros_replay(goal_joint_numpy)
@@ -315,17 +318,14 @@ class GALAXEALITEFollowerRos2Robot(Robot):
         except Exception:
             pass
 
-    def reset(self, 
-                state = [
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100, 
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100, 
-                    -0.8600000143051147, 1.6863000392913818, 0.7631000280380249
-                    ], 
-                duration: float = 3.0):
+    def reset(self, state=None, duration: float = 3.0):
         if not self.is_connected:
             raise DeviceNotConnectedError(
                 "Robot is not connected. You need to run `robot.connect()`."
             )
+
+        if state is None:
+            state = [self.config.reset_pose[key] for key in self.action_features]
 
         # Get robot current states
         curr: list[float] = []

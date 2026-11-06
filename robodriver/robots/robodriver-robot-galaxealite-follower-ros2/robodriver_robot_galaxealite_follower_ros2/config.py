@@ -38,6 +38,28 @@ class GALAXEALITEFollowerRos2RobotConfig(RobotConfig):
         }
     )
 
+    reset_pose: Dict[str, float] = field(
+        default_factory=lambda: {
+            "follower_left_arm_joint_1_rad.pos": 0.0,
+            "follower_left_arm_joint_2_rad.pos": 0.0,
+            "follower_left_arm_joint_3_rad.pos": 0.0,
+            "follower_left_arm_joint_4_rad.pos": 0.0,
+            "follower_left_arm_joint_5_rad.pos": 0.0,
+            "follower_left_arm_joint_6_rad.pos": 0.0,
+            "follower_left_gripper_degree_mm.pos": 100.0,
+            "follower_right_arm_joint_1_rad.pos": 0.0,
+            "follower_right_arm_joint_2_rad.pos": 0.0,
+            "follower_right_arm_joint_3_rad.pos": 0.0,
+            "follower_right_arm_joint_4_rad.pos": 0.0,
+            "follower_right_arm_joint_5_rad.pos": 0.0,
+            "follower_right_arm_joint_6_rad.pos": 0.0,
+            "follower_right_gripper_degree_mm.pos": 100.0,
+            "follower_torso_joint_1.pos": -0.8600000143051147,
+            "follower_torso_joint_2.pos": 1.6863000392913818,
+            "follower_torso_joint_3.pos": 0.7631000280380249,
+        }
+    )
+
     cameras: Dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "image_top_left": OpenCVCameraConfig(

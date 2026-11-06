@@ -41,6 +41,17 @@ class SO101FollowerDoraRobotConfig(RobotConfig):
         }
     )
 
+    reset_pose: Dict[str, float] = field(
+        default_factory=lambda: {
+            "shoulder_pan.pos": 2.154,
+            "shoulder_lift.pos": -103.385,
+            "elbow_flex.pos": 89.802,
+            "wrist_flex.pos": 74.857,
+            "wrist_roll.pos": -2.242,
+            "gripper.pos": 0.784,
+        }
+    )
+
     cameras: Dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "image_top_rgb": OpenCVCameraConfig(

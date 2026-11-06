@@ -37,6 +37,17 @@ class SO101AIODoraRobotConfig(RobotConfig):
         }
     )
 
+    reset_pose: Dict[str, float] = field(
+        default_factory=lambda: {
+            "leader_shoulder_pan.pos": 2.154,
+            "leader_shoulder_lift.pos": -103.385,
+            "leader_elbow_flex.pos": 89.802,
+            "leader_wrist_flex.pos": 74.857,
+            "leader_wrist_roll.pos": -2.242,
+            "leader_gripper.pos": 0.784,
+        }
+    )
+
     cameras: Dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "image_top": OpenCVCameraConfig(

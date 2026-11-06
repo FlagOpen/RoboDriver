@@ -32,7 +32,7 @@ SO101 inference can use this lightweight follower plugin with no leader arm. The
 
    The LeRobot path sends full checkpoint feature names and HWC uint8 RGB images, and uses the returned `action_fps` when executing the action chunk. The SO101 alias `observation.images.image_top_rgb` maps to `observation.images.image_top` by default; `observation.images.image_wrist` is unchanged. Other models can override this with the top-level `camera_mapping` dictionary in `start_inference`. If the server enables authentication, pass `Authorization: Bearer <token>` in `data_channel.headers`.
 4. Alternatively, `policy_type=bc` selects the previous BC path, which maps camera keys to `cam_top` / `cam_wrist`.
-5. `reset_pose` returns joints to zero and opens the gripper by default (`gripper_reset_value=100`, fully open in the 0-100 normalized range).
+5. `reset_pose` returns to the median initial pose measured from the SO101 block-placement dataset: `[2.154, -103.385, 89.802, 74.857, -2.242, 0.784]` for shoulder pan, shoulder lift, elbow flex, wrist flex, wrist roll, and gripper. The gripper starts nearly closed to match the dataset; pass `gripper_reset_value=100` to open it instead.
 
 ## TODO
 

@@ -29,6 +29,24 @@ from robodriver.utils.utils import cameras_to_stream_json, get_current_git_branc
 logger = logging_mp.get_logger(__name__)
 
 
+def _build_reset_target_pose(
+    action_keys, configured_reset_pose, gripper_reset_value=None
+):
+    target_pose = {}
+    for key in action_keys:
+        if key in configured_reset_pose:
+            target_pose[key] = float(configured_reset_pose[key])
+        elif "gripper" in key:
+            target_pose[key] = 100.0
+        else:
+            target_pose[key] = 0.0
+
+        if "gripper" in key and gripper_reset_value is not None:
+            target_pose[key] = float(gripper_reset_value)
+
+    return target_pose
+
+
 class Coordinator:
     def __init__(
         self,
@@ -478,9 +496,7 @@ class Coordinator:
         elif data.get("cmd") == "reset_pose":
             logger.info("处理重置位姿命令...")
             msg = data.get("msg") or {}
-            # 复位时 gripper 的目标值，默认为 100（RANGE_0_100 归一化下为完全张开，
-            # 用于松开工件）；gripper 非 0-100 归一化的机器人可通过消息覆盖
-            gripper_reset_value = msg.get("gripper_reset_value", 100)
+            gripper_reset_value = msg.get("gripper_reset_value")
 
             # 检查是否有其他任务在运行
             if self.recording:
@@ -505,16 +521,20 @@ class Coordinator:
             try:
                 robot = self.daemon.robot
                 action_features = robot.action_features
+                configured_reset_pose = getattr(robot.config, "reset_pose", {})
+                target_pose = _build_reset_target_pose(
+                    action_features.keys(),
+                    configured_reset_pose,
+                    gripper_reset_value,
+                )
 
                 # 读取当前 observation 获取关节位置
                 observation = self.daemon.get_observation()
                 if observation is None:
                     observation = robot.get_observation()
 
-                # 构建起始位置和目标位置
+                # 构建起始位置
                 start_pose = {}
-                target_pose = {}
-
                 for key in action_features.keys():
                     # 将 leader_ 替换为 follower_ 去 observation 中查找当前值
                     obs_key = key.replace("leader_", "follower_")
@@ -526,13 +546,6 @@ class Coordinator:
                             f"Could not find {obs_key} in observation, using 0 as start value"
                         )
                         start_pose[key] = 0.0
-
-                    # 目标值：gripper 复位到 gripper_reset_value（默认完全张开），
-                    # 其他关节复位到 0
-                    if "gripper" in key:
-                        target_pose[key] = gripper_reset_value
-                    else:
-                        target_pose[key] = 0.0  # 关节归零
 
                 # 规划匀速轨迹（1.5秒）
                 num_steps = int(1.5 * DEFAULT_FPS)  # 约 45 步 @ 30fps
