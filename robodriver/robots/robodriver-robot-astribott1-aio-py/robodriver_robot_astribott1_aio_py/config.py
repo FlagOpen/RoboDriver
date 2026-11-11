@@ -89,5 +89,21 @@ class AstribotT1AioPyRobotConfig(RobotConfig):
         }
     )
 
+    # ==== 关节数据源：ROS2 话题（可选，默认关闭，仍用 SDK 读关节）====
+    # 打开后 get_observation/get_action 的关节部分改为订阅 ROS 话题，相机仍走 SDK。
+    # 实测需要 ROS_DOMAIN_ID=25 才能发现话题；模块会在 rclpy.init() 前设置该值。
+    use_ros_joints: bool = False
+    ros_domain_id: int = 25
+    ros_node_name: str = "robodriver_astribot_joints"
+    # 话题前缀：/astribot_<part>/<suffix>
+    ros_topic_prefix: str = "astribot"
+    # 观测=当前关节角(RobotJointState.position, BEST_EFFORT)
+    # 动作=关节指令(RobotJointController.command, RELIABLE)。机器人静止时该话题不发布，
+    # 此时 get_action 回退到 obs（AIO 镜像 desired≈current）
+    ros_obs_suffix: str = "joint_space_states"
+    ros_action_suffix: str = "joint_space_command_forward"
+    # 连接时等待首帧 obs 的超时（秒）；action 静止时无数据，不纳入硬性等待
+    ros_wait_first_frame_s: float = 10.0
+
     use_videos: bool = False
     microphones: Dict[str, int] = field(default_factory=dict)

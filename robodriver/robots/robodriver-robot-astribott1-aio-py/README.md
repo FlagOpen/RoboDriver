@@ -87,7 +87,34 @@ robodriver-run --robot.type=astribott1_aio_py
 | `camera_name_map` | `image_head_left/right` 等五路 | 数据集图像 key → AstriBot 相机名；key 必须含 `image`，否则平台不识别为视频流 |
 | `camera_crops` | 头部左右目各 1280×720 | 从原始帧裁子图 `(x, y, w, h)`；头部双目原图 2560×720，按 1280 宽切成左右两目 |
 | `cameras` | 1280x720 / 640x480 | 只用于声明特征与提供视频流 id（`index_or_path` 即流号），不会打开 `/dev/video` |
+| `use_ros_joints` | `False` | 打开后关节观测/动作改从 ROS2 话题读取（相机、控制权、send_action 仍走 SDK）。见下节 |
+| `ros_domain_id` | `25` | 实测 T1 关节话题在此 domain；模块会在 `rclpy.init()` 前设置 `ROS_DOMAIN_ID` |
+| `ros_obs_suffix` | `joint_space_states` | 观测话题后缀，`/astribot_<部件>/<后缀>`，`RobotJointState.position`，BEST_EFFORT |
+| `ros_action_suffix` | `joint_space_command_forward` | 动作话题后缀；静止时该话题无数据，此时 `get_action` 回退到观测值 |
+| `ros_wait_first_frame_s` | `10.0` | 连接时等待各部件首帧观测的超时；动作话题静止时无数据，不纳入硬性等待 |
+
 数据字段命名：`follower_<部件>_joint<N>.pos`（观测）、`leader_<部件>_joint<N>.pos`（动作），单位弧度。
+
+## 关节走 ROS2 话题（可选）
+
+默认关节从 SDK 读。若要从 ROS 话题读关节，加 `--robot.use_ros_joints=true`：
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/astribot_sdk/ros-msgs-workspace/install/setup.bash
+source ~/RoboDriver/.venv/bin/activate
+# 只读自检：验证 domain 25 下各部件 obs/action 话题与自由度
+python -m robodriver_robot_astribott1_aio_py.check_env_ros
+# 采集
+robodriver-run --robot.type=astribott1_aio_py --robot.use_ros_joints=true
+```
+
+- 观测 ← `/astribot_<部件>/joint_space_states`（`mode=0`），动作 ← `/astribot_<部件>/joint_space_command_forward`，消息类型为 `astribot_msgs/msg/RobotJointState` / `RobotJointController`。
+- 实测该消息 `name` 字段恒为空，关节名由本包按「部件 + 序号」生成，命名与 SDK 版一致，数据集 schema 不变。
+- `record_parts` 里的 `effector_left/right` 会自动映射到话题名 `astribot_gripper_left/right`。
+- **QoS**：`joint_space_states` 是 BEST_EFFORT，本包用 `qos_profile_sensor_data` 订阅；`command_recv` 是 RELIABLE。若换成默认 reliable 订阅 states 会静默收不到。
+- 相机、控制权抢占、`send_action` 仍走 SDK，本开关只切换关节数据来源。
+- `joint_space_command_forward` 只在有外部指令时发布，机器人静止时零帧；此时 `get_action` 回退为观测值（AIO 下 desired≈current）。如需改用 `command_recv`，设 `--robot.ros_action_suffix=joint_space_command_recv`。
 
 ## 真机实测结果（Astribot T1，SDK 3.1.2，RoboDriver 单环境）
 

@@ -11,6 +11,7 @@ from lerobot.robots.robot import Robot
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from .config import AstribotT1AioPyRobotConfig
+from .ros_joints import AstribotJointNode
 
 
 logger = logging_mp.get_logger(__name__)
@@ -50,6 +51,7 @@ class AstribotT1AioPyRobot(Robot):
         self._cam_handles: Dict[str, Any] = {}
         self._joint_names: List[str] = []
         self._dof: Dict[str, int] = {}
+        self._joint_node = None
         self._shutdown_done = False
         self._control_lease = None
         self._control_warned = False
@@ -74,6 +76,18 @@ class AstribotT1AioPyRobot(Robot):
     def _sdk_dof(self) -> Dict[str, int]:
         positions = self._astribot.get_current_joints_position(names=self._sdk_part_names())
         return {part: len(p) for part, p in zip(self.config.record_parts, positions)}
+
+    def _start_ros_joints(self) -> None:
+        self._joint_node = AstribotJointNode(
+            parts=self.config.record_parts,
+            domain_id=self.config.ros_domain_id,
+            obs_suffix=self.config.ros_obs_suffix,
+            action_suffix=self.config.ros_action_suffix,
+            node_name=self.config.ros_node_name,
+            topic_prefix=self.config.ros_topic_prefix,
+        )
+        self._joint_node.start(wait_first_frame_s=self.config.ros_wait_first_frame_s)
+        self._build_joint_index(self._joint_node.get_dof())
 
     def _require_connected(self) -> None:
         if not self.connected:
@@ -185,7 +199,11 @@ class AstribotT1AioPyRobot(Robot):
             node_name=self.config.node_name,
             remote_wbc=self.config.remote_wbc,
         )
-        self._build_joint_index(self._sdk_dof())
+        # 关节来源：ROS 话题或 SDK。相机、控制权、send_action 始终走 SDK。
+        if self.config.use_ros_joints:
+            self._start_ros_joints()
+        else:
+            self._build_joint_index(self._sdk_dof())
 
         if self.config.move_to_home_on_connect:
             logger.info("移动 AstriBot 到 home 位")
@@ -231,6 +249,10 @@ class AstribotT1AioPyRobot(Robot):
         if not self.connected:
             return
 
+        if self._joint_node is not None:
+            self._joint_node.stop()
+            self._joint_node = None
+
         if self._camera is not None:
             for handle in self._cam_handles.values():
                 self._camera.unregister_callback(handle)
@@ -269,6 +291,18 @@ class AstribotT1AioPyRobot(Robot):
 
     # ========= 数据读写 =========
 
+    def _flatten_ros(self, per_part: Dict[str, List[float]]) -> List[float]:
+        flat: List[float] = []
+        for part in self.config.record_parts:
+            values = per_part.get(part, [])
+            if len(values) != self._dof.get(part, len(values)):
+                raise RuntimeError(
+                    f"{part} 的 ROS 关节数 {len(values)} 与索引 {self._dof.get(part)} 不一致，"
+                    f"话题可能中途变了或部件未上报"
+                )
+            flat.extend(values)
+        return flat
+
     def _crop_frame(self, image_key: str, rgb: np.ndarray) -> np.ndarray:
         """按 camera_crops 裁子图。
 
@@ -303,10 +337,13 @@ class AstribotT1AioPyRobot(Robot):
         self._require_connected()
 
         start = time.perf_counter()
-        positions = list(np.concatenate(
-            [np.asarray(p, dtype=float) for p in
-             self._astribot.get_current_joints_position(names=self._sdk_part_names())]
-        ))
+        if self._joint_node is not None:
+            positions = self._flatten_ros(self._joint_node.get_observation())
+        else:
+            positions = list(np.concatenate(
+                [np.asarray(p, dtype=float) for p in
+                 self._astribot.get_current_joints_position(names=self._sdk_part_names())]
+            ))
         obs = {
             f"follower_{name}.pos": float(value)
             for name, value in zip(self._joint_names, positions)
@@ -334,10 +371,13 @@ class AstribotT1AioPyRobot(Robot):
         """AIO 机型自带遥操作，desired 关节角即为本次采集要记录的 action。"""
         self._require_connected()
 
-        positions = list(np.concatenate(
-            [np.asarray(p, dtype=float) for p in
-             self._astribot.get_desired_joints_position(names=self._sdk_part_names())]
-        ))
+        if self._joint_node is not None:
+            positions = self._flatten_ros(self._joint_node.get_action())
+        else:
+            positions = list(np.concatenate(
+                [np.asarray(p, dtype=float) for p in
+                 self._astribot.get_desired_joints_position(names=self._sdk_part_names())]
+            ))
         return {
             f"leader_{name}.pos": float(value)
             for name, value in zip(self._joint_names, positions)
