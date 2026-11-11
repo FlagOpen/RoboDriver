@@ -5,6 +5,8 @@ from lerobot.cameras import CameraConfig
 from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.robots.config import RobotConfig
 
+from .sharpa_hand import SharpaHandsConfig
+
 
 @RobotConfig.register_subclass("astribott1_aio_py")
 @dataclass
@@ -107,3 +109,24 @@ class AstribotT1AioPyRobotConfig(RobotConfig):
 
     use_videos: bool = False
     microphones: Dict[str, int] = field(default_factory=dict)
+
+
+@RobotConfig.register_subclass("astribott1_aio_sharpa_py")
+@dataclass
+class AstribotT1AioSharpaPyRobotConfig(AstribotT1AioPyRobotConfig):
+    """AstriBot T1 + Sharpa Wave 灵巧手（22 DoF/手）。
+
+    默认不再记录 AstriBot 原有的 1-DoF 夹爪（effector_*），因为灵巧手会替代它；
+    如果现场仍保留夹爪，可以把 effector_left/right 加回 record_parts。
+    """
+
+    record_parts: List[str] = field(
+        default_factory=lambda: [
+            "arm_left",
+            "arm_right",
+            "head",
+            "torso",
+            "chassis",
+        ]
+    )
+    sharpa_hands: SharpaHandsConfig = field(default_factory=SharpaHandsConfig)

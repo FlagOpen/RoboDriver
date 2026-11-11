@@ -2,7 +2,8 @@
 
 AstriBot T1（星动纪元）通过厂商 Python SDK `astribot_sdk` 接入 RoboDriver，操作类型 `aio`（机器人自带遥操作，采集 desired 关节角作为 action）。
 
-- `--robot.type=astribott1_aio_py`
+- `--robot.type=astribott1_aio_py`：原版，记录 AstriBot 自带的 1-DoF 夹爪
+- `--robot.type=astribott1_aio_sharpa_py`：叠加 Sharpa Wave 灵巧手（22 DoF/手），默认不再记录原夹爪
 - 接入类型：`py`，**不需要 ROS**（SDK 走 zenoh，仅激光雷达才依赖 `astribot_msgs`）
 
 ## 环境准备
@@ -74,6 +75,92 @@ robodriver-run --robot.type=astribott1_aio_py
 ```
 
 验证：`curl http://localhost:8088/api/stream_info` 应列出三路相机。
+
+## Sharpa Wave 灵巧手（astribott1_aio_sharpa_py）
+
+灵巧手走**千兆以太网**，与 AstriBot 的 zenoh 通信相互独立；SDK 不通过 pip 安装。
+
+### 1. 安装 Sharpa SDK
+
+```bash
+# 推荐：系统级安装（需要 sudo）
+sudo dpkg -i sharpa-wave-sdk_5.0.11_amd64.deb
+sudo apt-get install -f        # 仅缺依赖时
+```
+
+没有 sudo 时可以用户级解包，代码会按 `$SHARPA_SDK_ROOT` → `/opt/sharpa-wave-sdk` → `~/.local/opt/sharpa-wave-sdk` 的顺序查找：
+
+```bash
+mkdir -p /tmp/sharpa-sdk ~/.local/opt
+dpkg-deb -x sharpa-wave-sdk_5.0.11_amd64.deb /tmp/sharpa-sdk
+cp -a /tmp/sharpa-sdk/opt/sharpa-wave-sdk ~/.local/opt/
+```
+
+本机已验证 Python 3.10.12 + numpy 2.2.6 下可以导入 `sharpa`，并可在无 sudo 的用户级安装下运行。ARM64 用 release 里的 `.zip`，解包到同一目录结构。安装包声明支持 Python 3.10–3.13。
+
+### 2. 只读自检（先跑这个）
+
+```bash
+source ~/RoboDriver/.venv/bin/activate
+python -m robodriver_robot_astribott1_aio_py.check_env_sharpa
+# 需要读关节/触觉时（仍不下发动作）：
+python -m robodriver_robot_astribott1_aio_py.check_env_sharpa --start --tactile
+```
+
+它会打印发现到的 SN/左右手/IP/固件、关节数量与角度、手型、触觉支持情况；`--tactile` 还会打印每指一帧的 RAW/DEFORM 等 shape。默认不会设置控制模式，也不会调用 `set_joint_position`。单手时加 `--side left` 或 `--side right`。
+
+### 3. 启动
+
+```bash
+# 双手，自动发现
+robodriver-run --robot.type=astribott1_aio_sharpa_py
+
+# 单手 / 固定 SN
+robodriver-run --robot.type=astribott1_aio_sharpa_py \
+  --robot.sharpa_hands.side=left \
+  --robot.sharpa_hands.left_sn=HAND-L-0001
+```
+
+### 4. 配置
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `sharpa_hands.enabled` | `True` | 关闭后不连接手，但保留新类型方便调试 |
+| `sharpa_hands.side` | `both` | `left` / `right` / `both` |
+| `sharpa_hands.left_sn` / `right_sn` | `None` | 可选，固定设备 SN；不填按心跳里的左右手自动分配 |
+| `sharpa_hands.dof` | `22` | 每只手关节数；W02/Mozi 等型号按实际上报修改 |
+| `sharpa_hands.speed_coeff` | `0.3` | 速度系数，首次联调建议保持低值 |
+| `sharpa_hands.current_coeff` | `0.6` | 电流系数 |
+| `sharpa_hands.interpolate` | `True` | 下发关节目标时是否插值 |
+| `sharpa_hands.discovery_timeout_s` | `10.0` | 等待 UDP 心跳的秒数 |
+| `sharpa_hands.tactile_enabled` | `True` | 双手触觉；每个指尖一路图像 |
+| `sharpa_hands.tactile_content` | `auto` | `auto` 优先 DEFORM，其次 DEFORM3_SE/DEFORM3/RAW/DIST_FORCE；`deform`/`raw` 可指定优先源 |
+| `sharpa_hands.tactile_fps` | `30.0` | 触觉轮询频率（Hz） |
+| `sharpa_hands.tactile_timeout_s` | `3.0` | 连接时等待首帧触觉的超时（秒/手） |
+| `sharpa_hands.move_to_zero_on_connect` | `False` | 连接时回零位，真机会动 |
+| `sharpa_hands.park_on_disconnect` | `False` | 断开时是否先回零位；默认直接 `stop()`，不额外动作 |
+
+新类型默认把 `record_parts` 设为 `arm_left/arm_right/head/torso/chassis`，不再记录 AstriBot 的 1-DoF `effector_*`；如果现场仍保留夹爪，把它加回 `--robot.record_parts`。
+
+### 5. 数据字段
+
+- 观测：`follower_hand_<left|right>_joint1..N.pos`，单位弧度
+- 动作：`leader_hand_<left|right>_joint1..N.pos`，单位弧度
+- 触觉：`tactile_<left|right>_<thumb|index|middle|ring|pinky>`，RGB 图像。数据集里会变成 `observation.images.tactile_*`；key 本身不含 `image`，所以不会占用前端视频流。
+- 关节顺序与 Sharpa SDK 一致：拇指 5、食指/中指/无名指/小指各 4（具体限位见 URDF）
+- 触觉默认源是 `DEFORM`（Wave01 为 240×240 uint8）；`RAW` 为 240×320，SE/Mozi 可能是 60×60 的 `DEFORM3_SE`。实际 shape 以 `check_env_sharpa --tactile` 输出为准。
+
+没有手部 teleop 时，`leader_hand_*` 记录的是**实测位置**（AIO 镜像），不是独立 leader 信号。要做真正的模仿学习 action，应接入 Sharpa 的视觉/Quest/Manus 遥操作，或实现一个 teleoperator 把目标位置交给 `send_action()`。
+
+### 6. 当前限制
+
+- 双手触觉共 10 路图像，30 Hz 下数据量较大；建议 `--robot.use_videos=true`，或降低 `sharpa_hands.tactile_fps`。
+- 平台保存时的 `validate_session` 会扫描 `images/tactile_*` 并做帧变化检查；触觉图在无接触时可能静态，可能把 `camera_frame_rate` 标成 no pass。数据会正常保存，需要时再调整校验规则。
+- 触觉只写入数据集，不推送到前端视频流；需要实时预览时再扩展 stream_info。
+- 双手同时开触觉时，第二只手可能遇到 UDP 端口冲突，本包会自动调用 `retry_tactile_alternate_port()` 切换到备用端口；若仍失败，检查防火墙或 Sharpa Pilot 是否占用。
+- 组合机器人连接手时使用 `skip_tactile=False`（默认开触觉）；只调试关节时可设 `sharpa_hands.tactile_enabled=false`。若启动失败，先确认设备在线且没有被其他进程占用。
+- 断开顺序是 `wave.stop()` → `wave.destroy()` → `manager.disconnect_all()`；本包已在 `disconnect()` 里处理。`park_on_disconnect` 可让手先回零，默认不回零；进程退出时请走正常退出。
+- 平台侧 `reset_pose` 会把非 `gripper` 关节插值到 0；手的 0 位是否安全需要实机确认，首次联调建议不要用 `reset_pose`。
 
 ## 配置项
 

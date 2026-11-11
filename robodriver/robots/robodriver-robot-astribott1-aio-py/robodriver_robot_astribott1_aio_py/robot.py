@@ -10,8 +10,9 @@ from lerobot.cameras import make_cameras_from_configs
 from lerobot.robots.robot import Robot
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
-from .config import AstribotT1AioPyRobotConfig
+from .config import AstribotT1AioPyRobotConfig, AstribotT1AioSharpaPyRobotConfig
 from .ros_joints import AstribotJointNode
+from .sharpa_hand import SharpaHands
 
 
 logger = logging_mp.get_logger(__name__)
@@ -410,3 +411,70 @@ class AstribotT1AioPyRobot(Robot):
     def __del__(self):
         if getattr(self, "connected", False):
             self.disconnect()
+
+
+class AstribotT1AioSharpaPyRobot(AstribotT1AioPyRobot):
+    """AstriBot T1 AIO + Sharpa Wave 灵巧手组合。
+
+    手臂/AstriBot 部分完全复用父类；灵巧手通过厂商 SDK 以以太网接入，
+    每只手 22 个关节按 `hand_<side>_joint1..22` 记录。
+    """
+
+    config_class = AstribotT1AioSharpaPyRobotConfig
+    name = "astribott1_aio_sharpa_py"
+
+    def __init__(self, config: AstribotT1AioSharpaPyRobotConfig):
+        super().__init__(config)
+        self.config = config
+        self._sharpa_hands = SharpaHands(config.sharpa_hands)
+
+    @property
+    def observation_features(self) -> Dict[str, Any]:
+        features = dict(super().observation_features)
+        features.update(self._sharpa_hands.follower_features())
+        return features
+
+    @property
+    def action_features(self) -> Dict[str, Any]:
+        features = dict(super().action_features)
+        features.update(self._sharpa_hands.leader_features())
+        return features
+
+    def connect(self, calibrate: bool = True) -> None:
+        super().connect(calibrate=calibrate)
+        try:
+            self._sharpa_hands.connect()
+        except Exception:
+            self.disconnect()
+            raise
+
+    def disconnect(self) -> None:
+        try:
+            self._sharpa_hands.disconnect()
+        finally:
+            super().disconnect()
+
+    def get_observation(self) -> Dict[str, Any]:
+        observation = super().get_observation()
+        if self._sharpa_hands.connected:
+            observation.update(self._sharpa_hands.get_observation())
+        return observation
+
+    def get_action(self) -> Dict[str, Any]:
+        action = super().get_action()
+        if self._sharpa_hands.connected:
+            action.update(self._sharpa_hands.get_action())
+        return action
+
+    def send_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        body_action = {
+            key: value for key, value in action.items() if not key.startswith("leader_hand_")
+        }
+        hand_action = {
+            key: value for key, value in action.items() if key.startswith("leader_hand_")
+        }
+
+        sent = super().send_action(body_action) if body_action else {}
+        if hand_action:
+            sent.update(self._sharpa_hands.send_action(hand_action))
+        return sent
