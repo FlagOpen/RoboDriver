@@ -84,9 +84,9 @@ robodriver-run --robot.type=astribott1_aio_py
 | `remote_wbc` | `True` | 是否启用远端 WBC |
 | `record_parts` | 双臂 + 双夹爪 | 记录哪些部件，可选 `head`/`torso`/`chassis`；自由度在 connect 时由机器人上报 |
 | `move_to_home_on_connect` | `False` | 连接时是否先回 home（真机上会动，谨慎开） |
-| `camera_name_map` | `image_head` 等三路 | 数据集图像 key → AstriBot 相机名；key 必须含 `image`，否则平台不识别为视频流 |
+| `camera_name_map` | `image_head_left/right` 等五路 | 数据集图像 key → AstriBot 相机名；key 必须含 `image`，否则平台不识别为视频流 |
+| `camera_crops` | 头部左右目各 1280×720 | 从原始帧裁子图 `(x, y, w, h)`；头部双目原图 2560×720，按 1280 宽切成左右两目 |
 | `cameras` | 1280x720 / 640x480 | 只用于声明特征与提供视频流 id（`index_or_path` 即流号），不会打开 `/dev/video` |
-
 数据字段命名：`follower_<部件>_joint<N>.pos`（观测）、`leader_<部件>_joint<N>.pos`（动作），单位弧度。
 
 ## 真机实测结果（Astribot T1，SDK 3.1.2，RoboDriver 单环境）
@@ -94,7 +94,7 @@ robodriver-run --robot.type=astribott1_aio_py
 | 项目 | 实测值 |
 |---|---|
 | 部件自由度 | `arm_left` 7、`arm_right` 7、`effector_left` 1、`effector_right` 1、`head` 2、`torso` 4、`chassis` 3 |
-| 相机 | `UDP_Camera` 头部**左右目并排立体图**（2560x720 = 2×1280x720）、`left_D405`/`right_D405` 双腕 RealSense D405 640x360、`Anjia` 640x360 |
+| 相机 | `UDP_Camera` 头部双目，拆成 `image_head_left` / `image_head_right` 两路 1280×720（原始图为 2560×720 并排）；`left_D405`/`right_D405` 双腕 RealSense D405 640×360；`Anjia` 640×360。拆两路是为了匹配网页 16:9 小窗，避免超宽图被裁 |
 | 相机数据 | `uint8`，SDK 返回 **BGR**（已在 `get_observation()` 内转成 RGB） |
 | `Anjia` | 正常工作。**必须先 `register_image_callback` 订阅**，否则 `get_all_color()` 只返回占位零帧（D405 与 UDP_Camera 由 SDK 默认订阅，Anjia 不是）；本包在 `connect()` 里已为每路相机注册订阅 |
 | 夹爪读数 | 实测约 10~12，限位 `0 ~ 100`；量纲存在分歧（见下） |
@@ -115,6 +115,29 @@ robodriver-run --robot.type=astribott1_aio_py
 若单位是 cm，`0~100` 就是 0~100cm（1 米），远超 100mm 行程；若单位是 mm，12 表示张开 12mm。
 **在确认之前不要做归一化**，否则数据集里夹爪的物理含义是错的。适配包目前原样记录 SDK 读数，
 不做任何缩放，确认后可在 `get_observation()` 里统一换算。
+
+## 回放 / 外部控制（控制权）
+
+实测机器人所有部件（chassis/torso/双臂/夹爪/head）的控制权由 `vr_teleoperation` 持有，
+**priority_level = 0（最高）**。这种状态下外部 `set_joints_position` 会被静默忽略——表现为
+"回放启动了但机器人不动"。
+
+默认 `control_mode=takeover`：**只有在真正下发动作（回放 / 扰动）时**才会 `acquire_control`，
+正常采集只读不写，不会干扰遥操作。若遥操正在写（租约非空闲）且未开 `force_takeover`，会拒绝抢占并报错。
+
+需要回放/外部控制时：
+
+```bash
+robodriver-run --robot.type=astribott1_aio_py \
+  --robot.control_mode=takeover \
+  --robot.force_takeover=true
+```
+
+- `takeover` 会在首次 `send_action` 时调用 `acquire_control(priority=0)` 抢占租约，
+  `disconnect` 时自动 `release_control`
+- 目标部件仍有**非空闲**租约时默认拒绝抢占，必须显式 `force_takeover=true`
+- **会顶掉 VR 遥操作的控制权**，必须现场无人操作、急停在手
+- `control_parts` 默认为双臂+双夹爪（不含 chassis），避免回放时底盘开走
 
 ## 已知问题
 

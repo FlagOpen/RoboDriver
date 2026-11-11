@@ -51,6 +51,9 @@ class AstribotT1AioPyRobot(Robot):
         self._joint_names: List[str] = []
         self._dof: Dict[str, int] = {}
         self._shutdown_done = False
+        self._control_lease = None
+        self._control_warned = False
+        self._crop_degraded: set = set()
         self.connected = False
         self.logs = {}
 
@@ -59,17 +62,79 @@ class AstribotT1AioPyRobot(Robot):
     def _sdk_part_names(self) -> List[str]:
         return [getattr(self._astribot, f"{part}_name") for part in self.config.record_parts]
 
-    def _build_joint_index(self, positions: List[List[float]]) -> None:
+    def _build_joint_index(self, dof: Dict[str, int]) -> None:
         self._joint_names = []
         self._dof = {}
-        for part, joints in zip(self.config.record_parts, positions):
-            self._dof[part] = len(joints)
-            self._joint_names += [f"{part}_joint{i + 1}" for i in range(len(joints))]
+        for part in self.config.record_parts:
+            count = dof[part]
+            self._dof[part] = count
+            self._joint_names += [f"{part}_joint{i + 1}" for i in range(count)]
         logger.info(f"AstriBot 部件自由度: {self._dof}")
+
+    def _sdk_dof(self) -> Dict[str, int]:
+        positions = self._astribot.get_current_joints_position(names=self._sdk_part_names())
+        return {part: len(p) for part, p in zip(self.config.record_parts, positions)}
 
     def _require_connected(self) -> None:
         if not self.connected:
             raise DeviceNotConnectedError(f"{self} is not connected. You need to run `robot.connect()`.")
+
+    # ========= 控制权 =========
+
+    def _control_sdk_names(self) -> List[str]:
+        parts = [p for p in self.config.record_parts if p in self.config.control_parts]
+        return [getattr(self._astribot, f"{part}_name") for part in parts]
+
+    def _control_owners(self) -> Dict[str, str]:
+        try:
+            state = self._astribot.get_control_rights_status().get("server_state") or {}
+        except Exception as e:
+            logger.warning(f"读取控制权状态失败: {e}")
+            return {}
+        return {
+            name: f"{info.get('owner_name')}(idle={info.get('idle')},prio={info.get('priority_level')})"
+            for name, info in state.items()
+            if info.get("owner_name")
+        }
+
+    def _ensure_control(self) -> bool:
+        """确保可以下发动作。takeover 模式下抢占控制权，passive 模式只提示。"""
+        if self._control_lease is not None:
+            return True
+
+        names = self._control_sdk_names()
+        if not names:
+            logger.warning("control_parts 为空，send_action 不会下发任何部件")
+            return False
+
+        if self.config.control_mode != "takeover":
+            if not self._control_warned:
+                self._control_warned = True
+                owners = self._control_owners()
+                logger.warning(
+                    f"未持有控制权，动作可能被忽略。当前占用: {owners}。"
+                    f"如需回放/外部控制，请用 --robot.control_mode=takeover 启动（会抢占 VR 遥操作的控制权）"
+                )
+            return False
+
+        owners = self._control_owners()
+        busy = {k: v for k, v in owners.items() if k in names and "idle=False" in v}
+        if busy and not self.config.force_takeover:
+            raise RuntimeError(
+                f"目标部件仍被非空闲租约占用: {busy}。确认现场无人操作后加 --robot.force_takeover=true 再试"
+            )
+
+        result = self._astribot.acquire_control(
+            objects=names,
+            priority=self.config.takeover_priority,
+            sub_priority=self.config.takeover_sub_priority,
+            reason="RoboDriver external control (replay/disturbance)",
+        )
+        if not result.get("granted"):
+            raise RuntimeError(f"获取控制权失败: {result}")
+        self._control_lease = result.get("lease_id")
+        logger.warning(f"已接管控制权 {names}，lease={self._control_lease}（VR 遥操作将被顶掉）")
+        return True
 
     # ========= features =========
 
@@ -120,9 +185,7 @@ class AstribotT1AioPyRobot(Robot):
             node_name=self.config.node_name,
             remote_wbc=self.config.remote_wbc,
         )
-        self._build_joint_index(
-            self._astribot.get_current_joints_position(names=self._sdk_part_names())
-        )
+        self._build_joint_index(self._sdk_dof())
 
         if self.config.move_to_home_on_connect:
             logger.info("移动 AstriBot 到 home 位")
@@ -145,7 +208,7 @@ class AstribotT1AioPyRobot(Robot):
                 )
             logger.info(f"AstriBot 相机就绪: {available}")
 
-            for camera_name in self.config.camera_name_map.values():
+            for camera_name in sorted(set(self.config.camera_name_map.values())):
                 self._cam_handles[camera_name] = self._camera.register_image_callback(
                     camera_name, "color", _keep_frame_cached
                 )
@@ -178,6 +241,13 @@ class AstribotT1AioPyRobot(Robot):
             self._camera.deactivate_camera()
             self._camera.shutdown()
         if self._astribot is not None:
+            if self._control_lease is not None:
+                try:
+                    self._astribot.release_control(objects=self._control_sdk_names())
+                    logger.info(f"已释放控制权 lease={self._control_lease}")
+                except Exception as e:
+                    logger.warning(f"释放控制权失败: {e}")
+                self._control_lease = None
             self._astribot.release_control()
             self._astribot.shutdown()
 
@@ -199,14 +269,47 @@ class AstribotT1AioPyRobot(Robot):
 
     # ========= 数据读写 =========
 
+    def _crop_frame(self, image_key: str, rgb: np.ndarray) -> np.ndarray:
+        """按 camera_crops 裁子图。
+
+        头部相机双目拼接(mode=merge)时原始帧是两倍宽，需切出左右目；机器人端若
+        没有下发 merge，帧就只有单目宽度，此时右目的裁剪起点会越界。帧尺寸恰好
+        等于目标尺寸说明拿到的就是单目图，直接整帧返回（左右目内容相同）并告警一次，
+        让采集能继续，而不是启动即崩。
+        """
+        crop = self.config.camera_crops.get(image_key)
+        if crop is None:
+            return rgb
+
+        x, y, w, h = crop
+        frame_h, frame_w = rgb.shape[:2]
+        if y + h <= frame_h and x + w <= frame_w:
+            return np.ascontiguousarray(rgb[y:y + h, x:x + w])
+
+        if frame_w == w and frame_h == h:
+            if image_key not in self._crop_degraded:
+                self._crop_degraded.add(image_key)
+                logger.warning(
+                    f"{image_key} 裁剪区域 {crop} 超出原始帧 {(frame_h, frame_w)}，"
+                    f"该相机当前未按双目拼接(mode=merge)输出，退化为整帧使用"
+                )
+            return rgb
+
+        raise RuntimeError(
+            f"{image_key} 裁剪区域 {crop} 超出原始帧 {(frame_h, frame_w)}，请检查 camera_crops"
+        )
+
     def get_observation(self) -> Dict[str, Any]:
         self._require_connected()
 
         start = time.perf_counter()
-        positions = self._astribot.get_current_joints_position(names=self._sdk_part_names())
+        positions = list(np.concatenate(
+            [np.asarray(p, dtype=float) for p in
+             self._astribot.get_current_joints_position(names=self._sdk_part_names())]
+        ))
         obs = {
             f"follower_{name}.pos": float(value)
-            for name, value in zip(self._joint_names, np.concatenate([np.asarray(p, dtype=float) for p in positions]))
+            for name, value in zip(self._joint_names, positions)
         }
         self.logs["read_joints_dt_s"] = time.perf_counter() - start
 
@@ -221,7 +324,8 @@ class AstribotT1AioPyRobot(Robot):
                     logger.warning(f"相机 {camera_name} 本帧无数据")
                     continue
                 # 实测 AstriBot SDK 返回 BGR，而 LeRobot/推流按 RGB 约定，需翻转并保持连续内存
-                obs[image_key] = np.ascontiguousarray(np.asarray(frame)[:, :, ::-1])
+                rgb = np.ascontiguousarray(np.asarray(frame)[:, :, ::-1])
+                obs[image_key] = self._crop_frame(image_key, rgb)
             self.logs["read_cameras_dt_s"] = time.perf_counter() - start
 
         return obs
@@ -230,25 +334,35 @@ class AstribotT1AioPyRobot(Robot):
         """AIO 机型自带遥操作，desired 关节角即为本次采集要记录的 action。"""
         self._require_connected()
 
-        positions = self._astribot.get_desired_joints_position(names=self._sdk_part_names())
+        positions = list(np.concatenate(
+            [np.asarray(p, dtype=float) for p in
+             self._astribot.get_desired_joints_position(names=self._sdk_part_names())]
+        ))
         return {
             f"leader_{name}.pos": float(value)
-            for name, value in zip(self._joint_names, np.concatenate([np.asarray(p, dtype=float) for p in positions]))
+            for name, value in zip(self._joint_names, positions)
         }
 
     def send_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
         self._require_connected()
 
-        grouped: Dict[str, List[float]] = {part: [] for part in self.config.record_parts}
+        parts = [p for p in self.config.record_parts if p in self.config.control_parts]
+        grouped: Dict[str, List[float]] = {part: [] for part in parts}
         for name in self._joint_names:
+            part = name.rsplit("_joint", 1)[0]
+            if part not in grouped:
+                continue
             key = f"leader_{name}.pos"
             if key not in action:
                 raise KeyError(f"action 缺少 {key}")
-            part = name.rsplit("_joint", 1)[0]
             grouped[part].append(float(action[key]))
 
-        names = self._sdk_part_names()
-        commands = [grouped[part] for part in self.config.record_parts]
+        if not parts:
+            return {}
+
+        self._ensure_control()
+        names = [getattr(self._astribot, f"{part}_name") for part in parts]
+        commands = [grouped[part] for part in parts]
         self._astribot.set_joints_position(names=names, position=commands, dt=1.0 / self.config.freq)
 
         return {name.replace("leader_", ""): value for name, value in action.items()}
