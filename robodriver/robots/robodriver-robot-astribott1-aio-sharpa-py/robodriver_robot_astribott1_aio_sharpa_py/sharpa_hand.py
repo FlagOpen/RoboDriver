@@ -5,7 +5,7 @@
   * 放在用户目录，并通过 SHARPA_SDK_ROOT 指向解包根目录
   * 使用 ~/.local/opt/sharpa-wave-sdk（无 sudo 的用户级安装）
 
-本模块只负责手部；与 AstriBot 的连接由 robot.py 里的组合类完成。
+本模块只负责手部；与 AstriBot 的连接由当前包 robot.py 里的组合类完成。
 """
 
 from __future__ import annotations
@@ -580,6 +580,17 @@ class SharpaHands:
             for index, value in enumerate(positions):
                 action[self._joint_key(side, index, "leader")] = float(value)
         return action
+
+    def get_joint_snapshot(self) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """Read measured hand joints for the recorder without polling tactile images."""
+        observation: Dict[str, float] = {}
+        action: Dict[str, float] = {}
+        for side in self.sides:
+            positions = self._read_positions(side)
+            for index, value in enumerate(positions):
+                observation[self._joint_key(side, index, "follower")] = float(value)
+                action[self._joint_key(side, index, "leader")] = float(value)
+        return observation, action
 
     def send_action(self, action: Dict[str, Any]) -> Dict[str, float]:
         if not self.connected:

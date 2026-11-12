@@ -6,9 +6,6 @@ from lerobot.cameras.opencv import OpenCVCameraConfig
 from lerobot.motors import Motor, MotorNormMode
 from lerobot.robots.config import RobotConfig
 
-from .sharpa_hand import SharpaHandsConfig
-
-
 @RobotConfig.register_subclass("astribott1_aio_py")
 @dataclass
 class AstribotT1AioPyRobotConfig(RobotConfig):
@@ -156,17 +153,4 @@ class AstribotT1AioPyRobotConfig(RobotConfig):
 
     use_videos: bool = False
     microphones: Dict[str, int] = field(default_factory=dict)
-
-
-@RobotConfig.register_subclass("astribott1_aio_sharpa_py")
-@dataclass
-class AstribotT1AioSharpaPyRobotConfig(AstribotT1AioPyRobotConfig):
-    """AstriBot T1 AIO + Sharpa Wave 灵巧手（22 DoF/手）。"""
-
-    record_parts: List[str] = field(
-        default_factory=lambda: [
-            "arm_left", "arm_right", "head", "torso", "chassis",
-        ]
-    )
-    sharpa_hands: SharpaHandsConfig = field(default_factory=SharpaHandsConfig)
 
