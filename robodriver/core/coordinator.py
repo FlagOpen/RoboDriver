@@ -214,13 +214,24 @@ class Coordinator:
                 await self.send_response("finish_collection", "fail")
                 return
 
+            if self.record is None or not self.recording:
+                await self.send_response("finish_collection", "fail", {"error": "当前没有进行中的采集"})
+                return
+
             if not self.saveing and self.record.save_data is None:
                 # 如果不在保存状态，立即停止记录并保存
                 self.saveing = True
-                self.record.stop()
-                self.record.save()
-                self.recording = False
-                self.saveing = False
+                try:
+                    self.record.stop()
+                    self.record.save()
+                    self.recording = False
+                except Exception as exc:
+                    logger.exception("完成采集失败")
+                    self.recording = False
+                    await self.send_response("finish_collection", "fail", {"error": str(exc)})
+                    return
+                finally:
+                    self.saveing = False
 
             # 如果正在保存，循环等待直到 self.record.save_data 有数据
             while self.saveing:
@@ -608,17 +619,27 @@ class Coordinator:
             logger.error(f"同步流信息异常: {e}")
 
     async def update_stream_async(self, name, frame):
-        _, jpeg = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        # JPEG encoding is CPU-bound; do not block the control event loop.
+        success, jpeg = await asyncio.to_thread(
+            cv2.imencode, ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+        )
+        if not success:
+            logger.warning("Could not encode preview frame: %s", name)
+            return
+        await self.update_stream_jpeg_async(name, jpeg.tobytes())
+
+    async def update_stream_jpeg_async(self, name: str, jpeg: bytes) -> None:
+        """Upload an already encoded JPEG preview; recording never uses this path."""
         url = f"{self.server_url}/robot/update_stream/{self.cameras[name]}"
         try:
-            # 超时给短一点，丢几帧对视频流影响不大
+            # Five cameras may compete for server connections; 0.2s was too short.
             async with self.session.post(
-                url, data=jpeg.tobytes(), timeout=aiohttp.ClientTimeout(total=0.2)
+                url, data=jpeg, timeout=aiohttp.ClientTimeout(total=1.0)
             ) as resp:
                 if resp.status != 200:
                     txt = await resp.text()
                     logger.error(f"Server error {resp.status}: {txt}")
-        except asyncio.TimeoutError:
-            logger.warning("update_stream timeout")
+        except (asyncio.TimeoutError, aiohttp.ServerTimeoutError):
+            logger.warning("update_stream timeout (camera=%s, HTTP response exceeded 1s)", name)
         except Exception as e:
-            logger.error("update_stream exception:", e)
+            logger.error("update_stream exception (camera=%s): %s", name, e)

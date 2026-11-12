@@ -9,8 +9,6 @@ import numpy as np
 logger = logging_mp.get_logger(__name__)
 
 CONNECT_TIMEOUT_FRAME = 10
-# action 话题无数据时的填充值；-1 与真实指令可区分
-NO_ACTION_FILL = -1.0
 
 
 def _load_sdk():
@@ -93,8 +91,12 @@ class AstribotT1AioPyNode:
         self.recv_images_status: Dict[str, int] = {}
         self.recv_follower: Dict[str, List[float]] = {}
         self.recv_follower_status: Dict[str, int] = {}
+        self.recv_follower_ts: Dict[str, float] = {}   # 各部件最后一次写入的单调时间戳
+        self.recv_follower_count: Dict[str, int] = {}  # ROS 回调实际写入次数
         self.recv_leader: Dict[str, List[float]] = {}
         self.recv_leader_status: Dict[str, int] = {}
+        self.recv_leader_count: Dict[str, int] = {}
+        self.recv_leader_ts: Dict[str, float] = {}
 
         # 关节元数据
         self.dof: Dict[str, int] = {}
@@ -278,6 +280,8 @@ class AstribotT1AioPyNode:
             self.recv_follower[part] = positions
             self.recv_follower_status[part] = CONNECT_TIMEOUT_FRAME
             self.dof[part] = len(positions)
+            self.recv_follower_ts[part] = time.monotonic()
+            self.recv_follower_count[part] = self.recv_follower_count.get(part, 0) + 1
 
     def _on_action(self, part: str, msg) -> None:
         # command_forward.command = [position, velocity, torque] 拼接，取前 1/3
@@ -286,6 +290,8 @@ class AstribotT1AioPyNode:
         with self.lock:
             self.recv_leader[part] = command[:n]
             self.recv_leader_status[part] = CONNECT_TIMEOUT_FRAME
+            self.recv_leader_count[part] = self.recv_leader_count.get(part, 0) + 1
+            self.recv_leader_ts[part] = time.monotonic()
 
 
     # ==================== 相机 ====================

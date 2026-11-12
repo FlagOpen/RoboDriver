@@ -114,6 +114,17 @@ class Record:
         self.last_record_episode_index = 0
         self.record_complete = False
         self.save_data = None
+        self._last_record_observation_sequence = None
+        self._last_record_action_sequence = None
+        self._record_sample_count = 0
+        self._reused_observation_count = 0
+        self._reused_action_count = 0
+        self.frame_count = 0
+        self.record_error: Exception | None = None
+        self._astribot_joints = robot.robot_type.startswith("astribott1_aio_") and teleop is None
+        self._last_joint_counts: dict[str, int] = {}
+        self._joint_cache_reuse: dict[str, int] = {}
+        self._rate_start = time.monotonic()
 
         self.record_cfg.record_cmd = record_cmd
 
@@ -180,16 +191,49 @@ class Record:
         self.running = True
 
     def start(self):
+        self._rate_start = time.monotonic()
         self.thread.start()
         self.running = True
 
     def process(self):
-        while self.running:
-            if self.dataset is not None:
+        try:
+            while self.running:
+                if self.dataset is None:
+                    break
                 start_loop_t = time.perf_counter()
 
-                observation = self.daemon.get_observation()
-                action = self.daemon.get_obs_action()
+                observation, action, obs_seq, action_seq = self.daemon.get_record_snapshot()
+                if self._astribot_joints and observation is not None and action is not None:
+                    joint_observation, joint_action, joint_counts = self.robot.get_record_joints()
+                    observation.update(joint_observation)
+                    action.update(joint_action)
+                    for part, count in joint_counts.items():
+                        if self._last_joint_counts.get(part) == count:
+                            self._joint_cache_reuse[part] = self._joint_cache_reuse.get(part, 0) + 1
+                        self._last_joint_counts[part] = count
+                if self._last_record_observation_sequence == obs_seq:
+                    self._reused_observation_count += 1
+                if self._last_record_action_sequence == action_seq:
+                    self._reused_action_count += 1
+                self._last_record_observation_sequence = obs_seq
+                self._last_record_action_sequence = action_seq
+                self._record_sample_count += 1
+                if self._record_sample_count % 200 == 0:
+                    elapsed = time.monotonic() - self._rate_start
+                    logger.info(
+                        "[录制采样] 目标=%sHz, 当前约=%.1fHz; %d次读取: daemon图像/观测缓存复用=%d, daemon动作缓存复用=%d, ROS关节无新消息=%s",
+                        self.fps,
+                        self._record_sample_count / elapsed if elapsed > 0 else 0.0,
+                        self._record_sample_count,
+                        self._reused_observation_count,
+                        self._reused_action_count,
+                        dict(self._joint_cache_reuse) if self._astribot_joints else "未单独采样",
+                    )
+                    self._record_sample_count = 0
+                    self._reused_observation_count = 0
+                    self._reused_action_count = 0
+                    self._joint_cache_reuse.clear()
+                    self._rate_start = time.monotonic()
 
                 # logger.info(f"observation: {observation} \n action:{action}")
 
@@ -207,19 +251,33 @@ class Record:
                     "task": self.record_cfg.single_task,
                 }
                 self.dataset.add_frame(frame)
+                self.frame_count += 1
 
                 dt_s = time.perf_counter() - start_loop_t
 
                 if self.fps is not None:
                     busy_wait(1 / self.fps - dt_s)
+        except Exception as exc:
+            self.record_error = exc
+            self.running = False
+            logger.exception("录制线程写帧失败（已保存原始异常）")
 
     def stop(self):
-        if self.running == True:
-            self.running = False
+        self.running = False
+        if self.thread.ident is not None:
             self.thread.join()
+        if self.dataset is not None:
             self.dataset.stop_audio_writer()
 
     def save(self) -> dict:
+        if self.thread.is_alive():
+            raise RuntimeError("录制线程尚未停止，不能保存 episode")
+        if self.record_error is not None:
+            raise RuntimeError(
+                f"录制线程写帧失败: {type(self.record_error).__name__}: {self.record_error}"
+            ) from self.record_error
+        if self.frame_count == 0:
+            raise ValueError("本次采集没有成功写入任何帧，请确认采集已启动及相机/action 数据就绪")
         print("will save_episode")
 
         episode_index = self.dataset.save_episode()

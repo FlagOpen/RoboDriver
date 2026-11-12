@@ -16,6 +16,8 @@ from .sharpa_hand import SharpaHands
 
 
 logger = logging_mp.get_logger(__name__)
+# command_forward 在停止遥操作后可能不再发布；超过此窗口按当前 obs 记录。
+ACTION_STALE_S = 0.2
 
 
 class AstribotT1AioPyRobot(Robot):
@@ -53,6 +55,12 @@ class AstribotT1AioPyRobot(Robot):
 
         self.connected = False
         self.logs: Dict[str, Any] = {}
+        self._obs_call_count = 0
+        self._rate_start = time.monotonic()
+        self._last_callback_counts: Dict[str, int] = {}
+        self._last_action_callback_counts: Dict[str, int] = {}
+        self._last_read_ts: Dict[str, float] = {}
+        self._new_reads: Dict[str, int] = {}
 
     # ========= features =========
 
@@ -128,6 +136,14 @@ class AstribotT1AioPyRobot(Robot):
         if missing:
             logger.warning(f"连接超时，以下相机未收到首帧: {missing}，继续启动")
 
+        # 只统计连接完成后的回调，避免 SDK/相机启动时间稀释第一段频率。
+        with self.robot_node.lock:
+            self._last_callback_counts = dict(self.robot_node.recv_follower_count)
+            self._last_action_callback_counts = dict(self.robot_node.recv_leader_count)
+            self._last_read_ts = dict(self.robot_node.recv_follower_ts)
+        self._rate_start = time.monotonic()
+        self._obs_call_count = 0
+        self._new_reads.clear()
         self.connected = True
         atexit.register(self.disconnect)
         logger.info(f"{self} connected")
@@ -162,10 +178,43 @@ class AstribotT1AioPyRobot(Robot):
         start = time.perf_counter()
         obs_dict: Dict[str, Any] = {}
 
-        # recv_follower 由 ROS spin 线程的 _on_obs 回调持续更新，直接读缓存
         node = self.robot_node
         with node.lock:
             follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            ts_snapshot = dict(node.recv_follower_ts)
+            callback_counts = dict(node.recv_follower_count)
+            action_callback_counts = dict(node.recv_leader_count)
+
+        # 回调写入计数与采集读到的新帧数分别统计；缓存覆盖的中间帧不算采集帧。
+        for part, ts in ts_snapshot.items():
+            if ts != self._last_read_ts.get(part):
+                self._new_reads[part] = self._new_reads.get(part, 0) + 1
+            self._last_read_ts[part] = ts
+        self._obs_call_count += 1
+        if self._obs_call_count >= 200:
+            now = time.monotonic()
+            elapsed = now - self._rate_start
+            if elapsed > 0:
+                callback_hz = {
+                    part: round((count - self._last_callback_counts.get(part, 0)) / elapsed, 1)
+                    for part, count in callback_counts.items()
+                }
+                read_hz = {
+                    part: round(count / elapsed, 1) for part, count in self._new_reads.items()
+                }
+                action_callback_hz = {
+                    part: round((count - self._last_action_callback_counts.get(part, 0)) / elapsed, 1)
+                    for part, count in action_callback_counts.items()
+                }
+                logger.info(
+                    "[关节频率] obs回调=%s Hz; action回调=%s Hz; 采集轮询=%.1f Hz; obs读到新帧=%s Hz",
+                    callback_hz, action_callback_hz, self._obs_call_count / elapsed, read_hz,
+                )
+            self._last_callback_counts = callback_counts
+            self._last_action_callback_counts = action_callback_counts
+            self._new_reads.clear()
+            self._obs_call_count = 0
+            self._rate_start = now
 
         for comp_name, joints in self.follower_motors.items():
             if comp_name not in self.config.record_parts:
@@ -197,24 +246,65 @@ class AstribotT1AioPyRobot(Robot):
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
         start = time.perf_counter()
-        act_dict: Dict[str, Any] = {}
-
-        # recv_leader 由 _on_action 回调更新；静止时无 command_forward，vec 为空
         node = self.robot_node
         with node.lock:
             leader_snapshot = {k: list(v) for k, v in node.recv_leader.items()}
+            follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            action_ts = dict(node.recv_leader_ts)
+        act_dict = self._action_from_snapshot(leader_snapshot, follower_snapshot, action_ts)
+        self.logs["read_action_dt_s"] = time.perf_counter() - start
+        return act_dict
 
+    def _action_from_snapshot(
+        self,
+        leader_snapshot: Dict[str, List[float]],
+        follower_snapshot: Dict[str, List[float]],
+        action_ts: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Use recent commands, falling back to measured joints when missing or stale."""
+        act_dict: Dict[str, float] = {}
+        now = time.monotonic()
         for comp_name, joints in self.leader_motors.items():
             if comp_name not in self.config.record_parts:
                 continue
             vec = leader_snapshot.get(comp_name, [])
+            if now - action_ts.get(comp_name, float('-inf')) > ACTION_STALE_S:
+                vec = []
+            obs = follower_snapshot.get(comp_name, [])
             for idx, joint_name in enumerate(joints.keys()):
-                if idx >= len(vec):
-                    break
-                act_dict[f"leader_{joint_name}.pos"] = float(vec[idx])
-
-        self.logs["read_action_dt_s"] = time.perf_counter() - start
+                if idx < len(vec):
+                    value = vec[idx]
+                elif idx < len(obs):
+                    value = obs[idx]
+                else:
+                    raise RuntimeError(f"{comp_name} 的关节 {joint_name} 无 command_forward 和 obs 数据")
+                act_dict[f"leader_{joint_name}.pos"] = float(value)
         return act_dict
+
+    def get_record_joints(self) -> tuple[Dict[str, float], Dict[str, float], Dict[str, int]]:
+        """Read ROS joint caches at the recorder's fps, independently of camera sampling."""
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        node = self.robot_node
+        with node.lock:
+            follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            leader_snapshot = {k: list(v) for k, v in node.recv_leader.items()}
+            action_ts = dict(node.recv_leader_ts)
+            obs_counts = dict(node.recv_follower_count)
+
+        observation: Dict[str, float] = {}
+        for part, joints in self.follower_motors.items():
+            if part not in self.config.record_parts:
+                continue
+            positions = follower_snapshot.get(part, [])
+            for index, name in enumerate(joints):
+                if index >= len(positions):
+                    raise RuntimeError(f"{part} 的关节 {name} 无 obs 数据")
+                observation[f"follower_{name}.pos"] = float(positions[index])
+
+        action = self._action_from_snapshot(leader_snapshot, follower_snapshot, action_ts)
+        return observation, action, obs_counts
 
     # ========= send_action =========
 

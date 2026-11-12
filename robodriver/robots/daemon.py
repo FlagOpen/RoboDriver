@@ -67,6 +67,8 @@ class Daemon:
         self.pre_action: Union[Any, Dict[str, Any]] = None
         self.obs_action: Union[Any, Dict[str, Any]] = None
         self.observation: Union[Any, Dict[str, Any]] = None
+        self.observation_sequence = 0
+        self.action_sequence = 0
         self.status: Optional[str] = None
 
         try:
@@ -134,12 +136,21 @@ class Daemon:
             if value is None:
                 return
             self.obs_action = value.copy()
+            self.action_sequence += 1
 
     def set_observation(self, value: Union[Any, Dict[str, Any]]):
         with self.data_lock:
             if value is None:
                 return
             self.observation = value.copy()
+            self.observation_sequence += 1
+
+    def get_record_snapshot(self):
+        """原子读取最近一次观测/动作及各自的更新序号。"""
+        with self.data_lock:
+            observation = self.observation.copy() if self.observation is not None else None
+            action = self.obs_action.copy() if self.obs_action is not None else None
+            return observation, action, self.observation_sequence, self.action_sequence
 
     def set_status(self, value: Optional[str]):
         with self.data_lock:
