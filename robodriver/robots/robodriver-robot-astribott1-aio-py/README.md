@@ -4,7 +4,7 @@ AstriBot T1（星动纪元）通过厂商 Python SDK `astribot_sdk` 接入 RoboD
 
 - `--robot.type=astribott1_aio_py`：原版，记录 AstriBot 自带的 1-DoF 夹爪
 - `--robot.type=astribott1_aio_sharpa_py`：叠加 Sharpa Wave 灵巧手（22 DoF/手），默认不再记录原夹爪
-- 接入类型：`py`，**不需要 ROS**（SDK 走 zenoh，仅激光雷达才依赖 `astribot_msgs`）
+- 接入类型：`py`。关节数据走 ROS2 话题，**需要 ROS**；相机、控制权、`send_action` 走 SDK（zenoh）
 
 ## 环境准备
 
@@ -69,7 +69,12 @@ python ~/astribot_examples/301-get_images.py             # 相机名与分辨率
 
 ## 启动
 
+关节走 ROS2 话题，启动前必须 source ROS 环境，否则 connect 时会因 `rclpy` /
+`astribot_msgs` 缺失而失败：
+
 ```bash
+source /opt/ros/humble/setup.bash
+source ~/astribot_sdk/ros-msgs-workspace/install/setup.bash
 source ~/RoboDriver/.venv/bin/activate
 robodriver-run --robot.type=astribott1_aio_py
 ```
@@ -174,7 +179,6 @@ robodriver-run --robot.type=astribott1_aio_sharpa_py \
 | `camera_name_map` | `image_head_left/right` 等五路 | 数据集图像 key → AstriBot 相机名；key 必须含 `image`，否则平台不识别为视频流 |
 | `camera_crops` | 头部左右目各 1280×720 | 从原始帧裁子图 `(x, y, w, h)`；头部双目原图 2560×720，按 1280 宽切成左右两目 |
 | `cameras` | 1280x720 / 640x480 | 只用于声明特征与提供视频流 id（`index_or_path` 即流号），不会打开 `/dev/video` |
-| `use_ros_joints` | `False` | 打开后关节观测/动作改从 ROS2 话题读取（相机、控制权、send_action 仍走 SDK）。见下节 |
 | `ros_domain_id` | `25` | 实测 T1 关节话题在此 domain；模块会在 `rclpy.init()` 前设置 `ROS_DOMAIN_ID` |
 | `ros_obs_suffix` | `joint_space_states` | 观测话题后缀，`/astribot_<部件>/<后缀>`，`RobotJointState.position`，BEST_EFFORT |
 | `ros_action_suffix` | `joint_space_command_forward` | 动作话题后缀；静止时该话题无数据，此时 `get_action` 回退到观测值 |
@@ -182,9 +186,9 @@ robodriver-run --robot.type=astribott1_aio_sharpa_py \
 
 数据字段命名：`follower_<部件>_joint<N>.pos`（观测）、`leader_<部件>_joint<N>.pos`（动作），单位弧度。
 
-## 关节走 ROS2 话题（可选）
+## 关节走 ROS2 话题
 
-默认关节从 SDK 读。若要从 ROS 话题读关节，加 `--robot.use_ros_joints=true`：
+关节观测与动作一律从 ROS 话题读取，启动前必须 source ROS 环境：
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -193,14 +197,14 @@ source ~/RoboDriver/.venv/bin/activate
 # 只读自检：验证 domain 25 下各部件 obs/action 话题与自由度
 python -m robodriver_robot_astribott1_aio_py.check_env_ros
 # 采集
-robodriver-run --robot.type=astribott1_aio_py --robot.use_ros_joints=true
+robodriver-run --robot.type=astribott1_aio_py
 ```
 
 - 观测 ← `/astribot_<部件>/joint_space_states`（`mode=0`），动作 ← `/astribot_<部件>/joint_space_command_forward`，消息类型为 `astribot_msgs/msg/RobotJointState` / `RobotJointController`。
 - 实测该消息 `name` 字段恒为空，关节名由本包按「部件 + 序号」生成，命名与 SDK 版一致，数据集 schema 不变。
 - `record_parts` 里的 `effector_left/right` 会自动映射到话题名 `astribot_gripper_left/right`。
 - **QoS**：`joint_space_states` 是 BEST_EFFORT，本包用 `qos_profile_sensor_data` 订阅；`command_recv` 是 RELIABLE。若换成默认 reliable 订阅 states 会静默收不到。
-- 相机、控制权抢占、`send_action` 仍走 SDK，本开关只切换关节数据来源。
+- 只有关节数据走 ROS；相机、控制权抢占、`send_action` 仍走 SDK。
 - `joint_space_command_forward` 只在有外部指令时发布，机器人静止时零帧；此时 `get_action` 回退为观测值（AIO 下 desired≈current）。如需改用 `command_recv`，设 `--robot.ros_action_suffix=joint_space_command_recv`。
 
 ## 真机实测结果（Astribot T1，SDK 3.1.2，RoboDriver 单环境）
