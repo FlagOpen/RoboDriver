@@ -1,4 +1,5 @@
 import asyncio
+import time
 from dataclasses import asdict, dataclass
 from pprint import pformat
 from typing import List
@@ -27,6 +28,18 @@ from robodriver.utils.utils import git_branch_log
 
 logging_mp.basic_config(level=logging_mp.INFO)
 logger = logging_mp.get_logger(__name__)
+
+async def upload_rgb_preview(coordinator: Coordinator, name: str, image) -> None:
+    """Convert RGB to BGR and upload using the existing CPU JPEG preview path."""
+    bgr = await asyncio.to_thread(cv2.cvtColor, image, cv2.COLOR_RGB2BGR)
+    await coordinator.update_stream_async(name, bgr)
+
+
+def preview_task_done(task: asyncio.Task) -> None:
+    if not task.cancelled():
+        error = task.exception()
+        if error is not None:
+            logger.warning("Web preview upload failed: %s", error)
 
 
 @dataclass
@@ -89,9 +102,17 @@ async def async_main(cfg: ControlPipelineConfig):
     disturbance.start()
     if teleop is not None:
         teleop.connect()
+
+    astribot_preview = cfg.robot.type.startswith("astribott1_aio_")
+    preview_tasks: dict[str, asyncio.Task] = {}
+    loop_count = 0
+    loop_started_at = time.monotonic()
+    update_duration = 0.0
+    preview_duration = 0.0
         
     try:
         while True:
+            tick_start = time.monotonic()
             daemon.update()
             observation = daemon.get_observation()
 
@@ -113,6 +134,33 @@ async def async_main(cfg: ControlPipelineConfig):
             if sim is not None:
                 sim.send_action(action, prefix="leader_", suffix=".pos")
                 observation_sim = sim.get_render_image()
+
+            update_duration += time.monotonic() - tick_start
+            preview_start = time.monotonic()
+            if astribot_preview:
+                if observation is not None:
+                    for key, image in observation.items():
+                        if "image" in key and "depth" not in key:
+                            previous = preview_tasks.get(key)
+                            if previous is None or previous.done():
+                                task = asyncio.create_task(upload_rgb_preview(coordinator, key, image))
+                                task.add_done_callback(preview_task_done)
+                                preview_tasks[key] = task
+                preview_duration += time.monotonic() - preview_start
+                loop_count += 1
+                if loop_count >= 200:
+                    elapsed = time.monotonic() - loop_started_at
+                    logger.info(
+                        "[主循环耗时] %.1fHz; 采集/动作 %.1fms; 预览调度 %.1fms",
+                        loop_count / elapsed, update_duration * 1000 / loop_count,
+                        preview_duration * 1000 / loop_count,
+                    )
+                    loop_count = 0
+                    loop_started_at = time.monotonic()
+                    update_duration = 0.0
+                    preview_duration = 0.0
+                await asyncio.sleep(0)
+                continue
 
             tasks = []
             if observation is not None:
@@ -145,6 +193,10 @@ async def async_main(cfg: ControlPipelineConfig):
     except KeyboardInterrupt:
         logger.info("coordinator and daemon stop")
     finally:
+        for task in preview_tasks.values():
+            task.cancel()
+        if preview_tasks:
+            await asyncio.gather(*preview_tasks.values(), return_exceptions=True)
         daemon.stop()
         disturbance.stop()
         if sim is not None:

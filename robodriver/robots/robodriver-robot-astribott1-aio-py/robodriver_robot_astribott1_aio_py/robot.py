@@ -11,25 +11,12 @@ from lerobot.robots.robot import Robot
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from .config import AstribotT1AioPyRobotConfig
+from .node import AstribotT1AioPyNode
 
 
 logger = logging_mp.get_logger(__name__)
-
-
-def load_astribot_sdk():
-    try:
-        from astribot_sdk import Astribot, AstribotCamera
-    except ImportError as e:
-        raise ImportError(
-            "找不到 astribot_sdk。请先按本包 README 的「环境准备」安装厂商 wheel，"
-            "并在启动 robodriver-run 前 source ~/astribot_examples/astribot_env.sh。"
-        ) from e
-    return Astribot, AstribotCamera
-
-
-def _keep_frame_cached(topic_name, msg, width, height, array):
-    """SDK 只缓存已订阅相机的图像，注册回调本身即为目的，不处理返回值。"""
-    return None
+# command_forward 在停止遥操作后可能不再发布；超过此窗口按当前 obs 记录。
+ACTION_STALE_S = 0.2
 
 
 class AstribotT1AioPyRobot(Robot):
@@ -42,150 +29,123 @@ class AstribotT1AioPyRobot(Robot):
         self.robot_type = config.type
         self.use_videos = config.use_videos
         self.microphones = config.microphones
+
+        self.leader_motors = config.leader_motors
+        self.follower_motors = config.follower_motors
         self.cameras = make_cameras_from_configs(config.cameras)
         self.connect_excluded_cameras: List[str] = []
 
-        self._astribot = None
-        self._camera = None
-        self._cam_handles: Dict[str, Any] = {}
-        self._joint_names: List[str] = []
-        self._dof: Dict[str, int] = {}
-        self._shutdown_done = False
+        # 通信节点（start() 在 connect() 时调用）
+        self.robot_node = AstribotT1AioPyNode(
+            record_parts=config.record_parts,
+            camera_name_map=config.camera_name_map,
+            camera_crops=config.camera_crops,
+            ip=config.ip,
+            node_name=config.node_name,
+            ros_domain_id=config.ros_domain_id,
+            ros_wait_first_frame_s=config.ros_wait_first_frame_s,
+            camera_timeout=config.camera_timeout,
+            control_mode=config.control_mode,
+            takeover_priority=config.takeover_priority,
+            takeover_sub_priority=config.takeover_sub_priority,
+            force_takeover=config.force_takeover,
+            control_parts=config.control_parts,
+        )
+
         self.connected = False
-        self.logs = {}
-
-    # ========= 部件与关节名 =========
-
-    def _sdk_part_names(self) -> List[str]:
-        return [getattr(self._astribot, f"{part}_name") for part in self.config.record_parts]
-
-    def _build_joint_index(self, positions: List[List[float]]) -> None:
-        self._joint_names = []
-        self._dof = {}
-        for part, joints in zip(self.config.record_parts, positions):
-            self._dof[part] = len(joints)
-            self._joint_names += [f"{part}_joint{i + 1}" for i in range(len(joints))]
-        logger.info(f"AstriBot 部件自由度: {self._dof}")
-
-    def _require_connected(self) -> None:
-        if not self.connected:
-            raise DeviceNotConnectedError(f"{self} is not connected. You need to run `robot.connect()`.")
+        self.logs: Dict[str, Any] = {}
+        self._obs_call_count = 0
+        self._rate_start = time.monotonic()
+        self._last_callback_counts: Dict[str, int] = {}
+        self._last_action_callback_counts: Dict[str, int] = {}
+        self._last_read_ts: Dict[str, float] = {}
+        self._new_reads: Dict[str, int] = {}
 
     # ========= features =========
 
     @property
     def _follower_motors_ft(self) -> Dict[str, type]:
-        return {f"follower_{name}.pos": float for name in self._joint_names}
+        """follower 关节特征：按 record_parts 过滤后的关节名生成。"""
+        return {
+            f"follower_{joint_name}.pos": float
+            for comp_name, joints in self.follower_motors.items()
+            for joint_name in joints.keys()
+            if comp_name in self.config.record_parts
+        }
 
     @property
     def _leader_motors_ft(self) -> Dict[str, type]:
-        return {f"leader_{name}.pos": float for name in self._joint_names}
+        return {
+            f"leader_{joint_name}.pos": float
+            for comp_name, joints in self.leader_motors.items()
+            for joint_name in joints.keys()
+            if comp_name in self.config.record_parts
+        }
 
     @property
     def _cameras_ft(self) -> Dict[str, tuple]:
         return {
-            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3)
+            cam: (
+                self.config.cameras[cam].height,
+                self.config.cameras[cam].width,
+                3,
+            )
             for cam in self.cameras
             if cam in self.config.camera_name_map
         }
 
     @cached_property
     def observation_features(self) -> Dict[str, Any]:
-        if not self._joint_names:
-            raise RuntimeError("observation_features 需要在 connect() 之后访问（关节数量由机器人上报）")
         return {**self._follower_motors_ft, **self._cameras_ft}
 
     @cached_property
     def action_features(self) -> Dict[str, Any]:
-        if not self._joint_names:
-            raise RuntimeError("action_features 需要在 connect() 之后访问（关节数量由机器人上报）")
         return self._leader_motors_ft
-
-    # ========= connect / disconnect =========
 
     @property
     def is_connected(self) -> bool:
         return self.connected
 
+    # ========= connect / disconnect =========
+
     def connect(self, calibrate: bool = True) -> None:
         if self.connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
-        Astribot, AstribotCamera = load_astribot_sdk()
+        self.robot_node.start()
+
+        # 等待相机图像就绪
+        timeout = self.config.camera_timeout
         start_time = time.perf_counter()
+        while time.perf_counter() - start_time < timeout:
+            if all(
+                name in self.robot_node.recv_images
+                for name in self.config.camera_name_map
+                if name not in self.connect_excluded_cameras
+            ):
+                break
+            time.sleep(0.1)
 
-        self._astribot = Astribot(
-            freq=self.config.freq,
-            ip=self.config.ip,
-            node_name=self.config.node_name,
-            remote_wbc=self.config.remote_wbc,
-        )
-        self._build_joint_index(
-            self._astribot.get_current_joints_position(names=self._sdk_part_names())
-        )
+        missing = [
+            name
+            for name in self.config.camera_name_map
+            if name not in self.robot_node.recv_images
+            and name not in self.connect_excluded_cameras
+        ]
+        if missing:
+            logger.warning(f"连接超时，以下相机未收到首帧: {missing}，继续启动")
 
-        if self.config.move_to_home_on_connect:
-            logger.info("移动 AstriBot 到 home 位")
-            self._astribot.move_to_home(duration=self.config.home_duration)
-
-        if self.config.camera_name_map:
-            self._camera = AstribotCamera(ip=self.config.ip, timeout=self.config.camera_timeout)
-            if not self._camera.activate_camera():
-                raise RuntimeError("激活 AstriBot 相机服务失败，请确认 meta_camera 是否在机器人端运行")
-            if not self._camera.wait_for_frame(timeout=self.config.camera_timeout):
-                raise TimeoutError(
-                    f"{self.config.camera_timeout} 秒内未收到相机数据，机器人可用相机: {self._camera.camera_names()}"
-                )
-
-            available = self._camera.camera_names()
-            missing = [name for name in self.config.camera_name_map.values() if name not in available]
-            if missing:
-                raise RuntimeError(
-                    f"配置的相机名 {missing} 在机器人上不存在，实际可用相机: {available}"
-                )
-            logger.info(f"AstriBot 相机就绪: {available}")
-
-            for camera_name in self.config.camera_name_map.values():
-                self._cam_handles[camera_name] = self._camera.register_image_callback(
-                    camera_name, "color", _keep_frame_cached
-                )
-
+        # 只统计连接完成后的回调，避免 SDK/相机启动时间稀释第一段频率。
+        with self.robot_node.lock:
+            self._last_callback_counts = dict(self.robot_node.recv_follower_count)
+            self._last_action_callback_counts = dict(self.robot_node.recv_leader_count)
+            self._last_read_ts = dict(self.robot_node.recv_follower_ts)
+        self._rate_start = time.monotonic()
+        self._obs_call_count = 0
+        self._new_reads.clear()
         self.connected = True
-        self._shutdown_done = False
-        # run.py 不会调用 robot.disconnect()，而 SDK 只靠 __del__ 收尾时会在进程退出处 SIGABRT
-        atexit.register(self._shutdown_for_exit)
-        logger.info(f"{self} 连接成功，耗时 {time.perf_counter() - start_time:.2f} 秒")
-
-    def _shutdown_for_exit(self) -> None:
-        if self.connected:
-            self.disconnect()
-
-    def disconnect(self) -> None:
-        if self._shutdown_done:
-            return
-        self._shutdown_done = True
-
-        if not self.connected:
-            return
-
-        if self._camera is not None:
-            for handle in self._cam_handles.values():
-                self._camera.unregister_callback(handle)
-        self._cam_handles = {}
-
-        if self._camera is not None:
-            # 取过帧后必须先关相机再关 Astribot，否则 SDK 退出时 SIGABRT
-            self._camera.deactivate_camera()
-            self._camera.shutdown()
-        if self._astribot is not None:
-            self._astribot.release_control()
-            self._astribot.shutdown()
-
-        self._camera = None
-        self._astribot = None
-        self.connected = False
-
-    # ========= 校准与配置 =========
+        atexit.register(self.disconnect)
+        logger.info(f"{self} connected")
 
     @property
     def is_calibrated(self) -> bool:
@@ -197,62 +157,183 @@ class AstribotT1AioPyRobot(Robot):
     def configure(self) -> None:
         pass
 
-    # ========= 数据读写 =========
-
-    def get_observation(self) -> Dict[str, Any]:
-        self._require_connected()
-
-        start = time.perf_counter()
-        positions = self._astribot.get_current_joints_position(names=self._sdk_part_names())
-        obs = {
-            f"follower_{name}.pos": float(value)
-            for name, value in zip(self._joint_names, np.concatenate([np.asarray(p, dtype=float) for p in positions]))
-        }
-        self.logs["read_joints_dt_s"] = time.perf_counter() - start
-
-        if self._camera is not None:
-            start = time.perf_counter()
-            colors = self._camera.get_all_color()
-            for image_key, camera_name in self.config.camera_name_map.items():
-                if image_key in self.connect_excluded_cameras:
-                    continue
-                frame = colors.get(camera_name)
-                if frame is None:
-                    logger.warning(f"相机 {camera_name} 本帧无数据")
-                    continue
-                # 实测 AstriBot SDK 返回 BGR，而 LeRobot/推流按 RGB 约定，需翻转并保持连续内存
-                obs[image_key] = np.ascontiguousarray(np.asarray(frame)[:, :, ::-1])
-            self.logs["read_cameras_dt_s"] = time.perf_counter() - start
-
-        return obs
-
-    def get_action(self) -> Dict[str, Any]:
-        """AIO 机型自带遥操作，desired 关节角即为本次采集要记录的 action。"""
-        self._require_connected()
-
-        positions = self._astribot.get_desired_joints_position(names=self._sdk_part_names())
-        return {
-            f"leader_{name}.pos": float(value)
-            for name, value in zip(self._joint_names, np.concatenate([np.asarray(p, dtype=float) for p in positions]))
-        }
-
-    def send_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
-        self._require_connected()
-
-        grouped: Dict[str, List[float]] = {part: [] for part in self.config.record_parts}
-        for name in self._joint_names:
-            key = f"leader_{name}.pos"
-            if key not in action:
-                raise KeyError(f"action 缺少 {key}")
-            part = name.rsplit("_joint", 1)[0]
-            grouped[part].append(float(action[key]))
-
-        names = self._sdk_part_names()
-        commands = [grouped[part] for part in self.config.record_parts]
-        self._astribot.set_joints_position(names=names, position=commands, dt=1.0 / self.config.freq)
-
-        return {name.replace("leader_", ""): value for name, value in action.items()}
+    def disconnect(self) -> None:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+        self.robot_node.stop()
+        self.connected = False
+        logger.info(f"{self} disconnected")
 
     def __del__(self):
         if getattr(self, "connected", False):
             self.disconnect()
+
+    # ========= obs / action =========
+
+    def get_observation(self) -> Dict[str, Any]:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        start = time.perf_counter()
+        obs_dict: Dict[str, Any] = {}
+
+        node = self.robot_node
+        with node.lock:
+            follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            ts_snapshot = dict(node.recv_follower_ts)
+            callback_counts = dict(node.recv_follower_count)
+            action_callback_counts = dict(node.recv_leader_count)
+
+        # 回调写入计数与采集读到的新帧数分别统计；缓存覆盖的中间帧不算采集帧。
+        for part, ts in ts_snapshot.items():
+            if ts != self._last_read_ts.get(part):
+                self._new_reads[part] = self._new_reads.get(part, 0) + 1
+            self._last_read_ts[part] = ts
+        self._obs_call_count += 1
+        if self._obs_call_count >= 200:
+            now = time.monotonic()
+            elapsed = now - self._rate_start
+            if elapsed > 0:
+                callback_hz = {
+                    part: round((count - self._last_callback_counts.get(part, 0)) / elapsed, 1)
+                    for part, count in callback_counts.items()
+                }
+                read_hz = {
+                    part: round(count / elapsed, 1) for part, count in self._new_reads.items()
+                }
+                action_callback_hz = {
+                    part: round((count - self._last_action_callback_counts.get(part, 0)) / elapsed, 1)
+                    for part, count in action_callback_counts.items()
+                }
+                logger.info(
+                    "[关节频率] obs回调=%s Hz; action回调=%s Hz; 采集轮询=%.1f Hz; obs读到新帧=%s Hz",
+                    callback_hz, action_callback_hz, self._obs_call_count / elapsed, read_hz,
+                )
+            self._last_callback_counts = callback_counts
+            self._last_action_callback_counts = action_callback_counts
+            self._new_reads.clear()
+            self._obs_call_count = 0
+            self._rate_start = now
+
+        for comp_name, joints in self.follower_motors.items():
+            if comp_name not in self.config.record_parts:
+                continue
+            vec = follower_snapshot.get(comp_name, [])
+            for idx, joint_name in enumerate(joints.keys()):
+                if idx >= len(vec):
+                    break
+                obs_dict[f"follower_{joint_name}.pos"] = float(vec[idx])
+
+        self.logs["read_joints_dt_s"] = time.perf_counter() - start
+
+        start = time.perf_counter()
+        with node.lock:
+            images_snapshot = {k: v for k, v in node.recv_images.items()}
+
+        for image_key in self.config.camera_name_map:
+            frame = images_snapshot.get(image_key)
+            if frame is None:
+                logger.warning(f"相机 {image_key} 本帧无数据")
+                continue
+            obs_dict[image_key] = frame
+        self.logs["read_cameras_dt_s"] = time.perf_counter() - start
+
+        return obs_dict
+
+    def get_action(self) -> Dict[str, Any]:
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        start = time.perf_counter()
+        node = self.robot_node
+        with node.lock:
+            leader_snapshot = {k: list(v) for k, v in node.recv_leader.items()}
+            follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            action_ts = dict(node.recv_leader_ts)
+        act_dict = self._action_from_snapshot(leader_snapshot, follower_snapshot, action_ts)
+        self.logs["read_action_dt_s"] = time.perf_counter() - start
+        return act_dict
+
+    def _action_from_snapshot(
+        self,
+        leader_snapshot: Dict[str, List[float]],
+        follower_snapshot: Dict[str, List[float]],
+        action_ts: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Use recent commands, falling back to measured joints when missing or stale."""
+        act_dict: Dict[str, float] = {}
+        now = time.monotonic()
+        for comp_name, joints in self.leader_motors.items():
+            if comp_name not in self.config.record_parts:
+                continue
+            vec = leader_snapshot.get(comp_name, [])
+            if now - action_ts.get(comp_name, float('-inf')) > ACTION_STALE_S:
+                vec = []
+            obs = follower_snapshot.get(comp_name, [])
+            for idx, joint_name in enumerate(joints.keys()):
+                if idx < len(vec):
+                    value = vec[idx]
+                elif idx < len(obs):
+                    value = obs[idx]
+                else:
+                    raise RuntimeError(f"{comp_name} 的关节 {joint_name} 无 command_forward 和 obs 数据")
+                act_dict[f"leader_{joint_name}.pos"] = float(value)
+        return act_dict
+
+    def get_record_joints(self) -> tuple[Dict[str, float], Dict[str, float], Dict[str, int]]:
+        """Read ROS joint caches at the recorder's fps, independently of camera sampling."""
+        if not self.connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        node = self.robot_node
+        with node.lock:
+            follower_snapshot = {k: list(v) for k, v in node.recv_follower.items()}
+            leader_snapshot = {k: list(v) for k, v in node.recv_leader.items()}
+            action_ts = dict(node.recv_leader_ts)
+            obs_counts = dict(node.recv_follower_count)
+
+        observation: Dict[str, float] = {}
+        for part, joints in self.follower_motors.items():
+            if part not in self.config.record_parts:
+                continue
+            positions = follower_snapshot.get(part, [])
+            for index, name in enumerate(joints):
+                if index >= len(positions):
+                    raise RuntimeError(f"{part} 的关节 {name} 无 obs 数据")
+                observation[f"follower_{name}.pos"] = float(positions[index])
+
+        action = self._action_from_snapshot(leader_snapshot, follower_snapshot, action_ts)
+        return observation, action, obs_counts
+
+    # ========= send_action =========
+
+    def send_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        """下发关节位置指令（仅对 control_parts 中的部件生效）。"""
+        if not self.is_connected:
+            raise DeviceNotConnectedError(
+                f"{self} is not connected. You need to run `robot.connect()`."
+            )
+
+        parts = [p for p in self.config.record_parts if p in self.config.control_parts]
+        grouped: Dict[str, List[float]] = {part: [] for part in parts}
+
+        for comp_name, joints in self.leader_motors.items():
+            if comp_name not in parts:
+                continue
+            for joint_name in joints.keys():
+                key = f"leader_{joint_name}.pos"
+                if key not in action:
+                    raise KeyError(f"action 缺少 {key}")
+                grouped[comp_name].append(float(action[key]))
+
+        if not parts:
+            return {}
+
+        self.robot_node.send_joints(
+            grouped=grouped,
+            control_parts=parts,
+            freq=self.config.freq,
+        )
+
+        return {name.replace("leader_", ""): value for name, value in action.items()}
+
